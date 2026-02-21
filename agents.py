@@ -213,8 +213,21 @@ def social_sentiment_agent(ticker):
         return json.dumps({"content": content, "citations": []})
 
 def dividend_agent(ticker, shares, years):
-    prompt = f"Analyze {ticker} dividends for {shares} shares over {years} years. NOTE: The share count ({shares}) may be a fractional number; ensure all calculations for annual payouts and cumulative totals reflect this exact fractional amount. FORMAT THE DIVIDEND PROJECTION AS A MARKDOWN TABLE. EACH YEAR MUST BE ON ITS OWN ROW. Example:\n| Year | Dividend Per Share | Annual Payout ({shares} Shares) | Cumulative Total |\n|:--- | :--- | :--- | :--- |\n| Year 1 | $1.00 | ${format(1.0 * shares, '.2f')} | ${format(1.0 * shares, '.2f')} |\n\nIf it is a dividend-paying stock, you MUST explicitly state the final 'Estimated Cumulative Total' at the end of your summary analysis. Return your response as a JSON object with these keys: isDividendStock (boolean), hasDividendHistory (boolean), analysis (string containing your markdown table and summary)."
-    system = "Dividend specialist. Determine if stock pays dividends now or ever. Provide concise projection if active. ALWAYS use a markdown table for projections. Ensure the table is legible with clear headers and one row per year. Account for fractional shares in all calculations. Explicitly highlight the final cumulative total in the summary."
+    prompt = f"""Analyze {ticker} dividends for {shares} shares over {years} years. 
+    
+    CALCULATION RULES:
+    1. Annual Payout = (Dividend Per Share) * {shares}.
+    2. Cumulative Total (Year N) = The running sum of all Annual Payouts from Year 1 up to Year N.
+    3. Ensure all calculations reflect the exact fractional share count: {shares}.
+    
+    REQUIRED FORMAT:
+    1. Provide a Markdown table with columns: | Year | Dividend Per Share | Annual Payout | Cumulative Total |
+    2. Each year must be on its own row.
+    3. If it is a dividend-paying stock, you MUST explicitly state the final 'Estimated Cumulative Total' (the sum of all payouts over the {years} year period) at the end of your summary analysis.
+    
+    Return your response as a JSON object with these keys: isDividendStock (boolean), hasDividendHistory (boolean), analysis (string containing your markdown table and summary)."""
+    
+    system = "Dividend specialist. Determine if stock pays dividends now or ever. Provide concise projection if active. ALWAYS use a markdown table for projections. Ensure the table is legible with clear headers and one row per year. Account for fractional shares in all calculations. The 'Cumulative Total' column must be a running sum of all previous years' payouts."
     
     schema = {
         "type": "OBJECT",
