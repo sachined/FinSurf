@@ -21,7 +21,8 @@ import {
   Eye,
   CheckCircle2,
   Clock,
-  XCircle
+  XCircle,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -115,6 +116,18 @@ export default function App() {
     handleResearch();
     handleTax();
     handleDividend();
+  };
+
+  const handleClear = () => {
+    setTicker('');
+    setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
+    setSellDate(format(new Date(), 'yyyy-MM-dd'));
+    setShares('10');
+    setResponses({
+      research: null,
+      tax: null,
+      dividend: null
+    });
   };
 
   return (
@@ -219,6 +232,14 @@ export default function App() {
                 >
                   {Object.values(loading).some(v => v) ? <Loader2 className="animate-spin" size={18} /> : <ArrowRight size={18} />}
                   Surf
+                </button>
+                <button 
+                  onClick={handleClear}
+                  disabled={Object.values(loading).some(v => v)}
+                  className="p-2.5 rounded-2xl border border-cyan-100 dark:border-cyan-900 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-all disabled:opacity-50"
+                  title="Clear All"
+                >
+                  <RotateCcw size={18} />
                 </button>
               </div>
             </div>
