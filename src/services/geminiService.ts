@@ -15,7 +15,10 @@ export const researchAgent = async (ticker: string): Promise<AgentResponse> => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticker }),
   });
-  if (!response.ok) throw new Error("Backend error");
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Backend error");
+  }
   return response.json();
 };
 
@@ -25,7 +28,10 @@ export const taxAgent = async (ticker: string, purchaseDate: string, sellDate: s
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticker, purchaseDate, sellDate }),
   });
-  if (!response.ok) throw new Error("Backend error");
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Backend error");
+  }
   return response.json();
 };
 
@@ -35,6 +41,9 @@ export const dividendAgent = async (ticker: string, shares: number, years: numbe
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticker, shares, years }),
   });
-  if (!response.ok) throw new Error("Backend error");
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Backend error");
+  }
   return response.json();
 };
