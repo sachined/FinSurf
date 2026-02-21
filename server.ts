@@ -27,7 +27,16 @@ async function startServer() {
         console.error(`Exec error: ${error}`);
         return res.status(500).json({ error: stderr || error.message });
       }
-      res.json({ content: stdout.trim(), agentName: "Research Analyst" });
+      try {
+        const data = JSON.parse(stdout);
+        res.json({ 
+          content: data.content, 
+          agentName: "Research Analyst",
+          sources: data.citations.map((url: string) => ({ title: new URL(url).hostname, uri: url }))
+        });
+      } catch (e) {
+        res.json({ content: stdout.trim(), agentName: "Research Analyst" });
+      }
     });
   });
 
@@ -62,6 +71,27 @@ async function startServer() {
       } catch (e) {
         console.error(`Parse error: ${e}. Output: ${stdout}`);
         res.status(500).json({ error: "Failed to parse Python output", details: stdout });
+      }
+    });
+  });
+
+  app.post("/api/sentiment", (req, res) => {
+    const { ticker } = req.body;
+    console.log(`Sentiment analysis: ${ticker}`);
+    exec(`python3 agents.py sentiment "${ticker}"`, { env: process.env }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Exec error: ${error}`);
+        return res.status(500).json({ error: stderr || error.message });
+      }
+      try {
+        const data = JSON.parse(stdout);
+        res.json({ 
+          content: data.content, 
+          agentName: "Social Sentiment Analyst",
+          sources: data.citations.map((url: string) => ({ title: new URL(url).hostname, uri: url }))
+        });
+      } catch (e) {
+        res.json({ content: stdout.trim(), agentName: "Social Sentiment Analyst" });
       }
     });
   });

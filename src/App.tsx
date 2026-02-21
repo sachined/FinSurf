@@ -22,7 +22,9 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  RotateCcw
+  MessageSquare,
+  RotateCcw,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -30,7 +32,7 @@ import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import { researchAgent, taxAgent, dividendAgent, type AgentResponse, type DividendResponse } from './services/geminiService';
+import { researchAgent, taxAgent, dividendAgent, sentimentAgent, type AgentResponse, type DividendResponse } from './services/geminiService';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -50,17 +52,20 @@ export default function App() {
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({
     research: false,
     tax: false,
-    dividend: false
+    dividend: false,
+    sentiment: false
   });
 
   const [responses, setResponses] = useState<{ 
     research: AgentResponse | null, 
     tax: AgentResponse | null, 
-    dividend: DividendResponse | null 
+    dividend: DividendResponse | null,
+    sentiment: AgentResponse | null
   }>({
     research: null,
     tax: null,
-    dividend: null
+    dividend: null,
+    sentiment: null
   });
 
   useEffect(() => {
@@ -112,10 +117,24 @@ export default function App() {
     }
   };
 
+  const handleSentiment = async () => {
+    if (!ticker) return;
+    setLoading(prev => ({ ...prev, sentiment: true }));
+    try {
+      const res = await sentimentAgent(ticker);
+      setResponses(prev => ({ ...prev, sentiment: res }));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(prev => ({ ...prev, sentiment: false }));
+    }
+  };
+
   const runAll = async () => {
     handleResearch();
     handleTax();
     handleDividend();
+    handleSentiment();
   };
 
   const handleClear = () => {
@@ -126,7 +145,8 @@ export default function App() {
     setResponses({
       research: null,
       tax: null,
-      dividend: null
+      dividend: null,
+      sentiment: null
     });
   };
 
@@ -173,7 +193,12 @@ export default function App() {
         <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Stock Ticker</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Stock Ticker</label>
+                <span title="The unique series of letters assigned to a security for trading purposes (e.g., AAPL for Apple).">
+                  <HelpCircle size={10} className="text-cyan-400 cursor-help" />
+                </span>
+              </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300 dark:text-cyan-700" size={18} />
                 <input 
@@ -187,7 +212,12 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Purchase Date</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Purchase Date</label>
+                <span title="The date you acquired the shares. Format: YYYY-MM-DD.">
+                  <HelpCircle size={10} className="text-cyan-400 cursor-help" />
+                </span>
+              </div>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300 dark:text-cyan-700" size={18} />
                 <input 
@@ -200,7 +230,12 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Sell Date</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Sell Date</label>
+                <span title="The date you sold or plan to sell the shares. Format: YYYY-MM-DD.">
+                  <HelpCircle size={10} className="text-cyan-400 cursor-help" />
+                </span>
+              </div>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300 dark:text-cyan-700" size={18} />
                 <input 
@@ -213,7 +248,12 @@ export default function App() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Shares</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest">Shares</label>
+                <span title="The number of shares owned. Can include fractional amounts (e.g., 10.5).">
+                  <HelpCircle size={10} className="text-cyan-400 cursor-help" />
+                </span>
+              </div>
               <div className="relative flex gap-2">
                 <div className="relative flex-1">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300 dark:text-cyan-700" size={18} />
@@ -247,7 +287,7 @@ export default function App() {
         </section>
 
         {/* Agents Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
           <AgentCard 
             title="Research Analyst"
             icon={<Search size={20} />}
@@ -275,6 +315,15 @@ export default function App() {
             isDividendAgent
             accessMode={accessMode}
           />
+
+          <AgentCard 
+            title="Social Sentiment Analyst"
+            icon={<MessageSquare size={20} />}
+            loading={loading.sentiment}
+            response={responses.sentiment}
+            color="violet"
+            accessMode={accessMode}
+          />
         </div>
       </main>
 
@@ -290,7 +339,7 @@ interface AgentCardProps {
   icon: React.ReactNode;
   loading: boolean;
   response: AgentResponse | DividendResponse | null;
-  color: 'cyan' | 'emerald' | 'amber';
+  color: 'cyan' | 'emerald' | 'amber' | 'violet';
   isDividendAgent?: boolean;
   accessMode: AccessMode;
 }
@@ -299,20 +348,22 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
   const colorClasses = {
     cyan: 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900'
+    amber: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
+    violet: 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
   };
 
   const accentClasses = {
     cyan: 'bg-cyan-600',
     emerald: 'bg-emerald-600',
-    amber: 'bg-amber-600'
+    amber: 'bg-amber-600',
+    violet: 'bg-violet-600'
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 flex flex-col h-full overflow-hidden transition-all hover:scale-[1.01]">
-      <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 flex flex-col overflow-hidden transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px]">
+      <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
         <div className="flex items-center gap-3">
           <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", colorClasses[color])}>
             {icon}
@@ -322,7 +373,7 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
         {loading && <Loader2 className="animate-spin text-cyan-400" size={18} />}
       </div>
       
-      <div className="p-6 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin">
+      <div className="p-6 flex-1 overflow-y-auto scrollbar-thin">
         <AnimatePresence mode="wait">
           {!response && !loading ? (
             <motion.div 

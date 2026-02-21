@@ -47,3 +47,16 @@ export const dividendAgent = async (ticker: string, shares: number, years: numbe
   }
   return response.json();
 };
+
+export const sentimentAgent = async (ticker: string): Promise<AgentResponse> => {
+  const response = await fetch("/api/sentiment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticker }),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error || "Backend error");
+  }
+  return response.json();
+};
