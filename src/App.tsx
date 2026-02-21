@@ -352,49 +352,6 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
               animate={{ opacity: 1, y: 0 }}
               className="prose prose-sm prose-slate dark:prose-invert max-w-none"
             >
-              {isDividendAgent && divResponse && (
-                <div className="mb-6 flex gap-4 p-4 bg-cyan-50/30 dark:bg-cyan-900/10 rounded-2xl border border-cyan-50 dark:border-cyan-900/30">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <span className="text-[9px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-tighter">Current</span>
-                    {accessMode === 'default' ? (
-                      <Circle 
-                        size={24} 
-                        fill={divResponse.isDividendStock ? "#10b981" : "#ef4444"} 
-                        className={divResponse.isDividendStock ? "text-emerald-500" : "text-red-500"} 
-                      />
-                    ) : (
-                      divResponse.isDividendStock ? <CheckCircle2 size={24} className="text-blue-500" /> : <XCircle size={24} className="text-orange-600" />
-                    )}
-                  </div>
-                  <div className="flex flex-col items-center gap-1.5">
-                    <span className="text-[9px] font-black text-cyan-700 dark:text-cyan-400 uppercase tracking-tighter">History</span>
-                    {accessMode === 'default' ? (
-                      <Circle 
-                        size={24} 
-                        fill={divResponse.hasDividendHistory ? "#f59e0b" : "#ef4444"} 
-                        className={divResponse.hasDividendHistory ? "text-amber-500" : "text-red-500"} 
-                      />
-                    ) : (
-                      divResponse.hasDividendHistory ? <Clock size={24} className="text-blue-400" /> : <XCircle size={24} className="text-orange-600" />
-                    )}
-                  </div>
-                  <div className="flex-1 flex flex-col justify-center">
-                    <p className="text-[11px] font-bold text-cyan-900 dark:text-cyan-100 leading-tight">
-                      {divResponse.isDividendStock 
-                        ? "ACTIVE DIVIDEND PAYER" 
-                        : divResponse.hasDividendHistory 
-                          ? "HISTORICAL PAYER (INACTIVE)" 
-                          : "NO DIVIDEND HISTORY"}
-                    </p>
-                    <p className="text-[10px] text-cyan-600 dark:text-cyan-400 mt-0.5">
-                      {divResponse.isDividendStock 
-                        ? "Yield data is available for projection." 
-                        : "No current yield found for this asset."}
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {isDividendAgent && divResponse && !divResponse.isDividendStock ? (
                 <div className="bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 text-red-800 dark:text-red-400 text-xs flex gap-3 mb-4">
                   <Info size={16} className="shrink-0 mt-0.5" />
