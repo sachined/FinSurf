@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-[#fdfaf6] dark:bg-[#0a1114] text-slate-900 dark:text-slate-100 transition-colors duration-300;
+  }
+}
+
+/* Markdown Styles */
+.markdown-body {
+  @apply text-slate-700 dark:text-slate-300 leading-relaxed;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  @apply font-black text-cyan-900 dark:text-cyan-400 mt-6 mb-3 tracking-tight;
+}
+
+.markdown-body h1 { @apply text-xl; }
+.markdown-body h2 { @apply text-lg; }
+.markdown-body h3 { @apply text-base; }
+
+.markdown-body p {
+  @apply mb-4 font-medium;
+}
+
+.markdown-body ul, .markdown-body ol {
+  @apply mb-4 pl-5 list-outside;
+}
+
+.markdown-body ul { @apply list-disc marker:text-cyan-400 dark:marker:text-cyan-600; }
+.markdown-body ol { @apply list-decimal marker:text-cyan-400 dark:marker:text-cyan-600; }
+
+.markdown-body li {
+  @apply mb-1;
+}
+
+.markdown-body strong {
+  @apply font-black text-cyan-950 dark:text-cyan-100;
+}
+
+.markdown-body blockquote {
+  @apply border-l-4 border-cyan-100 dark:border-cyan-900/50 pl-4 italic text-cyan-600/80 dark:text-cyan-400/80 my-4 bg-cyan-50/30 dark:bg-cyan-900/10 py-2 rounded-r-xl;
+}
+
+.markdown-body code {
+  @apply bg-cyan-50 dark:bg-cyan-900/20 px-1.5 py-0.5 rounded text-[0.85em] font-mono text-cyan-700 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-900;
+}
+
+.markdown-body table {
+  @apply w-full border-collapse mb-6 text-[0.85em] overflow-hidden rounded-xl border border-cyan-100 dark:border-cyan-900/50;
+}
+
+.markdown-body th, .markdown-body td {
+  @apply border border-cyan-50 dark:border-cyan-900/30 p-3 text-left;
+}
+
+.markdown-body th {
+  @apply bg-cyan-50/50 dark:bg-cyan-900/30 font-black text-cyan-900 dark:text-cyan-100 uppercase tracking-wider text-[0.7em];
+}
+
+.markdown-body tr:nth-child(even) {
+  @apply bg-cyan-50/20 dark:bg-cyan-900/10;
+}
+
+.markdown-body tr:hover {
+  @apply bg-cyan-50/40 dark:bg-cyan-900/20 transition-colors;
+}
