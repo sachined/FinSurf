@@ -9,42 +9,57 @@
 FinSurf leverages a multi-agent architecture where each agent is a specialist in its domain:
 
 *   **🔍 Research Analyst**: Performs deep-dives into stock performance, key metrics, and fundamental data.
-*   **⚖️ Tax Strategist**: Calculates holding periods (Short-Term vs. Long-Term) and provides concise US tax implications based on your specific transaction dates.
-*   **💰 Dividend Specialist**: Projects future payouts with mathematical precision, accounting for fractional shares and cumulative totals.
-*   **🗣️ Social Sentiment Analyst**: Scours Reddit, X (Twitter), StockTwits, and major financial news to gauge the mood of both retail and professional investors.
+*   **⚖️ Tax Strategist**: Calculates holding periods and provides concise US tax implications based on transaction dates.
+*   **💰 Dividend Specialist**: Projects future payouts with mathematical precision, accounting for fractional shares.
+*   **🗣️ Social Sentiment Analyst**: Scours Reddit, X, StockTwits, and major news to gauge investor mood.
 
 ---
 
 ## 🛠 Architecture & Encapsulation
 
-The project has been refactored into a highly modular and encapsulated architecture to ensure efficiency and maintainability:
+The project features a highly modular and encapsulated architecture for efficiency and maintainability:
 
 ### Frontend (React + Vite + Tailwind CSS)
-*   **Modular Components**: Extracted UI elements like `Mascot` and `AgentCard` into `src/components/` for better reusability.
-*   **Centralized Utilities**: Complex logic for PDF generation and styling is encapsulated in `src/utils/`, keeping the main `App.tsx` clean and focused on state.
-*   **Strong Typing**: Shared interfaces and types are centralized in `src/types.ts` to ensure consistency across the application.
+*   **Modular Components**: UI elements like `Mascot` and `AgentCard` are extracted into `src/components/`.
+*   **Centralized Utilities**: Complex logic for PDF generation and styling is encapsulated in `src/utils/`.
+*   **Strong Typing**: Shared interfaces and types are centralized in `src/types.ts`.
 
 ### Backend (Express + Python)
-*   **Encapsulated Execution**: A unified `runPythonAgent` helper manages the lifecycle of Python agent scripts, providing a clean API for the frontend.
-*   **Robust Agent Logic**: Python agents are built with clear separation of concerns, utilizing dedicated provider clients for Gemini, OpenAI, Anthropic, and Perplexity with built-in fallback mechanisms.
+*   **Encapsulated Execution**: A unified `runPythonAgent` helper manages the lifecycle of Python agent scripts.
+*   **Robust Agent Logic**: Python agents utilize dedicated provider clients for Gemini, OpenAI, Anthropic, and Perplexity with built-in fallback mechanisms.
 
 ---
 
 ## 📸 Visuals & Reports
 
-> **[PLACEHOLDER: Main Dashboard Screenshot]**  
-> *Insert a screenshot showing the FinSurf interface with the multi-agent grid.*
+### Main Dashboard
+*Toggle between Light and Dark Mode*
 
-> **[PLACEHOLDER: Sample PDF Report]**  
-> *Insert an image or link to a sample generated PDF report showing the 4-column layout and professional formatting.*
+| Light Mode | Night Mode |
+|:---:|:---:|
+| ![DayTime.png](Images/DayTime.png) | ![NighTime.png](Images/NighTime.png) |
+
+### Themes
+*Standard, Accessible, and Tropical*
+
+| Standard Theme | Accessibility Theme | Tropical Theme |
+|:---:|:---:|:---:|
+| ![StandardTheme.png](Images/StandardTheme.png) | ![AccessibleTheme.png](Images/AccessibleTheme.png) | ![TropicalTheme.png](Images/TropicalTheme.png) |
+
+### Agent Results & Reports
+*View results and download professional PDF reports*
+
+| Results Dashboard | PDF Report Sample |
+|:---:|:---:|
+| ![Results.png](Images/Results.png) | ![ReportDownload.png](Images/ReportDownload.png)<br>*(Note: Further work is needed to ensure that the report is comprehensive and not cut-off, as seen in the screenshot)* |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-*   Node.js (v18+)
-*   Python (3.9+)
+*   **Node.js** (v18+)
+*   **Python** (3.9+)
 
 ### Installation
 1.  **Clone the repository**:
@@ -57,7 +72,7 @@ The project has been refactored into a highly modular and encapsulated architect
     npm install
     ```
 3.  **Configure API Keys**:
-    Create a `.env` file in the root directory and add your keys:
+    Create a `.env` file in the root directory:
     ```env
     GEMINI_API_KEY=your_key_here
     PERPLEXITY_API_KEY=your_key_here  # Optional
