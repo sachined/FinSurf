@@ -8,6 +8,22 @@ import "dotenv/config";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const pythonCommand = process.platform === "win32" ? "python" : "python3";
+
+async function runPythonAgent(mode: string, args: (string | number)[]): Promise<string> {
+  const formattedArgs = args.map(arg => `"${arg}"`).join(" ");
+  return new Promise((resolve, reject) => {
+    exec(`${pythonCommand} agents.py ${mode} ${formattedArgs}`, { env: process.env }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Exec error: ${error}`);
+        reject(stderr || error.message);
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -16,17 +32,13 @@ async function startServer() {
 
   // Log key presence on startup
   console.log("GEMINI_API_KEY present:", !!process.env.GEMINI_API_KEY);
-  console.log("API_KEY present:", !!process.env.API_KEY);
 
   // API Routes
-  app.post("/api/research", (req, res) => {
+  app.post("/api/research", async (req, res) => {
     const { ticker } = req.body;
     console.log(`Researching: ${ticker}`);
-    exec(`python3 agents.py research "${ticker}"`, { env: process.env }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Exec error: ${error}`);
-        return res.status(500).json({ error: stderr || error.message });
-      }
+    try {
+      const stdout = await runPythonAgent("research", [ticker]);
       try {
         const data = JSON.parse(stdout);
         res.json({ 
@@ -37,52 +49,45 @@ async function startServer() {
       } catch (e) {
         res.json({ content: stdout.trim(), agentName: "Research Analyst" });
       }
-    });
+    } catch (error) {
+      res.status(500).json({ error });
+    }
   });
 
-  app.post("/api/tax", (req, res) => {
+  app.post("/api/tax", async (req, res) => {
     const { ticker, purchaseDate, sellDate } = req.body;
     console.log(`Tax analysis: ${ticker}`);
-    exec(`python3 agents.py tax "${ticker}" "${purchaseDate}" "${sellDate}"`, { env: process.env }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Exec error: ${error}`);
-        return res.status(500).json({ error: stderr || error.message });
-      }
+    try {
+      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate]);
       res.json({ content: stdout.trim(), agentName: "Tax Strategist" });
-    });
+    } catch (error) {
+      res.status(500).json({ error });
+    }
   });
 
-  app.post("/api/dividend", (req, res) => {
+  app.post("/api/dividend", async (req, res) => {
     const { ticker, shares, years } = req.body;
     console.log(`Dividend analysis: ${ticker}`);
-    exec(`python3 agents.py dividend "${ticker}" "${shares}" "${years}"`, { env: process.env }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Exec error: ${error}`);
-        return res.status(500).json({ error: stderr || error.message });
-      }
-      try {
-        const data = JSON.parse(stdout);
-        res.json({ 
-          content: data.analysis, 
-          agentName: "Dividend Specialist",
-          isDividendStock: data.isDividendStock,
-          hasDividendHistory: data.hasDividendHistory
-        });
-      } catch (e) {
-        console.error(`Parse error: ${e}. Output: ${stdout}`);
-        res.status(500).json({ error: "Failed to parse Python output", details: stdout });
-      }
-    });
+    try {
+      const stdout = await runPythonAgent("dividend", [ticker, shares, years]);
+      const data = JSON.parse(stdout);
+      res.json({ 
+        content: data.analysis, 
+        agentName: "Dividend Specialist",
+        isDividendStock: data.isDividendStock,
+        hasDividendHistory: data.hasDividendHistory
+      });
+    } catch (e) {
+      console.error(`Parse error: ${e}`);
+      res.status(500).json({ error: "Failed to process dividend data" });
+    }
   });
 
-  app.post("/api/sentiment", (req, res) => {
+  app.post("/api/sentiment", async (req, res) => {
     const { ticker } = req.body;
     console.log(`Sentiment analysis: ${ticker}`);
-    exec(`python3 agents.py sentiment "${ticker}"`, { env: process.env }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Exec error: ${error}`);
-        return res.status(500).json({ error: stderr || error.message });
-      }
+    try {
+      const stdout = await runPythonAgent("sentiment", [ticker]);
       try {
         const data = JSON.parse(stdout);
         res.json({ 
@@ -93,7 +98,9 @@ async function startServer() {
       } catch (e) {
         res.json({ content: stdout.trim(), agentName: "Social Sentiment Analyst" });
       }
-    });
+    } catch (error) {
+      res.status(500).json({ error });
+    }
   });
 
   // Vite middleware for development

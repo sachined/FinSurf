@@ -3,87 +3,99 @@ import json
 import urllib.request
 import urllib.error
 import sys
+import time
 from datetime import datetime
+from typing import List, Optional, Dict, Any, Union
 
-# API Keys
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("API_KEY")
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY")
-PERPLEXITY_KEY = os.environ.get("PERPLEXITY_API_KEY")
+# --- API Key Management ---
 
-def is_placeholder(key):
-    if not key:
-        return True
-    # Only check for very obvious placeholder strings
+def get_env_key(keys: List[str]) -> Optional[str]:
+    """Retrieve the first available environment variable from the list."""
+    for k in keys:
+        val = os.environ.get(k)
+        if val: return val
+    return None
+
+def is_placeholder(key: Optional[str]) -> bool:
+    """Check if the API key is a known placeholder."""
+    if not key: return True
     placeholders = ["INSERT_KEY_HERE", "YOUR_API_KEY"]
-    key_upper = key.upper()
-    return any(p in key_upper for p in placeholders)
+    return any(p in key.upper() for p in placeholders)
 
-def call_gemini(prompt, system_instruction=None, response_mime_type="text/plain", response_schema=None):
-    if not GEMINI_KEY:
-        raise Exception("Gemini API Key is missing. Please ensure GEMINI_API_KEY is set in the environment.")
-    
-    # Robust cleaning of the API key
-    clean_key = GEMINI_KEY.strip().strip('"').strip("'").strip()
-    
-    # Use a more stable model version
-    model_name = "gemini-1.5-flash" 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={clean_key}"
+def validate_key(provider_name: str, key: Optional[str]) -> str:
+    """Validate and clean the API key."""
+    if not key or is_placeholder(key):
+        raise Exception(f"{provider_name} API Key is missing or invalid. Please set it in the environment.")
+    return key.strip().strip('"').strip("'").strip()
+
+# --- Core HTTP Request Logic ---
+
+def _http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 30, max_retries: int = 0) -> Any:
+    """Generic HTTP POST request with optional retry logic for 5xx errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            payload = json.dumps(data).encode("utf-8")
+            req = urllib.request.Request(url, data=payload, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code in [502, 503, 504] and attempt < max_retries:
+                time.sleep(1 * (attempt + 1))
+                continue
+            error_body = e.read().decode("utf-8")
+            raise Exception(f"API Error {e.code}: {error_body}")
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(1 * (attempt + 1))
+                continue
+            raise e
+
+# --- LLM Provider Clients ---
+
+def call_gemini(prompt: str, system_instruction: Optional[str] = None, response_mime_type: str = "text/plain", response_schema: Optional[Dict[str, Any]] = None) -> str:
+    """Makes a call to the Google Gemini API."""
+    key = validate_key("Gemini", get_env_key(["GEMINI_API_KEY", "API_KEY"]))
+    model = "gemini-1.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     
     data = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "responseMimeType": response_mime_type,
-            "temperature": 0.1 # Lower temperature for more consistent results
+            "temperature": 0.1
         }
     }
     if system_instruction:
         data["systemInstruction"] = {"parts": [{"text": system_instruction}]}
     if response_schema:
         data["generationConfig"]["responseSchema"] = response_schema
-
+        
+    res = _http_post(url, data, {"Content-Type": "application/json"})
     try:
-        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            if "candidates" not in res_data or not res_data["candidates"]:
-                raise Exception(f"No candidates in Gemini response. Full response: {json.dumps(res_data)}")
-            return res_data["candidates"][0]["content"]["parts"][0]["text"]
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        # Log safe debug info about the key
-        key_info = f"len={len(clean_key)}"
-        if len(clean_key) > 4:
-            key_info += f", starts with {clean_key[:4]}"
-        raise Exception(f"Gemini API Error {e.code} (Model: {model_name}): {error_body} (Key info: {key_info})")
+        return res["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        raise Exception(f"No candidates in Gemini response: {json.dumps(res)}")
 
-def call_openai(prompt, system_instruction=None, model="gpt-4o"):
-    if not OPENAI_KEY or is_placeholder(OPENAI_KEY):
-        raise Exception("Invalid OpenAI API Key. Please replace the placeholder with a real key from OpenAI.")
-    
+def call_openai(prompt: str, system_instruction: Optional[str] = None, model: str = "gpt-4o") -> str:
+    """Makes a call to the OpenAI Chat Completion API."""
+    key = validate_key("OpenAI", os.environ.get("OPENAI_API_KEY"))
     url = "https://api.openai.com/v1/chat/completions"
+    
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": prompt})
     
     data = {"model": model, "messages": messages}
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {OPENAI_KEY}"}
-    
-    try:
-        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            return res_data["choices"][0]["message"]["content"]
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        raise Exception(f"OpenAI API Error {e.code}: {error_body}")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    res = _http_post(url, data, headers)
+    return res["choices"][0]["message"]["content"]
 
-def call_anthropic(prompt, system_instruction=None, model="claude-3-haiku-20240307"):
-    if not ANTHROPIC_KEY or is_placeholder(ANTHROPIC_KEY):
-        raise Exception("Invalid Anthropic API Key. Please replace the placeholder with a real key from Anthropic.")
-    
+def call_anthropic(prompt: str, system_instruction: Optional[str] = None, model: str = "claude-3-haiku-20240307") -> str:
+    """Makes a call to the Anthropic Messages API."""
+    key = validate_key("Anthropic", os.environ.get("ANTHROPIC_API_KEY"))
     url = "https://api.anthropic.com/v1/messages"
+    
     data = {
         "model": model,
         "max_tokens": 1024,
@@ -94,55 +106,66 @@ def call_anthropic(prompt, system_instruction=None, model="claude-3-haiku-202403
         
     headers = {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
+        "x-api-key": key,
         "anthropic-version": "2023-06-01"
     }
-    
-    try:
-        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            return res_data["content"][0]["text"]
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        raise Exception(f"Anthropic API Error {e.code}: {error_body}")
+    res = _http_post(url, data, headers)
+    return res["content"][0]["text"]
 
-def call_perplexity(prompt, system_instruction=None, model="sonar"):
-    if not PERPLEXITY_KEY or is_placeholder(PERPLEXITY_KEY):
-        raise Exception("Invalid Perplexity API Key. Please provide a valid key in the environment.")
-    
+def call_perplexity(prompt: str, system_instruction: Optional[str] = None, model: str = "sonar") -> str:
+    """Makes a call to the Perplexity Chat Completion API."""
+    key = validate_key("Perplexity", os.environ.get("PERPLEXITY_API_KEY"))
     url = "https://api.perplexity.ai/chat/completions"
+    
     messages = []
     if system_instruction:
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": prompt})
     
     data = {"model": model, "messages": messages}
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {PERPLEXITY_KEY}"}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    res = _http_post(url, data, headers, max_retries=2)
     
-    # Simple retry logic for 502/503 errors
-    max_retries = 2
-    for attempt in range(max_retries + 1):
-        try:
-            req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
-            with urllib.request.urlopen(req) as response:
-                res_data = json.loads(response.read().decode("utf-8"))
-                content = res_data["choices"][0]["message"]["content"]
-                citations = res_data.get("citations", [])
-                return json.dumps({"content": content, "citations": citations})
-        except urllib.error.HTTPError as e:
-            if e.code in [502, 503, 504] and attempt < max_retries:
-                import time
-                time.sleep(1 * (attempt + 1))
-                continue
-            error_body = e.read().decode("utf-8")
-            raise Exception(f"Perplexity API Error {e.code}: {error_body}")
-        except Exception as e:
-            if attempt < max_retries:
-                continue
-            raise e
+    content = res["choices"][0]["message"]["content"]
+    citations = res.get("citations", [])
+    return json.dumps({"content": content, "citations": citations})
 
-def research_agent(ticker):
+# --- Utility Helpers ---
+
+def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
+    """Determine if a transaction is short-term or long-term based on dates."""
+    try:
+        p_date = datetime.strptime(purchase_date, '%Y-%m-%d')
+        s_date = datetime.strptime(sell_date, '%Y-%m-%d')
+        
+        # Calculate if held for MORE than one year
+        try:
+            one_year_later = p_date.replace(year=p_date.year + 1)
+        except ValueError: # Handle Feb 29
+            one_year_later = p_date.replace(year=p_date.year + 1, day=28)
+            
+        return "LONG-TERM" if s_date > one_year_later else "SHORT-TERM"
+    except Exception as e:
+        print(f"Date parsing error: {e}", file=sys.stderr)
+        return "UNKNOWN"
+
+def extract_json(text: str) -> Any:
+    """Attempt to parse JSON from a string, handling markdown code blocks."""
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Try to extract from markdown blocks
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0].strip()
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0].strip()
+        return json.loads(text)
+
+# --- Specialized Agents ---
+
+def research_agent(ticker: str) -> str:
+    """Agent that performs general equity research using Perplexity with Gemini fallback."""
     prompt = f"Briefly research {ticker}: performance, metrics, sentiment."
     system = "Equity analyst. Concise, data-driven. Cite sources."
     try:
@@ -152,31 +175,11 @@ def research_agent(ticker):
         content = call_gemini(prompt, system)
         return json.dumps({"content": content, "citations": []})
 
-def tax_agent(ticker, purchase_date, sell_date):
-    # Explicitly calculate holding period to avoid LLM calculation errors
-    status = "UNKNOWN"
-    try:
-        p_date = datetime.strptime(purchase_date, '%Y-%m-%d')
-        s_date = datetime.strptime(sell_date, '%Y-%m-%d')
-        
-        # Calculate if held for MORE than one year
-        # A simple way: add 1 year to purchase date and compare
-        try:
-            one_year_later = p_date.replace(year=p_date.year + 1)
-        except ValueError: # Handle Feb 29
-            one_year_later = p_date.replace(year=p_date.year + 1, day=28)
-            
-        if s_date > one_year_later:
-            status = "LONG-TERM"
-        else:
-            status = "SHORT-TERM"
-    except Exception as e:
-        print(f"Date parsing error: {e}", file=sys.stderr)
-
+def tax_agent(ticker: str, purchase_date: str, sell_date: str) -> str:
+    """Agent that provides tax implications analysis using Anthropic with Gemini fallback."""
+    status = calculate_holding_status(purchase_date, sell_date)
     prompt = f"""Analyze the tax implications for {ticker} bought on {purchase_date} and sold on {sell_date}.
-    
     CRITICAL: The holding period has been calculated as {status}.
-    
     STRICT REQUIREMENTS:
     1. Use the status provided above ({status}) as the absolute truth.
     2. ONLY discuss the category that applies. If it is Long-Term, do NOT mention short-term rules or rates. If it is Short-Term, do NOT mention long-term rules or rates.
@@ -191,14 +194,13 @@ def tax_agent(ticker, purchase_date, sell_date):
         print(f"Anthropic failed, falling back to Gemini: {e}", file=sys.stderr)
         return call_gemini(prompt, system)
 
-def social_sentiment_agent(ticker):
+def social_sentiment_agent(ticker: str) -> str:
+    """Agent that analyzes market sentiment using Perplexity with Gemini fallback."""
     prompt = f"""Search Reddit, X (Twitter), StockTwits, and major financial news websites (e.g., Bloomberg, Reuters, CNBC) for recent (last 7 days) discussions and sentiment about the stock ticker '{ticker}'. 
-    
     STRICT REQUIREMENTS:
     1. The symbol '{ticker}' refers to a stock market ticker (e.g., 'T' is AT&T, 'F' is Ford). Do NOT confuse it with generic words or other entities.
     2. PRIORITIZE sources known for reliable financial sentiment analysis like StockTwits and reputable financial news outlets.
     3. STRICTLY EXCLUDE any cryptocurrency-related discussions or sentiment. Focus only on the equity/stock market.
-    
     REQUIRED FORMAT:
     1. Summarize the overall sentiment (Bullish, Bearish, or Neutral) across all sources.
     2. Highlight the key reasons for this sentiment, distinguishing between retail (social media) and professional (news) perspectives.
@@ -213,24 +215,21 @@ def social_sentiment_agent(ticker):
         content = call_gemini(prompt, system)
         return json.dumps({"content": content, "citations": []})
 
-def dividend_agent(ticker, shares, years):
+def dividend_agent(ticker: str, shares: float, years: int) -> Dict[str, Any]:
+    """Agent that analyzes dividend history and projects future payouts."""
     prompt = f"""Analyze {ticker} dividends for exactly {shares} shares over a {years}-year period.
-    
     MATHEMATICAL PRECISION RULES:
     1. SHARE COUNT: Use the exact fractional share count of {shares} for every single year.
     2. ANNUAL PAYOUT: For each year, calculate: (Dividend Per Share) × {shares}. Do NOT round this value until the final table display.
     3. CUMULATIVE TOTAL: This is a running sum. Year N Cumulative Total = (Year N-1 Cumulative Total) + (Year N Annual Payout).
     4. ACCURACY: Ensure the final 'Estimated Cumulative Total' is the precise sum of all annual payouts over {years} years.
-    
     REQUIRED FORMAT:
     1. Provide a Markdown table with columns: | Year | Dividend Per Share | Annual Payout | Cumulative Total |
     2. Each year must be on its own row.
     3. Below the table, provide a summary that explicitly states the final 'Estimated Cumulative Total' for the {shares} shares.
-    
     Return your response as a JSON object with these keys: isDividendStock (boolean), hasDividendHistory (boolean), analysis (string containing your markdown table and summary)."""
     
     system = "Dividend specialist. You are a precision-focused financial analyst. Determine if a stock pays dividends and provide a multi-year projection. You must perform exact calculations using fractional shares. The 'Cumulative Total' column must strictly follow a running sum logic. Double-check your math before responding."
-    
     schema = {
         "type": "OBJECT",
         "properties": {
@@ -241,34 +240,31 @@ def dividend_agent(ticker, shares, years):
         "required": ["isDividendStock", "hasDividendHistory", "analysis"]
     }
     
-    # Try Gemini first with structured output
     try:
         res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema)
         return json.loads(res_text)
     except Exception as e:
         print(f"Gemini dividend analysis failed: {e}", file=sys.stderr)
-        
-        # Fallback to OpenAI if available
+        # Fallback to OpenAI
         try:
-            if OPENAI_KEY and not is_placeholder(OPENAI_KEY):
+            openai_key = os.environ.get("OPENAI_API_KEY")
+            if openai_key and not is_placeholder(openai_key):
                 res_text = call_openai(prompt + " IMPORTANT: Return ONLY raw JSON.", system)
-                # Try to extract JSON if the model added markdown blocks
-                if "```json" in res_text:
-                    res_text = res_text.split("```json")[1].split("```")[0].strip()
-                elif "```" in res_text:
-                    res_text = res_text.split("```")[1].split("```")[0].strip()
-                return json.loads(res_text)
+                return extract_json(res_text)
         except Exception as oe:
             print(f"OpenAI fallback failed: {oe}", file=sys.stderr)
 
-        # Final fallback: Return a structured error object that the UI can handle
         return {
             "isDividendStock": False, 
             "hasDividendHistory": False, 
-            "analysis": f"### Analysis Unavailable\n\nWe encountered an issue processing dividend data for **{ticker}**.\n\n**Reason:** {str(e)}\n\n*Please ensure your API keys are valid and have sufficient quota.*"
+            "analysis": f"### Analysis Unavailable\n\nIssue processing dividend data for **{ticker}**.\n\n**Reason:** {str(e)}"
         }
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: agents.py <mode> <args...>", file=sys.stderr)
+        sys.exit(1)
+        
     try:
         mode = sys.argv[1]
         if mode == "research":
@@ -279,6 +275,9 @@ if __name__ == "__main__":
             print(json.dumps(dividend_agent(sys.argv[2], float(sys.argv[3]), int(sys.argv[4]))))
         elif mode == "sentiment":
             print(social_sentiment_agent(sys.argv[2]))
+        else:
+            print(f"Unknown mode: {mode}", file=sys.stderr)
+            sys.exit(1)
     except Exception as e:
         print(f"Critical Error: {e}", file=sys.stderr)
         sys.exit(1)

@@ -13,37 +13,22 @@ import {
   Loader2, 
   Calendar, 
   Hash,
-  ExternalLink,
-  Info,
-  Circle,
-  Sun,
-  Moon,
-  Eye,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  MessageSquare,
   RotateCcw,
   HelpCircle,
   Download,
-  Palmtree
+  Palmtree,
+  Eye,
+  Moon,
+  Sun,
+  MessageSquare
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { researchAgent, taxAgent, dividendAgent, sentimentAgent, type AgentResponse, type DividendResponse } from './services/geminiService';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-type Theme = 'light' | 'dark';
-type AccessMode = 'default' | 'colorblind' | 'tropical';
+import { Mascot } from './components/Mascot';
+import { AgentCard } from './components/AgentCard';
+import { downloadPDF } from './utils/pdfGenerator';
+import { cn } from './utils/cn';
+import { type Theme, type AccessMode } from './types';
 
 export default function App() {
   const [ticker, setTicker] = useState('');
@@ -154,48 +139,8 @@ export default function App() {
     });
   };
 
-  const downloadPDF = async () => {
-    const element = document.getElementById('report-container');
-    if (!element) return;
-    
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
-        onclone: (clonedDoc) => {
-          const elements = clonedDoc.getElementsByTagName('*');
-          for (let i = 0; i < elements.length; i++) {
-            const el = elements[i] as HTMLElement;
-            // Force standard colors for common properties to avoid oklch parsing errors
-            if (el.classList.contains('bg-white')) el.style.backgroundColor = '#ffffff';
-            if (el.classList.contains('dark:bg-slate-900')) el.style.backgroundColor = '#0f172a';
-            if (el.classList.contains('text-slate-900')) el.style.color = '#0f172a';
-            if (el.classList.contains('dark:text-slate-100')) el.style.color = '#f1f5f9';
-            
-            // Remove any inline styles that might contain oklch
-            const inlineStyle = el.getAttribute('style');
-            if (inlineStyle && inlineStyle.includes('oklch')) {
-              el.setAttribute('style', inlineStyle.replace(/oklch\([^)]+\)/g, '#888888'));
-            }
-          }
-        }
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      
-      // Open in a new window/dialog for printing or downloading
-      const blob = pdf.output('blob');
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch (error) {
-      console.error('PDF Generation failed:', error);
-    }
+  const handleDownloadReport = async () => {
+    await downloadPDF(ticker, theme);
   };
 
   return (
@@ -342,7 +287,7 @@ export default function App() {
                 </button>
               </div>
               <button 
-                onClick={downloadPDF}
+                onClick={handleDownloadReport}
                 disabled={!responses.research && !responses.tax && !responses.dividend && !responses.sentiment}
                 className="w-full mt-2 p-2.5 rounded-2xl bg-[#2e7d32] hover:bg-[#1b5e20] text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-widest"
                 title="Download PDF Report"
@@ -407,175 +352,6 @@ export default function App() {
       <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center text-cyan-800/40 dark:text-cyan-400/20 text-xs font-bold uppercase tracking-[0.2em]">
         <p>© {new Date().getFullYear()} FINSURF. Ride the waves responsibly.</p>
       </footer>
-    </div>
-  );
-}
-
-interface AgentCardProps {
-  title: string;
-  icon: React.ReactNode;
-  loading: boolean;
-  response: AgentResponse | DividendResponse | null;
-  color: 'cyan' | 'emerald' | 'amber' | 'violet';
-  isDividendAgent?: boolean;
-  accessMode: AccessMode;
-}
-
-function Mascot({ mode, className }: { mode: AccessMode, className?: string }) {
-  const filters = {
-    default: 'none',
-    colorblind: 'contrast(1.5) saturate(2) hue-rotate(200deg)',
-    tropical: 'hue-rotate(45deg) saturate(1.5) brightness(1.1)'
-  };
-
-  return (
-    <div className={cn("relative overflow-hidden rounded-xl", className)}>
-      <img 
-        src="https://api.dicebear.com/7.x/bottts/svg?seed=Mascot&backgroundColor=transparent" 
-        alt="FINSURF Mascot"
-        className="w-full h-full object-contain transition-all duration-500"
-        style={{ filter: filters[mode] }}
-      />
-    </div>
-  );
-}
-
-function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode }: AgentCardProps) {
-  const colorClasses = {
-    cyan: accessMode === 'tropical' 
-      ? 'bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-900'
-      : accessMode === 'colorblind'
-      ? 'bg-blue-100 text-blue-900 border-blue-600 border-2 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-400'
-      : 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
-    emerald: accessMode === 'tropical'
-      ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900'
-      : accessMode === 'colorblind'
-      ? 'bg-orange-100 text-orange-900 border-orange-600 border-2 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-400'
-      : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
-    amber: accessMode === 'tropical'
-      ? 'bg-yellow-50 text-yellow-600 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900'
-      : accessMode === 'colorblind'
-      ? 'bg-yellow-100 text-yellow-900 border-yellow-600 border-2 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-400'
-      : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
-    violet: accessMode === 'tropical'
-      ? 'bg-pink-50 text-pink-600 border-pink-100 dark:bg-pink-900/20 dark:text-pink-400 dark:border-pink-900'
-      : accessMode === 'colorblind'
-      ? 'bg-purple-100 text-purple-900 border-purple-600 border-2 dark:bg-purple-900/40 dark:text-purple-100 dark:border-purple-400'
-      : 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
-  };
-
-  const accentClasses = {
-    cyan: accessMode === 'tropical' ? 'bg-teal-600' : accessMode === 'colorblind' ? 'bg-blue-700' : 'bg-cyan-600',
-    emerald: accessMode === 'tropical' ? 'bg-orange-600' : accessMode === 'colorblind' ? 'bg-orange-700' : 'bg-emerald-600',
-    amber: accessMode === 'tropical' ? 'bg-yellow-600' : accessMode === 'colorblind' ? 'bg-yellow-700' : 'bg-amber-600',
-    violet: accessMode === 'tropical' ? 'bg-pink-600' : accessMode === 'colorblind' ? 'bg-purple-700' : 'bg-violet-600'
-  };
-
-  const divResponse = isDividendAgent ? (response as DividendResponse) : null;
-
-  return (
-    <div className={cn(
-      "bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit",
-      accessMode === 'colorblind' 
-        ? "border-4 border-blue-600 shadow-blue-900/20" 
-        : "shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50"
-    )}>
-      <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
-        <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", colorClasses[color])}>
-            {icon}
-          </div>
-          <div>
-            <h2 className="font-black text-slate-800 dark:text-white tracking-tight">{title}</h2>
-            {accessMode === 'colorblind' && (
-              <span className="text-[8px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">High Contrast Mode</span>
-            )}
-          </div>
-        </div>
-        {loading && <Loader2 className="animate-spin text-cyan-400" size={18} />}
-      </div>
-      
-      <div className="p-6">
-        <AnimatePresence mode="wait">
-          {!response && !loading ? (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="h-full flex flex-col items-center justify-center text-cyan-200 dark:text-cyan-900 text-center space-y-3 py-12"
-            >
-              <div className="w-16 h-16 rounded-full bg-cyan-50/50 dark:bg-cyan-900/10 flex items-center justify-center">
-                <TrendingUp size={32} />
-              </div>
-              <p className="text-xs font-bold uppercase tracking-widest">Waiting for waves...</p>
-            </motion.div>
-          ) : loading ? (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-4"
-            >
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-3/4 animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-full animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-5/6 animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-2/3 animate-pulse" />
-            </motion.div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={cn(
-                "prose prose-sm prose-slate dark:prose-invert max-w-none",
-                accessMode === 'colorblind' && "prose-strong:text-blue-900 dark:prose-strong:text-blue-100"
-              )}
-            >
-              {isDividendAgent && divResponse && !divResponse.isDividendStock ? (
-                <div className={cn(
-                  "border rounded-2xl p-4 text-xs flex gap-3 mb-4",
-                  accessMode === 'colorblind' 
-                    ? "bg-blue-50 border-blue-600 text-blue-900" 
-                    : "bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400"
-                )}>
-                  <Info size={16} className="shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-black uppercase tracking-tight">No Projection</p>
-                    <p className="opacity-80 font-medium">This asset is not currently paying dividends. Historical context provided below.</p>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className={cn(
-                "markdown-body dark:text-slate-300 overflow-x-auto", 
-                isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale",
-                accessMode === 'colorblind' && "font-bold text-slate-900 dark:text-white"
-              )}>
-                <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
-              </div>
-              
-              {response?.sources && response.sources.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-cyan-50 dark:border-cyan-900/30">
-                  <h4 className="text-[10px] font-black text-cyan-300 dark:text-cyan-700 uppercase tracking-widest mb-4">Sources</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {response.sources.map((source, i) => (
-                      <a 
-                        key={i}
-                        href={source.uri}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-cyan-50/50 dark:bg-slate-800 border border-cyan-100 dark:border-cyan-900 rounded-xl text-[10px] font-bold text-cyan-700 dark:text-cyan-400 transition-colors"
-                      >
-                        <ExternalLink size={10} />
-                        <span className="max-w-[100px] truncate">{source.title}</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      
-      <div className={cn("h-2 w-full", accentClasses[color])} />
     </div>
   );
 }
