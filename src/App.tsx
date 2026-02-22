@@ -362,7 +362,7 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 flex flex-col overflow-hidden transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px]">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit">
       <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
         <div className="flex items-center gap-3">
           <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", colorClasses[color])}>
@@ -373,7 +373,7 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
         {loading && <Loader2 className="animate-spin text-cyan-400" size={18} />}
       </div>
       
-      <div className="p-6 flex-1 overflow-y-auto scrollbar-thin">
+      <div className="p-6">
         <AnimatePresence mode="wait">
           {!response && !loading ? (
             <motion.div 
@@ -413,7 +413,7 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
                 </div>
               ) : null}
 
-              <div className={cn("markdown-body dark:text-slate-300", isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale")}>
+              <div className={cn("markdown-body dark:text-slate-300 overflow-x-auto", isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale")}>
                 <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
               </div>
               
