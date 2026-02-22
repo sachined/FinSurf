@@ -24,7 +24,9 @@ import {
   XCircle,
   MessageSquare,
   RotateCcw,
-  HelpCircle
+  HelpCircle,
+  Download,
+  Palmtree
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -32,6 +34,8 @@ import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { researchAgent, taxAgent, dividendAgent, sentimentAgent, type AgentResponse, type DividendResponse } from './services/geminiService';
 
 function cn(...inputs: ClassValue[]) {
@@ -39,7 +43,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 type Theme = 'light' | 'dark';
-type AccessMode = 'default' | 'colorblind';
+type AccessMode = 'default' | 'colorblind' | 'tropical';
 
 export default function App() {
   const [ticker, setTicker] = useState('');
@@ -150,12 +154,57 @@ export default function App() {
     });
   };
 
+  const downloadPDF = async () => {
+    const element = document.getElementById('report-container');
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
+        onclone: (clonedDoc) => {
+          const elements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i] as HTMLElement;
+            // Force standard colors for common properties to avoid oklch parsing errors
+            if (el.classList.contains('bg-white')) el.style.backgroundColor = '#ffffff';
+            if (el.classList.contains('dark:bg-slate-900')) el.style.backgroundColor = '#0f172a';
+            if (el.classList.contains('text-slate-900')) el.style.color = '#0f172a';
+            if (el.classList.contains('dark:text-slate-100')) el.style.color = '#f1f5f9';
+            
+            // Remove any inline styles that might contain oklch
+            const inlineStyle = el.getAttribute('style');
+            if (inlineStyle && inlineStyle.includes('oklch')) {
+              el.setAttribute('style', inlineStyle.replace(/oklch\([^)]+\)/g, '#888888'));
+            }
+          }
+        }
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      
+      // Open in a new window/dialog for printing or downloading
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('PDF Generation failed:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#fdfaf6] dark:bg-[#0a1114] text-slate-900 dark:text-slate-100 font-sans selection:bg-cyan-100 dark:selection:bg-cyan-900 transition-colors duration-300">
       {/* Header */}
       <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-cyan-100 dark:border-cyan-900 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
+            <Mascot mode={accessMode} className="w-12 h-12 mr-2" />
             <div className="w-10 h-10 bg-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-cyan-200 dark:shadow-cyan-900/20">
               <TrendingUp size={24} />
             </div>
@@ -167,15 +216,25 @@ export default function App() {
           
           <div className="flex items-center gap-2 sm:gap-4">
             <button 
-              onClick={() => setAccessMode(prev => prev === 'default' ? 'colorblind' : 'default')}
+              onClick={() => {
+                setAccessMode(prev => {
+                  if (prev === 'default') return 'colorblind';
+                  if (prev === 'colorblind') return 'tropical';
+                  return 'default';
+                });
+              }}
               className={cn(
                 "p-2 rounded-xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider",
-                accessMode === 'colorblind' ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                accessMode === 'colorblind' ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300" : 
+                accessMode === 'tropical' ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" :
+                "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
               )}
-              title="Toggle Color-Blind Mode"
+              title="Toggle Theme Mode"
             >
-              <Eye size={18} />
-              <span className="hidden md:inline">{accessMode === 'colorblind' ? 'Accessible' : 'Standard'}</span>
+              {accessMode === 'tropical' ? <Palmtree size={18} /> : <Eye size={18} />}
+              <span className="hidden md:inline">
+                {accessMode === 'colorblind' ? 'Accessible' : accessMode === 'tropical' ? 'Tropical' : 'Standard'}
+              </span>
             </button>
             <button 
               onClick={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
@@ -282,48 +341,66 @@ export default function App() {
                   <RotateCcw size={18} />
                 </button>
               </div>
+              <button 
+                onClick={downloadPDF}
+                disabled={!responses.research && !responses.tax && !responses.dividend && !responses.sentiment}
+                className="w-full mt-2 p-2.5 rounded-2xl bg-[#2e7d32] hover:bg-[#1b5e20] text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-widest"
+                title="Download PDF Report"
+              >
+                <Download size={18} />
+                Download Report
+              </button>
             </div>
           </div>
         </section>
 
         {/* Agents Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-          <AgentCard 
-            title="Research Analyst"
-            icon={<Search size={20} />}
-            loading={loading.research}
-            response={responses.research}
-            color="cyan"
-            accessMode={accessMode}
-          />
+        <div id="report-container" className="p-4 rounded-[3rem]">
+          <div className="flex items-center gap-4 mb-8">
+            <Mascot mode={accessMode} className="w-20 h-20" />
+            <div>
+              <h2 className="text-3xl font-black tracking-tighter text-cyan-900 dark:text-cyan-400">Market Analysis Report</h2>
+              <p className="text-sm font-bold text-emerald-600 uppercase tracking-widest">Generated by FINSURF AI</p>
+            </div>
+          </div>
+          <div id="agents-grid" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+            <AgentCard 
+              title="Research Analyst"
+              icon={<Search size={20} />}
+              loading={loading.research}
+              response={responses.research}
+              color="cyan"
+              accessMode={accessMode}
+            />
 
-          <AgentCard 
-            title="Tax Strategist"
-            icon={<Receipt size={20} />}
-            loading={loading.tax}
-            response={responses.tax}
-            color="emerald"
-            accessMode={accessMode}
-          />
+            <AgentCard 
+              title="Tax Strategist"
+              icon={<Receipt size={20} />}
+              loading={loading.tax}
+              response={responses.tax}
+              color="emerald"
+              accessMode={accessMode}
+            />
 
-          <AgentCard 
-            title="Dividend Specialist"
-            icon={<Coins size={20} />}
-            loading={loading.dividend}
-            response={responses.dividend}
-            color="amber"
-            isDividendAgent
-            accessMode={accessMode}
-          />
+            <AgentCard 
+              title="Dividend Specialist"
+              icon={<Coins size={20} />}
+              loading={loading.dividend}
+              response={responses.dividend}
+              color="amber"
+              isDividendAgent
+              accessMode={accessMode}
+            />
 
-          <AgentCard 
-            title="Social Sentiment Analyst"
-            icon={<MessageSquare size={20} />}
-            loading={loading.sentiment}
-            response={responses.sentiment}
-            color="violet"
-            accessMode={accessMode}
-          />
+            <AgentCard 
+              title="Social Sentiment Analyst"
+              icon={<MessageSquare size={20} />}
+              loading={loading.sentiment}
+              response={responses.sentiment}
+              color="violet"
+              accessMode={accessMode}
+            />
+          </div>
         </div>
       </main>
 
@@ -344,31 +421,76 @@ interface AgentCardProps {
   accessMode: AccessMode;
 }
 
+function Mascot({ mode, className }: { mode: AccessMode, className?: string }) {
+  const filters = {
+    default: 'none',
+    colorblind: 'contrast(1.5) saturate(2) hue-rotate(200deg)',
+    tropical: 'hue-rotate(45deg) saturate(1.5) brightness(1.1)'
+  };
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-xl", className)}>
+      <img 
+        src="https://api.dicebear.com/7.x/bottts/svg?seed=Mascot&backgroundColor=transparent" 
+        alt="FINSURF Mascot"
+        className="w-full h-full object-contain transition-all duration-500"
+        style={{ filter: filters[mode] }}
+      />
+    </div>
+  );
+}
+
 function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode }: AgentCardProps) {
   const colorClasses = {
-    cyan: 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
-    violet: 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
+    cyan: accessMode === 'tropical' 
+      ? 'bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-900'
+      : accessMode === 'colorblind'
+      ? 'bg-blue-100 text-blue-900 border-blue-600 border-2 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-400'
+      : 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
+    emerald: accessMode === 'tropical'
+      ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900'
+      : accessMode === 'colorblind'
+      ? 'bg-orange-100 text-orange-900 border-orange-600 border-2 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-400'
+      : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
+    amber: accessMode === 'tropical'
+      ? 'bg-yellow-50 text-yellow-600 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900'
+      : accessMode === 'colorblind'
+      ? 'bg-yellow-100 text-yellow-900 border-yellow-600 border-2 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-400'
+      : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
+    violet: accessMode === 'tropical'
+      ? 'bg-pink-50 text-pink-600 border-pink-100 dark:bg-pink-900/20 dark:text-pink-400 dark:border-pink-900'
+      : accessMode === 'colorblind'
+      ? 'bg-purple-100 text-purple-900 border-purple-600 border-2 dark:bg-purple-900/40 dark:text-purple-100 dark:border-purple-400'
+      : 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
   };
 
   const accentClasses = {
-    cyan: 'bg-cyan-600',
-    emerald: 'bg-emerald-600',
-    amber: 'bg-amber-600',
-    violet: 'bg-violet-600'
+    cyan: accessMode === 'tropical' ? 'bg-teal-600' : accessMode === 'colorblind' ? 'bg-blue-700' : 'bg-cyan-600',
+    emerald: accessMode === 'tropical' ? 'bg-orange-600' : accessMode === 'colorblind' ? 'bg-orange-700' : 'bg-emerald-600',
+    amber: accessMode === 'tropical' ? 'bg-yellow-600' : accessMode === 'colorblind' ? 'bg-yellow-700' : 'bg-amber-600',
+    violet: accessMode === 'tropical' ? 'bg-pink-600' : accessMode === 'colorblind' ? 'bg-purple-700' : 'bg-violet-600'
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit">
+    <div className={cn(
+      "bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit",
+      accessMode === 'colorblind' 
+        ? "border-4 border-blue-600 shadow-blue-900/20" 
+        : "shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50"
+    )}>
       <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
         <div className="flex items-center gap-3">
           <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", colorClasses[color])}>
             {icon}
           </div>
-          <h2 className="font-black text-slate-800 dark:text-white tracking-tight">{title}</h2>
+          <div>
+            <h2 className="font-black text-slate-800 dark:text-white tracking-tight">{title}</h2>
+            {accessMode === 'colorblind' && (
+              <span className="text-[8px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">High Contrast Mode</span>
+            )}
+          </div>
         </div>
         {loading && <Loader2 className="animate-spin text-cyan-400" size={18} />}
       </div>
@@ -401,10 +523,18 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="prose prose-sm prose-slate dark:prose-invert max-w-none"
+              className={cn(
+                "prose prose-sm prose-slate dark:prose-invert max-w-none",
+                accessMode === 'colorblind' && "prose-strong:text-blue-900 dark:prose-strong:text-blue-100"
+              )}
             >
               {isDividendAgent && divResponse && !divResponse.isDividendStock ? (
-                <div className="bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 text-red-800 dark:text-red-400 text-xs flex gap-3 mb-4">
+                <div className={cn(
+                  "border rounded-2xl p-4 text-xs flex gap-3 mb-4",
+                  accessMode === 'colorblind' 
+                    ? "bg-blue-50 border-blue-600 text-blue-900" 
+                    : "bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400"
+                )}>
                   <Info size={16} className="shrink-0 mt-0.5" />
                   <div>
                     <p className="font-black uppercase tracking-tight">No Projection</p>
@@ -413,7 +543,11 @@ function AgentCard({ title, icon, loading, response, color, isDividendAgent, acc
                 </div>
               ) : null}
 
-              <div className={cn("markdown-body dark:text-slate-300 overflow-x-auto", isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale")}>
+              <div className={cn(
+                "markdown-body dark:text-slate-300 overflow-x-auto", 
+                isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale",
+                accessMode === 'colorblind' && "font-bold text-slate-900 dark:text-white"
+              )}>
                 <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
               </div>
               

@@ -192,19 +192,20 @@ def tax_agent(ticker, purchase_date, sell_date):
         return call_gemini(prompt, system)
 
 def social_sentiment_agent(ticker):
-    prompt = f"""Search Reddit and X (Twitter) for recent (last 7 days) discussions about the stock ticker '{ticker}'. 
+    prompt = f"""Search Reddit, X (Twitter), StockTwits, and major financial news websites (e.g., Bloomberg, Reuters, CNBC) for recent (last 7 days) discussions and sentiment about the stock ticker '{ticker}'. 
     
     STRICT REQUIREMENTS:
     1. The symbol '{ticker}' refers to a stock market ticker (e.g., 'T' is AT&T, 'F' is Ford). Do NOT confuse it with generic words or other entities.
-    2. STRICTLY EXCLUDE any cryptocurrency-related discussions or sentiment. Focus only on the equity/stock market.
+    2. PRIORITIZE sources known for reliable financial sentiment analysis like StockTwits and reputable financial news outlets.
+    3. STRICTLY EXCLUDE any cryptocurrency-related discussions or sentiment. Focus only on the equity/stock market.
     
     REQUIRED FORMAT:
-    1. Summarize the overall sentiment (Bullish, Bearish, or Neutral).
-    2. Highlight the key reasons for this sentiment.
+    1. Summarize the overall sentiment (Bullish, Bearish, or Neutral) across all sources.
+    2. Highlight the key reasons for this sentiment, distinguishing between retail (social media) and professional (news) perspectives.
     3. Mention specific trending topics or concerns.
-    4. At the end, provide 1 or 2 specific, representative comments or tweets (paraphrased or quoted) that best convey the current sentiment.
+    4. At the end, provide 1 or 2 specific, representative comments, tweets, or headlines that best convey the current sentiment.
     """
-    system = "Social Media Sentiment Analyst. You specialize in tracking retail investor sentiment for STOCKS on platforms like Reddit (r/wallstreetbets, r/stocks) and X. Be objective, exclude crypto, and ensure you are researching the correct company ticker."
+    system = "Financial Sentiment Analyst. You specialize in tracking both retail investor sentiment (Reddit, StockTwits, X) and professional market sentiment (Financial News) for STOCKS. Be objective, exclude crypto, and ensure you are researching the correct company ticker."
     try:
         return call_perplexity(prompt, system)
     except Exception as e:
@@ -213,21 +214,22 @@ def social_sentiment_agent(ticker):
         return json.dumps({"content": content, "citations": []})
 
 def dividend_agent(ticker, shares, years):
-    prompt = f"""Analyze {ticker} dividends for {shares} shares over {years} years. 
+    prompt = f"""Analyze {ticker} dividends for exactly {shares} shares over a {years}-year period.
     
-    CALCULATION RULES:
-    1. Annual Payout = (Dividend Per Share) * {shares}.
-    2. Cumulative Total (Year N) = The running sum of all Annual Payouts from Year 1 up to Year N.
-    3. Ensure all calculations reflect the exact fractional share count: {shares}.
+    MATHEMATICAL PRECISION RULES:
+    1. SHARE COUNT: Use the exact fractional share count of {shares} for every single year.
+    2. ANNUAL PAYOUT: For each year, calculate: (Dividend Per Share) × {shares}. Do NOT round this value until the final table display.
+    3. CUMULATIVE TOTAL: This is a running sum. Year N Cumulative Total = (Year N-1 Cumulative Total) + (Year N Annual Payout).
+    4. ACCURACY: Ensure the final 'Estimated Cumulative Total' is the precise sum of all annual payouts over {years} years.
     
     REQUIRED FORMAT:
     1. Provide a Markdown table with columns: | Year | Dividend Per Share | Annual Payout | Cumulative Total |
     2. Each year must be on its own row.
-    3. If it is a dividend-paying stock, you MUST explicitly state the final 'Estimated Cumulative Total' (the sum of all payouts over the {years} year period) at the end of your summary analysis.
+    3. Below the table, provide a summary that explicitly states the final 'Estimated Cumulative Total' for the {shares} shares.
     
     Return your response as a JSON object with these keys: isDividendStock (boolean), hasDividendHistory (boolean), analysis (string containing your markdown table and summary)."""
     
-    system = "Dividend specialist. Determine if stock pays dividends now or ever. Provide concise projection if active. ALWAYS use a markdown table for projections. Ensure the table is legible with clear headers and one row per year. Account for fractional shares in all calculations. The 'Cumulative Total' column must be a running sum of all previous years' payouts."
+    system = "Dividend specialist. You are a precision-focused financial analyst. Determine if a stock pays dividends and provide a multi-year projection. You must perform exact calculations using fractional shares. The 'Cumulative Total' column must strictly follow a running sum logic. Double-check your math before responding."
     
     schema = {
         "type": "OBJECT",
