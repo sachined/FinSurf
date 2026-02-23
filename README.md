@@ -237,7 +237,7 @@ graph LR
 ### Results & PDF Output
 |                             Results Dashboard                             | Market Analysis PDF Report |
 |:-------------------------------------------------------------------------:|:---:|
-| <img src="Images/Result1.png" width="450"><br/><img src="Images/Result2.png" width="450"> | <img src="Images/FitPageReport.png" width="450"> |
+| ![Result1.png](Images/Result1.png)<br/><img src="Images/Result2.png" width="450"> | <img src="Images/FitPageReport.png" width="450"> |
 
 ### Optimized Report Layout
 | PDF Mode Comparison (HD vs Standard) | Adaptive PDF Pagination |
