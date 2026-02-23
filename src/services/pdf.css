@@ -27,3 +27,170 @@ input:not([data-pdf-keep="true"]),
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+/* High Contrast Card Overrides for PDF */
+[data-pdf-chunk="card"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 2rem; /* Dynamic via component classes */
+  box-shadow: none !important;
+}
+
+.dark [data-pdf-chunk="card"] {
+  background-color: #0f172a !important;
+  border: 1px solid #1e293b !important;
+}
+
+/* Card Header Fixes */
+[data-pdf-chunk="card"] > div:first-child {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.dark [data-pdf-chunk="card"] > div:first-child {
+  background-color: #0f172a !important;
+  border-bottom: 1px solid #1e293b !important;
+}
+
+/* High Contrast Table Overrides for PDF (uses standard HEX to avoid oklch conversion issues) */
+.markdown-body table {
+  border: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+}
+
+.markdown-body th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  font-weight: 800 !important;
+}
+
+.markdown-body td {
+  color: #334155 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.markdown-body tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+/* General Text Overrides for PDF */
+.markdown-body p, 
+.markdown-body li, 
+.markdown-body h1, 
+.markdown-body h2, 
+.markdown-body h3, 
+.markdown-body strong {
+  color: #1e293b !important;
+}
+
+.markdown-body a {
+  color: #0891b2 !important;
+}
+
+/* Dark Mode Overrides for PDF */
+.dark .markdown-body table {
+  border: 1px solid #1e293b !important;
+  background-color: #0a1114 !important;
+}
+
+.dark .markdown-body th {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+}
+
+.dark .markdown-body td {
+  color: #cbd5e1 !important;
+  border: 1px solid #334155 !important;
+}
+
+.dark .markdown-body tr:nth-child(even) {
+  background-color: #0f172a !important;
+}
+
+/* Force text visibility in dark mode PDF */
+.dark .markdown-body p, 
+.dark .markdown-body li, 
+.dark .markdown-body h1, 
+.dark .markdown-body h2, 
+.dark .markdown-body h3, 
+.dark .markdown-body strong {
+  color: #f8fafc !important;
+}
+
+.dark .markdown-body a {
+  color: #22d3ee !important;
+}
+
+/* Alert/Warning Box Overrides (High Contrast for PDF) */
+.pdf-alert {
+  background-color: #fef2f2 !important; /* Light Red */
+  border: 1px solid #fee2e2 !important;
+  color: #991b1b !important; /* Dark Red */
+}
+
+.dark .pdf-alert {
+  background-color: #450a0a !important; /* Very Dark Red */
+  border: 1px solid #7f1d1d !important;
+  color: #fecaca !important; /* Light Red */
+}
+
+/* Ensure text inside alerts is visible */
+.pdf-alert p, 
+.pdf-alert strong,
+.pdf-alert div {
+  color: inherit !important;
+}
+
+/* Handle disabled/faded states in PDF */
+[data-pdf-chunk="card"] .opacity-60,
+[data-pdf-chunk="card"] .opacity-80,
+[data-pdf-chunk="card"] .grayscale,
+.pdf-alert * {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Card Icon Box Overrides */
+.pdf-icon-box {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.dark .pdf-icon-box {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Sources Section Overrides */
+.pdf-sources {
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+.dark .pdf-sources {
+  border-top: 1px solid #334155 !important;
+}
+
+.pdf-source-link {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0369a1 !important; /* sky-700 */
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+.dark .pdf-source-link {
+  background-color: #0f172a !important;
+  border: 1px solid #1e293b !important;
+  color: #38bdf8 !important; /* sky-400 */
+}
+
+/* Mascot Fix for PDF */
+[data-pdf-chunk="pdf-header"] img {
+  filter: none !important;
+}

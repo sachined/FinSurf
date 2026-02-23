@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Receipt, Coins, MessageSquare } from 'lucide-react';
 import { AgentCard } from '../AgentCard';
 import { FinancialAgentsState, LoadingState, AccessMode } from '../../types';
+import { cn } from '../../utils/cn';
 
 interface ResultsGridProps {
   responses: FinancialAgentsState;
@@ -10,8 +11,18 @@ interface ResultsGridProps {
 }
 
 export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps) {
+  const isAnyLoading = Object.values(loading).some(v => v);
+  const hasResponses = Object.values(responses).some(r => r !== null);
+  const isDone = hasResponses && !isAnyLoading;
+
   return (
-    <div id="agents-grid" className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 relative z-20">
+    <div 
+      id="agents-grid" 
+      className={cn(
+        "grid grid-cols-1 md:grid-cols-2 relative z-20 transition-all duration-700",
+        isDone ? "gap-0 mb-0" : "gap-8 mb-12"
+      )}
+    >
       <AgentCard
         title="Research Analyst"
         icon={<Search size={20} />}
@@ -19,6 +30,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.research}
         color="cyan"
         accessMode={accessMode}
+        isCompact={isDone}
       />
       <AgentCard
         title="Tax Strategist"
@@ -27,6 +39,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.tax}
         color="emerald"
         accessMode={accessMode}
+        isCompact={isDone}
       />
       <AgentCard
         title="Dividend Specialist"
@@ -36,6 +49,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         color="amber"
         isDividendAgent
         accessMode={accessMode}
+        isCompact={isDone}
       />
       <AgentCard
         title="Sentiment Analyst"
@@ -44,6 +58,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.sentiment}
         color="violet"
         accessMode={accessMode}
+        isCompact={isDone}
       />
     </div>
   );

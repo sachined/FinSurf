@@ -132,6 +132,7 @@ export default function App() {
             isLoading={isAnyLoading}
             hasSurfed={hasSurfed}
             accessMode={accessMode}
+            isCompact={hasSurfed && !isAnyLoading}
           />
 
           <AnimatePresence>
@@ -140,7 +141,7 @@ export default function App() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-[2rem] text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
+                className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-[2rem] text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
               >
                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 {error}

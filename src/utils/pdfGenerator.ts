@@ -32,7 +32,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
       if (isCard) {
         // Measure original width to determine if it fits in 1400px row
         const width = el.getBoundingClientRect().width || 350;
-        const gap = currentCardRow.length > 0 ? 32 : 0; // matching gap-8 (2rem)
+        const gap = 0; // Removed gap for compact PDF layout
         
         if (currentRowWidth + width + gap <= 1400) {
           currentCardRow.push(el);
@@ -53,10 +53,8 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
     }
     if (currentCardRow.length > 0) chunks.push(currentCardRow);
 
-    let pdf: any = null;
-
     // Parallelize chunk capture for speed
-    const canvasResults = await Promise.all(chunks.map(async (item) => {
+    const results = await Promise.all(chunks.map(async (item) => {
       const isGroup = Array.isArray(item);
       const group = isGroup ? item : [item];
       const firstEl = group[0];
@@ -66,7 +64,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
         ? firstEl.parentElement 
         : firstEl;
 
-      return html2canvas(captureTarget, {
+      const canvas = await html2canvas(captureTarget, {
         scale: scale,
         useCORS: true,
         logging: false,
@@ -74,6 +72,15 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
         width: 1400,
         backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
         onclone: (clonedDoc) => {
+          // Force theme class on clone for CSS selection consistency
+          if (theme === 'dark') {
+            clonedDoc.documentElement.classList.add('dark');
+            clonedDoc.body.classList.add('dark');
+          } else {
+            clonedDoc.documentElement.classList.remove('dark');
+            clonedDoc.body.classList.remove('dark');
+          }
+
           const style = clonedDoc.createElement('style');
           style.innerHTML = pdfStyles as string;
           clonedDoc.head.appendChild(style);
@@ -112,7 +119,13 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
             clonedGrid.style.flexDirection = 'row';
             clonedGrid.style.flexWrap = 'nowrap';
             clonedGrid.style.width = '100%';
-            clonedGrid.style.gap = '2rem';
+            clonedGrid.style.gap = '0'; // Removed gaps between cards
+            clonedGrid.style.marginBottom = '0';
+          }
+
+          const clonedHeader = clonedDoc.querySelector('[data-pdf-chunk="pdf-header"]') as HTMLElement;
+          if (clonedHeader) {
+            clonedHeader.style.marginBottom = '2rem';
           }
 
           // Optimized color conversion
@@ -124,14 +137,23 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
 
           const convertColor = (color: string) => {
             if (!color || (!color.includes('oklch') && !color.includes('oklab') && !color.includes('color-mix'))) return color;
-            if (!convCtx) return '#888888';
+            if (!convCtx) return theme === 'dark' ? '#cbd5e1' : '#334155';
             try {
-              convCtx.fillStyle = '#888888'; // Fallback
+              // Reset to check if browser actually parses the new color
+              convCtx.fillStyle = '#00000000'; 
               convCtx.fillStyle = color;
               const result = convCtx.fillStyle;
-              // If browser still returns the original string (failed to parse), use fallback
-              return (result.includes('oklch') || result.includes('oklab') || result.includes('color-mix')) ? '#888888' : result;
-            } catch (e) { return '#888888'; }
+              
+              // If it's still transparent or contains unparsed modern syntax/vars, use theme-safe fallback
+              if (result === '#00000000' || result === 'rgba(0, 0, 0, 0)' || 
+                  result.includes('oklch') || result.includes('oklab') || 
+                  result.includes('color-mix') || result.includes('var(')) {
+                return theme === 'dark' ? '#cbd5e1' : '#334155';
+              }
+              return result;
+            } catch (e) { 
+              return theme === 'dark' ? '#cbd5e1' : '#334155'; 
+            }
           };
 
           // 1. Process all style tags to prevent html2canvas parser from failing
@@ -148,6 +170,13 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
             element.style.transform = 'none';
             element.style.transition = 'none';
             element.style.animation = 'none';
+            
+            // Fix sticky elements for PDF capture
+            const computedPos = window.getComputedStyle(element).position;
+            if (computedPos === 'sticky') {
+              element.style.position = 'relative';
+              element.style.top = '0';
+            }
 
             if (element.hasAttribute('data-pdf-chunk')) {
               element.style.height = 'auto';
@@ -187,29 +216,76 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
           } catch (e) { }
         }
       });
+
+      return { canvas, item };
     }));
 
-    for (const canvas of canvasResults) {
+    const PAGE_WIDTH = 1400;
+    const STANDARD_A4_HEIGHT = 1980;
+    const SINGLE_PAGE_THRESHOLD = 4000; // About 2 standard pages
+    const CHUNK_GAP = 30;
+
+    // Calculate total height to see if it fits on one page
+    let totalHeight = 0;
+    results.forEach(({ canvas, item }, index) => {
+      const chunkH = canvas.height / scale;
+      const isGroup = Array.isArray(item);
+      const firstEl = isGroup ? item[0] : item;
+      const isCard = firstEl.getAttribute('data-pdf-chunk') === 'card';
+      const prevIsCard = index > 0 && (Array.isArray(results[index-1].item) ? (results[index-1].item as HTMLElement[])[0] : results[index-1].item as HTMLElement).getAttribute('data-pdf-chunk') === 'card';
+      
+      const effectiveGap = (isCard && prevIsCard) ? 0 : CHUNK_GAP;
+      totalHeight += chunkH + (index === 0 ? 0 : effectiveGap);
+    });
+
+    const useSinglePage = totalHeight <= SINGLE_PAGE_THRESHOLD;
+    let pdf: any = null;
+    let currentY = 0;
+    let prevWasCard = false;
+
+    for (const { canvas, item } of results) {
       if (!canvas) continue;
 
       const imgData = canvas.toDataURL('image/png', 0.8); // Slightly compress for speed
-      const pageWidth = canvas.width / scale;
-      const pageHeight = canvas.height / scale;
+      const chunkW = canvas.width / scale;
+      const chunkH = canvas.height / scale;
       
-      const orientation = pageWidth > pageHeight ? 'landscape' : 'portrait';
+      const isGroup = Array.isArray(item);
+      const firstEl = isGroup ? item[0] : item;
+      const isCard = firstEl.getAttribute('data-pdf-chunk') === 'card';
+      const hasBreakBefore = firstEl.getAttribute('data-pdf-break') === 'before';
 
       if (!pdf) {
+        // Initialize PDF: use total height if it fits, else start with standard page
+        const initialHeight = useSinglePage ? totalHeight : Math.max(STANDARD_A4_HEIGHT, chunkH);
         pdf = new jsPDF({
-          orientation,
+          orientation: 'portrait',
           unit: 'px',
-          format: [pageWidth, pageHeight],
-          compress: true // Enable jsPDF compression
+          format: [PAGE_WIDTH, initialHeight],
+          compress: true
         });
+        currentY = 0;
+      } else if (!useSinglePage) {
+        // Multiple pages logic
+        const currentPageHeight = pdf.internal.pageSize.getHeight();
+        const effectiveGap = (isCard && prevWasCard) ? 0 : CHUNK_GAP;
+        const needsNewPage = hasBreakBefore || (currentY + chunkH + effectiveGap > currentPageHeight);
+
+        if (needsNewPage) {
+          pdf.addPage([PAGE_WIDTH, Math.max(STANDARD_A4_HEIGHT, chunkH)], 'portrait');
+          currentY = 0;
+        } else {
+          currentY += effectiveGap;
+        }
       } else {
-        pdf.addPage([pageWidth, pageHeight], orientation);
+        // Single page: just apply the gap
+        const effectiveGap = (isCard && prevWasCard) ? 0 : CHUNK_GAP;
+        currentY += effectiveGap;
       }
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'PNG', 0, currentY, chunkW, chunkH, undefined, 'FAST');
+      currentY += chunkH;
+      prevWasCard = isCard;
     }
 
     if (pdf) {

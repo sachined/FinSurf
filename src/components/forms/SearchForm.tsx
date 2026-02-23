@@ -16,6 +16,7 @@ interface SearchFormProps {
   isLoading: boolean;
   hasSurfed?: boolean;
   accessMode?: AccessMode;
+  isCompact?: boolean;
 }
 
 export function SearchForm({
@@ -30,12 +31,17 @@ export function SearchForm({
   onSearch,
   isLoading,
   hasSurfed,
-  accessMode
+  accessMode,
+  isCompact
 }: SearchFormProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12 relative z-20">
+    <div className={cn(
+      "grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-20 transition-all duration-700",
+      isCompact ? "mb-0" : "mb-12"
+    )}>
       <div className={cn(
-        "lg:col-span-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-2xl backdrop-blur-sm border transition-colors duration-500",
+        "lg:col-span-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-slate-900 p-6 shadow-2xl backdrop-blur-sm border transition-all duration-500",
+        isCompact ? "rounded-none" : "rounded-[2.5rem]",
         accessMode === 'tropical'
           ? "shadow-orange-900/5 border-orange-100 dark:border-orange-900/50"
           : accessMode === 'colorblind'
@@ -121,7 +127,8 @@ export function SearchForm({
         onClick={onSearch}
         disabled={isLoading}
         className={cn(
-          "lg:col-span-2 group relative overflow-hidden text-white rounded-[2.5rem] px-8 py-6 font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3",
+          "lg:col-span-2 group relative overflow-hidden text-white px-8 py-6 font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3",
+          isCompact ? "rounded-none" : "rounded-[2.5rem]",
           hasSurfed 
             ? "bg-emerald-500 dark:bg-emerald-600 shadow-emerald-500/20" 
             : accessMode === 'tropical'

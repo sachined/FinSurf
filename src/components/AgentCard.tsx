@@ -23,9 +23,10 @@ interface AgentCardProps {
   color: 'cyan' | 'emerald' | 'amber' | 'violet';
   isDividendAgent?: boolean;
   accessMode: AccessMode;
+  isCompact?: boolean;
 }
 
-export function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode }: AgentCardProps) {
+export function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode, isCompact }: AgentCardProps) {
   const colorClasses = {
     cyan: accessMode === 'tropical' 
       ? 'bg-teal-50/50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800'
@@ -60,7 +61,8 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
 
   return (
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
-      "bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit",
+      "bg-white dark:bg-slate-900 flex flex-col transition-all resize overflow-auto min-h-[400px] min-w-[280px] h-full",
+      isCompact ? "rounded-none shadow-none border-none" : "rounded-[2rem] shadow-xl hover:scale-[1.01]",
       accessMode === 'colorblind' 
         ? "border-4 border-blue-600 dark:border-blue-500 shadow-[8px_8px_0px_0px_rgba(30,58,138,0.2)]" 
         : accessMode === 'tropical'
@@ -73,7 +75,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
       )}>
         <div className="flex items-center gap-3">
           <div className={cn(
-            "w-10 h-10 rounded-2xl flex items-center justify-center border transition-transform", 
+            "pdf-icon-box w-10 h-10 rounded-2xl flex items-center justify-center border transition-transform", 
             colorClasses[color],
             accessMode === 'colorblind' && "scale-110"
           )}>
@@ -130,7 +132,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
             >
               {isDividendAgent && divResponse && !divResponse.isDividendStock ? (
                 <div className={cn(
-                  "border rounded-2xl p-4 text-xs flex gap-3 mb-4",
+                  "pdf-alert border rounded-2xl p-4 text-xs flex gap-3 mb-4",
                   accessMode === 'colorblind' 
                     ? "bg-blue-50 border-blue-600 text-blue-900" 
                     : "bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400"
@@ -152,7 +154,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               </div>
               
               {response?.sources && response.sources.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-cyan-50 dark:border-cyan-900/30">
+                <div className="pdf-sources mt-8 pt-6 border-t border-cyan-50 dark:border-cyan-900/30">
                   <h4 className="text-[10px] font-black text-cyan-300 dark:text-cyan-700 uppercase tracking-widest mb-4">Sources</h4>
                   <div className="flex flex-wrap gap-2">
                     {response.sources.map((source, i) => (
@@ -161,10 +163,10 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                         href={source.uri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-cyan-50/50 dark:bg-slate-800 border border-cyan-100 dark:border-cyan-900 rounded-xl text-[10px] font-bold text-cyan-700 dark:text-cyan-400 transition-colors"
+                        className="pdf-source-link inline-flex items-center gap-1.5 px-3 py-2 bg-cyan-50/50 dark:bg-slate-800 border border-cyan-100 dark:border-cyan-900 rounded-xl text-[10px] font-bold text-cyan-700 dark:text-cyan-400 transition-colors"
                       >
                         <ExternalLink size={10} />
-                        <span className="max-w-[100px] truncate">{source.title}</span>
+                        <span>{source.title}</span>
                       </a>
                     ))}
                   </div>
@@ -175,7 +177,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
         </AnimatePresence>
       </div>
       
-      <div className={cn("h-2 w-full", accentClasses[color])} />
+      {!isCompact && <div className={cn("h-2 w-full", accentClasses[color])} />}
     </div>
   );
 }

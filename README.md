@@ -58,18 +58,23 @@ The following diagram illustrates the end-to-end data flow from user input to fi
 
 ```mermaid
 graph TD
-    subgraph "Frontend (React)"
+    classDef fe fill:#cffafe,stroke:#0891b2,stroke-width:2px;
+    classDef be fill:#d1fae5,stroke:#059669,stroke-width:2px;
+    classDef ai fill:#ede9fe,stroke:#7c3aed,stroke-width:2px;
+    classDef ui fill:#fef3c7,stroke:#d97706,stroke-width:2px;
+
+    subgraph FE["Frontend (React)"]
         A[User Input: Ticker, Dates, Shares] --> B{Click Surf}
         B --> C[App.tsx: runAll]
         C --> D[apiService.ts: API Helpers]
     end
 
-    subgraph "Backend (Express + Python)"
+    subgraph BE["Backend (Express + Python)"]
         D -->|HTTP POST| E[server.ts: API Endpoints]
         E -->|Child Process| F[agents.py: AI Backend]
     end
 
-    subgraph "AI Layer (External APIs)"
+    subgraph AL["AI Layer (External APIs)"]
         F --> G{LLM Orchestrator}
         G -->|Primary| H[Perplexity / Anthropic]
         G -->|Fallback / Logic| I[Gemini / OpenAI]
@@ -81,12 +86,23 @@ graph TD
     F --> E
     E -->|JSON Response| D
     D --> K[App.tsx: Update State]
-    subgraph UI_Output["UI & Output"]
+    
+    subgraph UI["UI & Output"]
         K --> L[AgentCard.tsx: Render Markdown]
         L --> M{User Actions}
         M -->|Download| N[pdfGenerator.ts]
         N --> O[Professional PDF Report]
     end
+
+    class A,B,C,D fe;
+    class E,F be;
+    class G,H,I,J ai;
+    class K,L,M,N,O ui;
+
+    style FE fill:#f0fdff,stroke:#0891b2,stroke-width:1px,stroke-dasharray: 5 5;
+    style BE fill:#f0fdf4,stroke:#059669,stroke-width:1px,stroke-dasharray: 5 5;
+    style AL fill:#f5f3ff,stroke:#7c3aed,stroke-width:1px,stroke-dasharray: 5 5;
+    style UI fill:#fffbeb,stroke:#d97706,stroke-width:1px,stroke-dasharray: 5 5;
 ```
 
 ### Project Structure
@@ -94,6 +110,11 @@ This diagram shows the organization of the codebase and key file relationships.
 
 ```mermaid
 graph LR
+    classDef root fill:#f1f5f9,stroke:#475569,stroke-width:3px,font-weight:bold;
+    classDef be fill:#d1fae5,stroke:#059669,stroke-width:2px;
+    classDef fe fill:#cffafe,stroke:#0891b2,stroke-width:2px;
+    classDef cfg fill:#f8fafc,stroke:#94a3b8,stroke-width:1px;
+
     Root[FinSurf Root]
     
     Root --- B[Backend Logic]
@@ -157,6 +178,11 @@ graph LR
         env[.env]
     end
 
+    class Root root;
+    class agents,server,financial_agents,llm_providers,utils_py be;
+    class App,main,types,css,AgentCard,Mascot,Header,Footer,SearchForm,ResultsGrid,useTheme,useForm,useAgents,apiService,pdfCSS,pdfGen,cn fe;
+    class pkg,vite,ts,html,meta,env cfg;
+
     %% Relationships
     App --> apiService
     App --> components
@@ -165,6 +191,10 @@ graph LR
     agents --> financial_agents
     App --> pdfGen
     pdfGen -.-> pdfCSS
+
+    style B fill:#f0fdf4,stroke:#059669,stroke-width:1px;
+    style F fill:#f0fdff,stroke:#0891b2,stroke-width:1px;
+    style C fill:#f8fafc,stroke:#94a3b8,stroke-width:1px;
 ```
 
 ---
