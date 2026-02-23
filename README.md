@@ -235,9 +235,9 @@ graph LR
 | <img src="Images/DayTime.png" width="300"> | <img src="Images/AccessibleTheme.png" width="300"> | <img src="Images/TropicalTheme.png" width="300"> |
 
 ### Results & PDF Output
-|                             Results Dashboard                             | Market Analysis PDF Report |
-|:-------------------------------------------------------------------------:|:---:|
-| ![Result1.png](Images/Result1.png)<br/><img src="Images/Result2.png" width="450"> | <img src="Images/FitPageReport.png" width="450"> |
+|                                   Results Dashboard                                    | Market Analysis PDF Report |
+|:--------------------------------------------------------------------------------------:|:---:|
+| <img src="Images/Result1.png" width="450"><br/><img src="Images/Result2.png" width="450"> | <img src="Images/FitPageReport.png" width="450"> |
 
 ### Optimized Report Layout
 | PDF Mode Comparison (HD vs Standard) | Adaptive PDF Pagination |
