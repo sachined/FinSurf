@@ -59,7 +59,7 @@ The following diagram illustrates the end-to-end data flow from user input to fi
 ```mermaid
 graph TD
     subgraph "Frontend (React)"
-        A[User Input: Ticker, Dates, Shares] --> B{Click "Surf"}
+        A[User Input: Ticker, Dates, Shares] --> B{Click Surf}
         B --> C[App.tsx: runAll]
         C --> D[apiService.ts: API Helpers]
     end
@@ -102,51 +102,51 @@ graph LR
     Root --- C[Configuration]
 
     subgraph "B [Backend Logic]"
-        agents["agents.py (CLI Entry)"]
-        server["server.ts (Express Server)"]
-        backend["backend/ (Modular Agents)"]
+        agents[agents.py CLI Entry]
+        server[server.ts Express Server]
+        backend[backend/ Modular Agents]
     end
 
     subgraph "F [src/ Source]"
-        App["App.tsx (Main App)"]
+        App[App.tsx Main App]
         
         subgraph "components [components/]"
-            AgentCard["AgentCard.tsx"]
-            Mascot["Mascot.tsx"]
+            AgentCard[AgentCard.tsx]
+            Mascot[Mascot.tsx]
             subgraph "layout [layout/]"
-                Header["Header.tsx"]
-                Footer["Footer.tsx"]
+                Header[Header.tsx]
+                Footer[Footer.tsx]
             end
             subgraph "forms [forms/]"
-                SearchForm["SearchForm.tsx"]
+                SearchForm[SearchForm.tsx]
             end
             subgraph "results [results/]"
-                ResultsGrid["ResultsGrid.tsx"]
+                ResultsGrid[ResultsGrid.tsx]
             end
         end
 
         subgraph "hooks [hooks/]"
-            useTheme["useTheme.ts"]
-            useForm["useFormState.ts"]
-            useAgents["useFinancialAgents.ts"]
+            useTheme[useTheme.ts]
+            useForm[useFormState.ts]
+            useAgents[useFinancialAgents.ts]
         end
         
         subgraph "services [services/]"
-            apiService["apiService.ts"]
-            pdfCSS["pdf.css"]
+            apiService[apiService.ts]
+            pdfCSS[pdf.css]
         end
         
         subgraph "utils [utils/]"
-            pdfGen["pdfGenerator.ts"]
-            cn["cn.ts"]
+            pdfGen[pdfGenerator.ts]
+            cn[cn.ts]
         end
     end
 
     subgraph "C [Configuration]"
-        pkg["package.json"]
-        vite["vite.config.ts"]
-        ts["tsconfig.json"]
-        env[".env"]
+        pkg[package.json]
+        vite[vite.config.ts]
+        ts[tsconfig.json]
+        env[.env]
     end
 
     %% Relationships
