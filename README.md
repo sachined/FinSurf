@@ -58,18 +58,18 @@ The following diagram illustrates the end-to-end data flow from user input to fi
 
 ```mermaid
 graph TD
-    subgraph Frontend (React)
+    subgraph "Frontend (React)"
         A[User Input: Ticker, Dates, Shares] --> B{Click "Surf"}
         B --> C[App.tsx: runAll]
         C --> D[apiService.ts: API Helpers]
     end
 
-    subgraph Backend (Express + Python)
+    subgraph "Backend (Express + Python)"
         D -->|HTTP POST| E[server.ts: API Endpoints]
         E -->|Child Process| F[agents.py: AI Backend]
     end
 
-    subgraph AI Layer (External APIs)
+    subgraph "AI Layer (External APIs)"
         F --> G{LLM Orchestrator}
         G -->|Primary| H[Perplexity / Anthropic]
         G -->|Fallback / Logic| I[Gemini / OpenAI]
@@ -101,48 +101,48 @@ graph LR
     Root --- F[Frontend Source]
     Root --- C[Configuration]
 
-    subgraph B [Backend Logic]
+    subgraph "B [Backend Logic]"
         agents["agents.py (CLI Entry)"]
         server["server.ts (Express Server)"]
         backend["backend/ (Modular Agents)"]
     end
 
-    subgraph F [src/ Source]
+    subgraph "F [src/ Source]"
         App["App.tsx (Main App)"]
         
-        subgraph components [components/]
+        subgraph "components [components/]"
             AgentCard["AgentCard.tsx"]
             Mascot["Mascot.tsx"]
-            subgraph layout [layout/]
+            subgraph "layout [layout/]"
                 Header["Header.tsx"]
                 Footer["Footer.tsx"]
             end
-            subgraph forms [forms/]
+            subgraph "forms [forms/]"
                 SearchForm["SearchForm.tsx"]
             end
-            subgraph results [results/]
+            subgraph "results [results/]"
                 ResultsGrid["ResultsGrid.tsx"]
             end
         end
 
-        subgraph hooks [hooks/]
+        subgraph "hooks [hooks/]"
             useTheme["useTheme.ts"]
             useForm["useFormState.ts"]
             useAgents["useFinancialAgents.ts"]
         end
         
-        subgraph services [services/]
+        subgraph "services [services/]"
             apiService["apiService.ts"]
             pdfCSS["pdf.css"]
         end
         
-        subgraph utils [utils/]
+        subgraph "utils [utils/]"
             pdfGen["pdfGenerator.ts"]
             cn["cn.ts"]
         end
     end
 
-    subgraph C [Configuration]
+    subgraph "C [Configuration]"
         pkg["package.json"]
         vite["vite.config.ts"]
         ts["tsconfig.json"]
@@ -174,9 +174,9 @@ graph LR
 | ![DayTime.png](Images/DayTime.png) | ![AccessibleTheme.png](Images/AccessibleTheme.png) | ![TropicalTheme.png](Images/TropicalTheme.png) |
 
 ### Results & PDF Output
-|          Results Dashboard          | Market Analysis PDF Report |
-|:-----------------------------------:|:---:|
-| ![Result1.png](Images/Result1.png)<br/>![Result2.png](Images/Result2.png)<br/> | ![Report.png](Images/Report.png) |
+|                             Results Dashboard                             | Market Analysis PDF Report |
+|:-------------------------------------------------------------------------:|:---:|
+| ![Result1.png](Images/Result1.png)<br/>![Result2.png](Images/Result2.png) | ![Report.png](Images/Report.png) |
 
 ---
 
