@@ -55,170 +55,144 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
 
     let pdf: any = null;
 
-    for (let i = 0; i < chunks.length; i++) {
-      const item = chunks[i];
+    // Parallelize chunk capture for speed
+    const canvasResults = await Promise.all(chunks.map(async (item) => {
       const isGroup = Array.isArray(item);
       const group = isGroup ? item : [item];
       const firstEl = group[0];
       const isCard = firstEl.getAttribute('data-pdf-chunk') === 'card';
       
-      // If it's a card in a grid, we capture the parent to maintain layout
       const captureTarget = (isCard && firstEl.parentElement?.id === 'agents-grid') 
         ? firstEl.parentElement 
         : firstEl;
 
-      // Retry mechanism for chunk capture
-      let canvas: HTMLCanvasElement | null = null;
-      let retries = 3;
-      
-      while (retries > 0 && !canvas) {
-        try {
-          canvas = await html2canvas(captureTarget, {
-            scale: scale,
-            useCORS: true,
-            logging: false, // Reduced logging for better performance
-            windowWidth: 1400,
-            width: 1400, // Explicitly set width to match windowWidth for full capture
-            backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
-            onclone: (clonedDoc) => {
-              const style = clonedDoc.createElement('style');
-              style.innerHTML = pdfStyles as string;
-              clonedDoc.head.appendChild(style);
+      return html2canvas(captureTarget, {
+        scale: scale,
+        useCORS: true,
+        logging: false,
+        windowWidth: 1400,
+        width: 1400,
+        backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
+        onclone: (clonedDoc) => {
+          const style = clonedDoc.createElement('style');
+          style.innerHTML = pdfStyles as string;
+          clonedDoc.head.appendChild(style);
 
-              const textFixStyle = clonedDoc.createElement('style');
-              textFixStyle.innerHTML = `
-                * { 
-                  text-rendering: auto !important;
-                  letter-spacing: normal !important;
-                }
-                .markdown-body * {
-                  word-spacing: normal !important;
-                }
-              `;
-              clonedDoc.head.appendChild(textFixStyle);
+          const textFixStyle = clonedDoc.createElement('style');
+          textFixStyle.innerHTML = `
+            * { 
+              text-rendering: optimizeLegibility !important;
+              letter-spacing: normal !important;
+            }
+          `;
+          clonedDoc.head.appendChild(textFixStyle);
 
-              // Force report layout to be consistent
-              const reportEl = clonedDoc.getElementById('report-container');
-              if (reportEl) {
-                reportEl.style.width = '1400px';
-                reportEl.style.maxWidth = 'none';
-                reportEl.style.height = 'auto';
-                reportEl.style.padding = '0'; // Reduce padding for better fit in PDF
+          const reportEl = clonedDoc.getElementById('report-container');
+          if (reportEl) {
+            reportEl.style.width = '1400px';
+            reportEl.style.maxWidth = 'none';
+          }
+          
+          const clonedGrid = clonedDoc.getElementById('agents-grid');
+          if (clonedGrid && isCard) {
+            const visibleTitles = group.map(el => el.getAttribute('data-pdf-title'));
+            Array.from(clonedGrid.children).forEach(child => {
+              const c = child as HTMLElement;
+              const title = c.getAttribute('data-pdf-title');
+              if (!visibleTitles.includes(title)) {
+                c.style.display = 'none';
+              } else {
+                c.style.display = 'flex';
+                c.style.flexDirection = 'column';
+                c.style.flex = '1';
+                c.style.height = 'auto';
               }
-              
-              // Handle grid layout for cards
-              const clonedGrid = clonedDoc.getElementById('agents-grid');
-              if (clonedGrid && isCard) {
-                const visibleTitles = group.map(el => el.getAttribute('data-pdf-title'));
-                Array.from(clonedGrid.children).forEach(child => {
-                  const c = child as HTMLElement;
-                  const title = c.getAttribute('data-pdf-title');
-                  if (!visibleTitles.includes(title)) {
-                    c.style.display = 'none';
-                  } else {
-                    c.style.display = 'flex';
-                    c.style.flexDirection = 'column';
-                    c.style.width = 'auto';
-                    c.style.flex = '1';
-                    c.style.minWidth = '0'; // prevents blowout
-                    c.style.height = 'auto';
-                  }
-                });
-                clonedGrid.style.display = 'flex';
-                clonedGrid.style.flexDirection = 'row';
-                clonedGrid.style.flexWrap = 'nowrap';
-                clonedGrid.style.width = '100%';
-                clonedGrid.style.gap = '2rem';
-                clonedGrid.style.height = 'auto';
-              }
+            });
+            clonedGrid.style.display = 'flex';
+            clonedGrid.style.flexDirection = 'row';
+            clonedGrid.style.flexWrap = 'nowrap';
+            clonedGrid.style.width = '100%';
+            clonedGrid.style.gap = '2rem';
+          }
 
-              const elements = clonedDoc.getElementsByTagName('*');
-              const clonedWindow = clonedDoc.defaultView || window;
-              const convCanvas = clonedDoc.createElement('canvas');
-              convCanvas.width = 1; convCanvas.height = 1;
-              const convCtx = convCanvas.getContext('2d');
+          // Optimized color conversion
+          const convCanvas = clonedDoc.createElement('canvas');
+          convCanvas.width = 1; convCanvas.height = 1;
+          const convCtx = convCanvas.getContext('2d');
+          // Handles up to 2 levels of nested parentheses (common in color-mix and oklch with var)
+          const modernColorRegex = /(?:oklch|oklab|color-mix)\s*\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)/g;
 
-              const convertColor = (color: string) => {
-                if (!color || (!color.includes('oklch') && !color.includes('oklab'))) return color;
-                if (!convCtx) return '#888888';
-                try {
-                  convCtx.clearRect(0, 0, 1, 1);
-                  convCtx.fillStyle = color;
-                  const converted = convCtx.fillStyle;
-                  return (converted.includes('oklch') || converted.includes('oklab')) ? '#888888' : converted;
-                } catch (e) { return '#888888'; }
-              };
+          const convertColor = (color: string) => {
+            if (!color || (!color.includes('oklch') && !color.includes('oklab') && !color.includes('color-mix'))) return color;
+            if (!convCtx) return '#888888';
+            try {
+              convCtx.fillStyle = '#888888'; // Fallback
+              convCtx.fillStyle = color;
+              const result = convCtx.fillStyle;
+              // If browser still returns the original string (failed to parse), use fallback
+              return (result.includes('oklch') || result.includes('oklab') || result.includes('color-mix')) ? '#888888' : result;
+            } catch (e) { return '#888888'; }
+          };
 
-              const modernColorRegex = /(?:oklch|oklab)\s*\((?:[^)(]+|\([^)(]*\))*\)/g;
-              const convertAllInString = (str: string) => {
-                if (!str || (!str.includes('oklch') && !str.includes('oklab'))) return str;
-                return str.replace(modernColorRegex, (match) => convertColor(match));
-              };
-
-              for (let i = 0; i < elements.length; i++) {
-                const el = elements[i] as HTMLElement;
-                
-                // Force visibility and disable animations
-                if (el.hasAttribute('style')) {
-                  if (el.style.opacity === '0') el.style.opacity = '1';
-                  el.style.transform = 'none';
-                  el.style.transition = 'none';
-                  el.style.animation = 'none';
-                }
-
-                // Ensure card content is fully expanded
-                if (el.hasAttribute('data-pdf-chunk') || el.hasAttribute('data-pdf-break')) {
-                  el.style.height = 'auto';
-                  el.style.maxHeight = 'none';
-                  el.style.overflow = 'visible';
-                  if (!isCard) el.style.width = '100%'; 
-                  el.style.resize = 'none'; // Disable resize handles in PDF
-                }
-
-                // Fix internal scrollable containers
-                if (el.classList.contains('markdown-body') || el.classList.contains('prose')) {
-                  el.style.height = 'auto';
-                  el.style.maxHeight = 'none';
-                  el.style.overflow = 'visible';
-                }
-
-                if (!el.style) continue;
-                try {
-                  const computed = clonedWindow.getComputedStyle(el);
-                  if (computed.opacity === '0') el.style.setProperty('opacity', '1', 'important');
-
-                  for (let j = 0; j < computed.length; j++) {
-                    const prop = computed[j];
-                    const val = computed.getPropertyValue(prop);
-                    if (val && (val.includes('oklch') || val.includes('oklab'))) {
-                      const converted = convertAllInString(val);
-                      el.style.setProperty(prop, converted, 'important');
-                    }
-                  }
-                } catch (e) {}
-              }
-
-              const styles = clonedDoc.getElementsByTagName('style');
-              for (let i = 0; i < styles.length; i++) {
-                try {
-                  if (styles[i].innerHTML.includes('oklch') || styles[i].innerHTML.includes('oklab')) {
-                    styles[i].innerHTML = styles[i].innerHTML.replace(modernColorRegex, '#888888');
-                  }
-                } catch (e) {}
-              }
+          // 1. Process all style tags to prevent html2canvas parser from failing
+          clonedDoc.querySelectorAll('style').forEach(tag => {
+            if (tag.innerHTML.includes('oklch') || tag.innerHTML.includes('oklab') || tag.innerHTML.includes('color-mix')) {
+              tag.innerHTML = tag.innerHTML.replace(modernColorRegex, (m) => convertColor(m));
             }
           });
-        } catch (e) {
-          console.warn(`Chunk capture failed, retrying... (${retries} left)`, e);
-          retries--;
-          if (retries === 0) throw e;
-          await new Promise(r => setTimeout(r, 500)); // Brief pause before retry
-        }
-      }
 
+          // 2. Process all elements for inline styles and other fixes
+          clonedDoc.querySelectorAll('*').forEach(el => {
+            const element = el as HTMLElement;
+            if (element.style.opacity === '0') element.style.opacity = '1';
+            element.style.transform = 'none';
+            element.style.transition = 'none';
+            element.style.animation = 'none';
+
+            if (element.hasAttribute('data-pdf-chunk')) {
+              element.style.height = 'auto';
+              element.style.overflow = 'visible';
+              if (element.getAttribute('data-pdf-chunk') === 'pdf-header') {
+                element.style.display = 'flex';
+              }
+            }
+
+            // Replace modern colors in inline styles
+            if (element.style.cssText && (element.style.cssText.includes('oklch') || element.style.cssText.includes('oklab') || element.style.cssText.includes('color-mix'))) {
+              element.style.cssText = element.style.cssText.replace(modernColorRegex, (m) => convertColor(m));
+            }
+
+            // Support for SVG attributes
+            ['fill', 'stroke'].forEach(attr => {
+              const val = element.getAttribute(attr);
+              if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+                element.setAttribute(attr, convertColor(val));
+              }
+            });
+          });
+
+          // 3. Process all rules in all accessible stylesheets
+          try {
+            Array.from(clonedDoc.styleSheets).forEach((sheet: any) => {
+              try {
+                const rules = sheet.cssRules || sheet.rules;
+                if (!rules) return;
+                Array.from(rules).forEach((rule: any) => {
+                  if (rule.style && rule.style.cssText && (rule.style.cssText.includes('oklch') || rule.style.cssText.includes('oklab') || rule.style.cssText.includes('color-mix'))) {
+                    rule.style.cssText = rule.style.cssText.replace(modernColorRegex, (m: string) => convertColor(m));
+                  }
+                });
+              } catch (e) { }
+            });
+          } catch (e) { }
+        }
+      });
+    }));
+
+    for (const canvas of canvasResults) {
       if (!canvas) continue;
 
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 0.8); // Slightly compress for speed
       const pageWidth = canvas.width / scale;
       const pageHeight = canvas.height / scale;
       
@@ -228,7 +202,8 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
         pdf = new jsPDF({
           orientation,
           unit: 'px',
-          format: [pageWidth, pageHeight]
+          format: [pageWidth, pageHeight],
+          compress: true // Enable jsPDF compression
         });
       } else {
         pdf.addPage([pageWidth, pageHeight], orientation);

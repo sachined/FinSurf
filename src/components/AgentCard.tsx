@@ -13,8 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../utils/cn';
-import { type AgentResponse, type DividendResponse } from '../services/geminiService';
-import { type AccessMode } from '../types';
+import { type AgentResponse, type DividendResponse, type AccessMode } from '../types';
 
 interface AgentCardProps {
   title: string;
@@ -29,32 +28,32 @@ interface AgentCardProps {
 export function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode }: AgentCardProps) {
   const colorClasses = {
     cyan: accessMode === 'tropical' 
-      ? 'bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-900'
+      ? 'bg-teal-50/50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800'
       : accessMode === 'colorblind'
-      ? 'bg-blue-100 text-blue-900 border-blue-600 border-2 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-400'
+      ? 'bg-white text-blue-950 border-blue-600 border-2 dark:bg-slate-900 dark:text-blue-100 dark:border-blue-400 shadow-[4px_4px_0px_0px_rgba(37,99,235,1)]'
       : 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
     emerald: accessMode === 'tropical'
-      ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900'
+      ? 'bg-orange-50/50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800'
       : accessMode === 'colorblind'
-      ? 'bg-orange-100 text-orange-900 border-orange-600 border-2 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-400'
+      ? 'bg-white text-slate-900 border-slate-900 border-2 dark:bg-slate-900 dark:text-white dark:border-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
       : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
     amber: accessMode === 'tropical'
-      ? 'bg-yellow-50 text-yellow-600 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900'
+      ? 'bg-yellow-50/50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800'
       : accessMode === 'colorblind'
-      ? 'bg-yellow-100 text-yellow-900 border-yellow-600 border-2 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-400'
+      ? 'bg-yellow-50 text-yellow-950 border-yellow-600 border-2 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-400 shadow-[4px_4px_0px_0px_rgba(202,138,4,1)]'
       : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
     violet: accessMode === 'tropical'
-      ? 'bg-pink-50 text-pink-600 border-pink-100 dark:bg-pink-900/20 dark:text-pink-400 dark:border-pink-900'
+      ? 'bg-pink-50/50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
       : accessMode === 'colorblind'
-      ? 'bg-purple-100 text-purple-900 border-purple-600 border-2 dark:bg-purple-900/40 dark:text-purple-100 dark:border-purple-400'
+      ? 'bg-blue-50 text-blue-950 border-blue-800 border-2 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-400 shadow-[4px_4px_0px_0px_rgba(30,58,138,1)]'
       : 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
   };
 
   const accentClasses = {
-    cyan: accessMode === 'tropical' ? 'bg-teal-600' : accessMode === 'colorblind' ? 'bg-blue-700' : 'bg-cyan-600',
-    emerald: accessMode === 'tropical' ? 'bg-orange-600' : accessMode === 'colorblind' ? 'bg-orange-700' : 'bg-emerald-600',
-    amber: accessMode === 'tropical' ? 'bg-yellow-600' : accessMode === 'colorblind' ? 'bg-yellow-700' : 'bg-amber-600',
-    violet: accessMode === 'tropical' ? 'bg-pink-600' : accessMode === 'colorblind' ? 'bg-purple-700' : 'bg-violet-600'
+    cyan: accessMode === 'tropical' ? 'bg-gradient-to-r from-teal-400 to-cyan-400' : accessMode === 'colorblind' ? 'bg-blue-700' : 'bg-cyan-600',
+    emerald: accessMode === 'tropical' ? 'bg-gradient-to-r from-orange-400 to-amber-400' : accessMode === 'colorblind' ? 'bg-orange-700' : 'bg-emerald-600',
+    amber: accessMode === 'tropical' ? 'bg-gradient-to-r from-yellow-400 to-orange-400' : accessMode === 'colorblind' ? 'bg-yellow-700' : 'bg-amber-600',
+    violet: accessMode === 'tropical' ? 'bg-gradient-to-r from-pink-400 to-rose-400' : accessMode === 'colorblind' ? 'bg-purple-700' : 'bg-violet-600'
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
@@ -63,18 +62,33 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
       "bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit",
       accessMode === 'colorblind' 
-        ? "border-4 border-blue-600 shadow-blue-900/20" 
+        ? "border-4 border-blue-600 dark:border-blue-500 shadow-[8px_8px_0px_0px_rgba(30,58,138,0.2)]" 
+        : accessMode === 'tropical'
+        ? "shadow-orange-900/5 dark:shadow-orange-950/20 border border-orange-100 dark:border-orange-900/50"
         : "shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50"
     )}>
-      <div className="p-6 border-b border-cyan-50 dark:border-cyan-900/30 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
+      <div className={cn(
+        "p-6 border-b flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10",
+        accessMode === 'tropical' ? "border-orange-50 dark:border-orange-900/20" : "border-cyan-50 dark:border-cyan-900/30"
+      )}>
         <div className="flex items-center gap-3">
-          <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", colorClasses[color])}>
+          <div className={cn(
+            "w-10 h-10 rounded-2xl flex items-center justify-center border transition-transform", 
+            colorClasses[color],
+            accessMode === 'colorblind' && "scale-110"
+          )}>
             {icon}
           </div>
           <div>
-            <h2 className="font-black text-slate-800 dark:text-white tracking-tight">{title}</h2>
+            <h2 className={cn(
+              "font-black tracking-tight",
+              accessMode === 'colorblind' ? "text-blue-950 dark:text-white text-lg" : "text-slate-800 dark:text-white"
+            )}>{title}</h2>
             {accessMode === 'colorblind' && (
-              <span className="text-[8px] font-black uppercase tracking-tighter text-blue-600 dark:text-blue-400">High Contrast Mode</span>
+              <div className="flex items-center gap-1 mt-0.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-[9px] font-black uppercase tracking-tighter text-blue-700 dark:text-blue-400">Accessibility Enhanced</span>
+              </div>
             )}
           </div>
         </div>
@@ -132,7 +146,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               <div className={cn(
                 "markdown-body dark:text-slate-300 overflow-x-auto", 
                 isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale",
-                accessMode === 'colorblind' && "font-bold text-slate-900 dark:text-white"
+                accessMode === 'colorblind' && "font-bold text-slate-900 dark:text-white leading-relaxed"
               )}>
                 <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
               </div>

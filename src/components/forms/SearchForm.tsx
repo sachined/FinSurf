@@ -1,0 +1,148 @@
+import React from 'react';
+import { Search, Calendar, Hash, ArrowRight } from 'lucide-react';
+import { cn } from '../../utils/cn';
+import { type AccessMode } from '../../types';
+
+interface SearchFormProps {
+  ticker: string;
+  setTicker: (val: string) => void;
+  purchaseDate: string;
+  setPurchaseDate: (val: string) => void;
+  sellDate: string;
+  setSellDate: (val: string) => void;
+  shares: string;
+  setShares: (val: string) => void;
+  onSearch: () => void;
+  isLoading: boolean;
+  hasSurfed?: boolean;
+  accessMode?: AccessMode;
+}
+
+export function SearchForm({
+  ticker,
+  setTicker,
+  purchaseDate,
+  setPurchaseDate,
+  sellDate,
+  setSellDate,
+  shares,
+  setShares,
+  onSearch,
+  isLoading,
+  hasSurfed,
+  accessMode
+}: SearchFormProps) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12 relative z-20">
+      <div className={cn(
+        "lg:col-span-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-2xl backdrop-blur-sm border transition-colors duration-500",
+        accessMode === 'tropical'
+          ? "shadow-orange-900/5 border-orange-100 dark:border-orange-900/50"
+          : accessMode === 'colorblind'
+          ? "shadow-blue-900/10 border-blue-600 dark:border-blue-400 border-2"
+          : "shadow-cyan-900/5 border-cyan-50 dark:border-cyan-900/50"
+      )}>
+        <div className="space-y-2 group">
+          <label className={cn(
+            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors px-1",
+            accessMode === 'tropical' ? "group-focus-within:text-orange-500" : accessMode === 'colorblind' ? "group-focus-within:text-blue-700 dark:group-focus-within:text-blue-400 font-black" : "group-focus-within:text-cyan-500"
+          )}>
+            <Search size={12} /> Ticker
+          </label>
+          <input
+            type="text"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value.toUpperCase())}
+            placeholder="AAPL"
+            className={cn(
+              "w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-slate-700 dark:text-white font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all outline-none",
+              accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
+            )}
+          />
+        </div>
+
+        <div className="space-y-2 group">
+          <label className={cn(
+            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors px-1",
+            accessMode === 'tropical' ? "group-focus-within:text-orange-500" : accessMode === 'colorblind' ? "group-focus-within:text-blue-700 dark:group-focus-within:text-blue-400 font-black" : "group-focus-within:text-cyan-500"
+          )}>
+            <Calendar size={12} /> Purchase Date
+          </label>
+          <input
+            type="date"
+            value={purchaseDate}
+            onChange={(e) => setPurchaseDate(e.target.value)}
+            className={cn(
+              "w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-slate-700 dark:text-white font-bold transition-all outline-none",
+              accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
+            )}
+          />
+        </div>
+
+        <div className="space-y-2 group">
+          <label className={cn(
+            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors px-1",
+            accessMode === 'tropical' ? "group-focus-within:text-orange-500" : accessMode === 'colorblind' ? "group-focus-within:text-blue-700 dark:group-focus-within:text-blue-400 font-black" : "group-focus-within:text-cyan-500"
+          )}>
+            <Calendar size={12} /> Sell Date
+          </label>
+          <input
+            type="date"
+            value={sellDate}
+            onChange={(e) => setSellDate(e.target.value)}
+            className={cn(
+              "w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-slate-700 dark:text-white font-bold transition-all outline-none",
+              accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
+            )}
+          />
+        </div>
+
+        <div className="space-y-2 group">
+          <label className={cn(
+            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors px-1",
+            accessMode === 'tropical' ? "group-focus-within:text-orange-500" : accessMode === 'colorblind' ? "group-focus-within:text-blue-700 dark:group-focus-within:text-blue-400 font-black" : "group-focus-within:text-cyan-500"
+          )}>
+            <Hash size={12} /> Shares
+          </label>
+          <input
+            type="number"
+            value={shares}
+            onChange={(e) => setShares(e.target.value)}
+            placeholder="10"
+            className={cn(
+              "w-full bg-slate-50 dark:bg-slate-800/50 border-none rounded-2xl px-5 py-4 text-slate-700 dark:text-white font-bold placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all outline-none",
+              accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
+            )}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={onSearch}
+        disabled={isLoading}
+        className={cn(
+          "lg:col-span-2 group relative overflow-hidden text-white rounded-[2.5rem] px-8 py-6 font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3",
+          hasSurfed 
+            ? "bg-emerald-500 dark:bg-emerald-600 shadow-emerald-500/20" 
+            : accessMode === 'tropical'
+            ? "bg-orange-500 dark:bg-orange-600 shadow-orange-500/30"
+            : accessMode === 'colorblind'
+            ? "bg-blue-700 dark:bg-blue-600 shadow-blue-900/30 border-b-4 border-blue-900 active:border-b-0 active:translate-y-1"
+            : "bg-slate-900 dark:bg-cyan-600 shadow-cyan-900/10",
+          isLoading ? "cursor-wait" : "cursor-pointer"
+        )}
+      >
+        <span className="relative z-10">{isLoading ? 'Riding...' : 'Surf'}</span>
+        {!isLoading && <ArrowRight className="relative z-10 group-hover:translate-x-2 transition-transform" size={20} />}
+        <div className={cn(
+          "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity",
+          hasSurfed 
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600" 
+            : accessMode === 'tropical'
+            ? "bg-gradient-to-r from-orange-600 to-pink-600"
+            : "bg-gradient-to-r from-cyan-600 to-blue-600"
+        )} />
+      </button>
+    </div>
+  );
+}

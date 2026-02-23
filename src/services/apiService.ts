@@ -1,13 +1,4 @@
-export interface AgentResponse {
-  agentName: string;
-  content: string;
-  sources?: { title: string; uri: string }[];
-}
-
-export interface DividendResponse extends AgentResponse {
-  isDividendStock: boolean;
-  hasDividendHistory: boolean;
-}
+import { AgentResponse, DividendResponse } from '../types';
 
 export const researchAgent = async (ticker: string): Promise<AgentResponse> => {
   const response = await fetch("/api/research", {

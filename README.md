@@ -17,10 +17,10 @@
 ## 🚀 Key Features
 
 *   **🤖 Multi-Agent Intelligence**: Four specialized AI agents work in parallel to provide research, tax, dividend, and sentiment analysis.
-*   **📄 Professional PDF Reports**: Generate and download high-quality analysis reports with dynamic page allocation and multi-column layouts.
-*   **🎨 Personalized Experience**: Choose between Light/Dark modes and multiple themes, including **Accessible** and **Tropical**.
-*   **🔌 Flexible AI Backend**: Robust integration with leading LLM providers (Gemini, OpenAI, Anthropic, Perplexity) with automated fallback mechanisms.
-*   **⚡ Modern Tech Stack**: Built with React 19, Vite, Tailwind CSS, Express, and Python for a fast, responsive experience.
+*   **📄 Professional PDF Reports**: Optimized, high-quality analysis reports with row-based grouping and automated color conversion for modern CSS.
+*   **🎨 Personalized Experience**: Choose between Light/Dark modes and multiple themes, including **Accessibility Optimized** and **Enhanced Tropical** modes.
+*   **🔌 Flexible AI Backend**: Modular backend with fallback logic across Gemini, OpenAI, Anthropic, and Perplexity.
+*   **⚡ Modern Tech Stack**: React 19, Vite 6, Tailwind CSS 4, Express, and a modular Python backend.
 
 ---
 
@@ -41,11 +41,11 @@ FinSurf is built with a highly modular and encapsulated architecture:
 
 ### Frontend (React + Vite + Tailwind CSS)
 *   **Modular Components**: Extracted UI elements for better maintainability (e.g., `Mascot`, `AgentCard`).
-*   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with row-based grouping and clean page breaks.
-*   **Dynamic Theme Engine**: Seamless state management between Light, Dark, Tropical, and Accessibility modes.
+*   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with parallelized capture, automated color conversion (`oklch` support), androw-based grouping.
+*   **Dynamic Theme Engine**: State-managed experience between Light, Dark, Tropical (immersive blur effects), and Accessibility (Neobrutalist, high-contrast) modes.
 
 ### Backend (Express + Python)
-*   **Polyglot Execution**: A Node.js/Express server orchestrates specialized Python agents for high-performance AI execution.
+*   **Modular Agent Architecture**: Decoupled backend logic where specialized agents (`financial_agents.py`) are orchestrated via a centralized CLI (`agents.py`).
 *   **LLM Redundancy**: Built-in fallback logic across **Gemini, OpenAI, Anthropic, and Perplexity**.
 *   **Real-Time RAG**: Web-connected agents provide up-to-the-minute market data (via Perplexity).
 
@@ -61,7 +61,7 @@ graph TD
     subgraph Frontend (React)
         A[User Input: Ticker, Dates, Shares] --> B{Click "Surf"}
         B --> C[App.tsx: runAll]
-        C --> D[geminiService.ts: API Helpers]
+        C --> D[apiService.ts: API Helpers]
     end
 
     subgraph Backend (Express + Python)
@@ -102,8 +102,9 @@ graph LR
     Root --- C[Configuration]
 
     subgraph B [Backend Logic]
-        agents["agents.py (AI Agents)"]
+        agents["agents.py (CLI Entry)"]
         server["server.ts (Express Server)"]
+        backend["backend/ (Modular Agents)"]
     end
 
     subgraph F [src/ Source]
@@ -112,10 +113,26 @@ graph LR
         subgraph components [components/]
             AgentCard["AgentCard.tsx"]
             Mascot["Mascot.tsx"]
+            subgraph layout [layout/]
+                Header["Header.tsx"]
+                Footer["Footer.tsx"]
+            end
+            subgraph forms [forms/]
+                SearchForm["SearchForm.tsx"]
+            end
+            subgraph results [results/]
+                ResultsGrid["ResultsGrid.tsx"]
+            end
+        end
+
+        subgraph hooks [hooks/]
+            useTheme["useTheme.ts"]
+            useForm["useFormState.ts"]
+            useAgents["useFinancialAgents.ts"]
         end
         
         subgraph services [services/]
-            geminiService["geminiService.ts"]
+            apiService["apiService.ts"]
             pdfCSS["pdf.css"]
         end
         
@@ -133,10 +150,11 @@ graph LR
     end
 
     %% Relationships
-    App --> geminiService
+    App --> apiService
     App --> components
-    geminiService --> server
+    apiService --> server
     server --> agents
+    agents --> backend
     App --> pdfGen
     pdfGen -.-> pdfCSS
 ```
@@ -151,14 +169,14 @@ graph LR
 | ![DayTime.png](Images/DayTime.png) | ![NighTime.png](Images/NighTime.png) |
 
 ### Themes
-| Standard Theme | Accessibility Theme | Tropical Theme |
-|:---:|:---:|:---:|
-| ![StandardTheme.png](Images/StandardTheme.png) | ![AccessibleTheme.png](Images/AccessibleTheme.png) | ![TropicalTheme.png](Images/TropicalTheme.png) |
+|                    Standard Theme                     |                Accessibility Theme                 | Tropical Theme |
+|:-----------------------------------------------------:|:--------------------------------------------------:|:---:|
+| ![DayTime.png](Images/DayTime.png) | ![AccessibleTheme.png](Images/AccessibleTheme.png) | ![TropicalTheme.png](Images/TropicalTheme.png) |
 
 ### Results & PDF Output
-| Results Dashboard |                     HD PDF Report Sample                      |      Standard PDF Report Sample      |
-|:---:|:-------------------------------------------------------------:|:------------------------------------:|
-| ![Results.png](Images/Results.png) | ![HDReport.png](Images/HDReport.png) | ![SDReport.png](Images/SDReport.png) |
+|          Results Dashboard          | Market Analysis PDF Report |
+|:-----------------------------------:|:---:|
+| ![Result1.png](Images/Result1.png)<br/>![Result2.png](Images/Result2.png)<br/> | ![Report.png](Images/Report.png) |
 
 ---
 
