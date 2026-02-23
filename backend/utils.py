@@ -47,6 +47,8 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
                 time.sleep(1 * (attempt + 1))
                 continue
             raise e
+    return None
+
 
 def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
     """Determine if a transaction is short-term or long-term based on dates."""
@@ -63,7 +65,7 @@ def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
         return "UNKNOWN"
 
 def extract_json(text: str) -> Any:
-    """Attempt to parse JSON from a string, handling markdown code blocks."""
+    """Attempt to parse JSON from a string, handling formatting language code blocks."""
     text = text.strip()
     try:
         return json.loads(text)
