@@ -1,11 +1,11 @@
-import { type Theme } from '../types';
+import { type Theme, type PDFMode } from '../types';
 import pdfStyles from '../services/pdf.css?inline';
 
 /**
  * Generates and downloads a PDF of the market analysis report.
  * Uses dynamic imports to keep the initial bundle small.
  */
-export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 2) => {
+export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode = 'standard', scale: number = 2) => {
   const container = document.getElementById('report-container');
   if (!container) return;
   
@@ -32,7 +32,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
       if (isCard) {
         // Measure original width to determine if it fits in 1400px row
         const width = el.getBoundingClientRect().width || 350;
-        const gap = 0; // Removed gap for compact PDF layout
+        const gap = pdfMode === 'hd' ? 0 : 20; 
         
         if (currentRowWidth + width + gap <= 1400) {
           currentCardRow.push(el);
@@ -119,8 +119,8 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
             clonedGrid.style.flexDirection = 'row';
             clonedGrid.style.flexWrap = 'nowrap';
             clonedGrid.style.width = '100%';
-            clonedGrid.style.gap = '0'; // Removed gaps between cards
-            clonedGrid.style.marginBottom = '0';
+            clonedGrid.style.gap = pdfMode === 'hd' ? '0' : '20px';
+            clonedGrid.style.marginBottom = pdfMode === 'hd' ? '0' : '20px';
           }
 
           const clonedHeader = clonedDoc.querySelector('[data-pdf-chunk="pdf-header"]') as HTMLElement;
@@ -222,8 +222,8 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
 
     const PAGE_WIDTH = 1400;
     const STANDARD_A4_HEIGHT = 1980;
-    const SINGLE_PAGE_THRESHOLD = 4000; // About 2 standard pages
-    const CHUNK_GAP = 30;
+    const SINGLE_PAGE_THRESHOLD = pdfMode === 'hd' ? 8000 : 4000; // HD prefers one long page
+    const CHUNK_GAP = pdfMode === 'hd' ? 10 : 30;
 
     // Calculate total height to see if it fits on one page
     let totalHeight = 0;
@@ -234,7 +234,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
       const isCard = firstEl.getAttribute('data-pdf-chunk') === 'card';
       const prevIsCard = index > 0 && (Array.isArray(results[index-1].item) ? (results[index-1].item as HTMLElement[])[0] : results[index-1].item as HTMLElement).getAttribute('data-pdf-chunk') === 'card';
       
-      const effectiveGap = (isCard && prevIsCard) ? 0 : CHUNK_GAP;
+      const effectiveGap = (isCard && prevIsCard) ? (pdfMode === 'hd' ? 0 : 20) : CHUNK_GAP;
       totalHeight += chunkH + (index === 0 ? 0 : effectiveGap);
     });
 
@@ -268,7 +268,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
       } else if (!useSinglePage) {
         // Multiple pages logic
         const currentPageHeight = pdf.internal.pageSize.getHeight();
-        const effectiveGap = (isCard && prevWasCard) ? 0 : CHUNK_GAP;
+        const effectiveGap = (isCard && prevWasCard) ? (pdfMode === 'hd' ? 0 : 20) : CHUNK_GAP;
         const needsNewPage = hasBreakBefore || (currentY + chunkH + effectiveGap > currentPageHeight);
 
         if (needsNewPage) {
@@ -279,7 +279,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, scale: number = 
         }
       } else {
         // Single page: just apply the gap
-        const effectiveGap = (isCard && prevWasCard) ? 0 : CHUNK_GAP;
+        const effectiveGap = (isCard && prevWasCard) ? (pdfMode === 'hd' ? 0 : 20) : CHUNK_GAP;
         currentY += effectiveGap;
       }
       

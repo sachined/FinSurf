@@ -1,5 +1,6 @@
 export type Theme = 'light' | 'dark';
 export type AccessMode = 'default' | 'colorblind' | 'tropical';
+export type PDFMode = 'standard' | 'hd';
 
 export interface AgentResponse {
   agentName: string;

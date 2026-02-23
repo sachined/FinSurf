@@ -10,6 +10,7 @@ import { Footer } from './components/layout/Footer';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
+import { type PDFMode } from './types';
 
 export default function App() {
   const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
@@ -29,6 +30,7 @@ export default function App() {
   } = useFinancialAgents();
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfMode, setPdfMode] = useState<PDFMode>('standard');
   const [hasSurfed, setHasSurfed] = useState(false);
 
   const isAnyLoading = Object.values(loading).some(v => v);
@@ -43,7 +45,7 @@ export default function App() {
     setGeneratingPdf(true);
     try {
       const scale = 2.0;
-      await downloadPDF(ticker, theme, scale);
+      await downloadPDF(ticker, theme, pdfMode, scale);
     } catch (err) {
       console.error(err);
       setError('Failed to generate PDF');
@@ -160,6 +162,8 @@ export default function App() {
           onDownloadPDF={handleDownloadPDF} 
           isGeneratingPdf={generatingPdf}
           accessMode={accessMode}
+          pdfMode={pdfMode}
+          setPdfMode={setPdfMode}
         />
       </div>
 

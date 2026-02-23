@@ -1,15 +1,17 @@
 import React from 'react';
-import { Download, Info, RotateCcw, HelpCircle } from 'lucide-react';
+import { Download, Info, RotateCcw, HelpCircle, Layers, Grid3X3 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { type AccessMode } from '../../types';
+import { type AccessMode, type PDFMode } from '../../types';
 
 interface FooterProps {
   onDownloadPDF: () => void;
   isGeneratingPdf: boolean;
   accessMode?: AccessMode;
+  pdfMode: PDFMode;
+  setPdfMode: (mode: PDFMode) => void;
 }
 
-export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode }: FooterProps) {
+export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode, pdfMode, setPdfMode }: FooterProps) {
   return (
     <footer className="relative z-20 space-y-8">
       <div className={cn(
@@ -31,6 +33,41 @@ export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode }: FooterPro
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+          {/* PDF Mode Toggle */}
+          <div className={cn(
+            "flex p-1 rounded-2xl border transition-all",
+            accessMode === 'tropical' 
+              ? "bg-orange-900/20 border-orange-400/20" 
+              : accessMode === 'colorblind'
+              ? "bg-blue-950 border-blue-600"
+              : "bg-slate-800/50 border-white/10"
+          )}>
+            <button
+              onClick={() => setPdfMode('standard')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                pdfMode === 'standard' 
+                  ? (accessMode === 'tropical' ? "bg-yellow-400 text-orange-900 shadow-lg" : accessMode === 'colorblind' ? "bg-white text-blue-900 shadow-lg" : "bg-cyan-500 text-white shadow-lg")
+                  : "text-slate-400 hover:text-white"
+              )}
+            >
+              <Layers size={14} />
+              Standard
+            </button>
+            <button
+              onClick={() => setPdfMode('hd')}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                pdfMode === 'hd' 
+                  ? (accessMode === 'tropical' ? "bg-yellow-400 text-orange-900 shadow-lg" : accessMode === 'colorblind' ? "bg-white text-blue-900 shadow-lg" : "bg-cyan-500 text-white shadow-lg")
+                  : "text-slate-400 hover:text-white"
+              )}
+            >
+              <Grid3X3 size={14} />
+              HD View
+            </button>
+          </div>
+
           <button
             onClick={() => onDownloadPDF()}
             disabled={isGeneratingPdf}
