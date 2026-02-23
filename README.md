@@ -41,7 +41,7 @@ FinSurf is built with a highly modular and encapsulated architecture:
 
 ### Frontend (React + Vite + Tailwind CSS)
 *   **Modular Components**: Extracted UI elements for better maintainability (e.g., `Mascot`, `AgentCard`).
-*   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with parallelized capture, automated color conversion (`oklch` support), androw-based grouping.
+*   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with parallelized capture, automated color conversion (`oklch` support), and row-based grouping.
 *   **Dynamic Theme Engine**: State-managed experience between Light, Dark, Tropical (immersive blur effects), and Accessibility (Neobrutalist, high-contrast) modes.
 
 ### Backend (Express + Python)
@@ -81,8 +81,7 @@ graph TD
     F --> E
     E -->|JSON Response| D
     D --> K[App.tsx: Update State]
-    
-    subgraph UI & Output
+    subgraph UI_Output["UI & Output"]
         K --> L[AgentCard.tsx: Render Markdown]
         L --> M{User Actions}
         M -->|Download| N[pdfGenerator.ts]
@@ -101,51 +100,60 @@ graph LR
     Root --- F[Frontend Source]
     Root --- C[Configuration]
 
-    subgraph "B [Backend Logic]"
+    subgraph B["Backend Logic"]
         agents[agents.py CLI Entry]
         server[server.ts Express Server]
-        backend[backend/ Modular Agents]
+        subgraph backend_dir["backend/"]
+            financial_agents[financial_agents.py]
+            llm_providers[llm_providers.py]
+            utils_py[utils.py]
+        end
     end
 
-    subgraph "F [src/ Source]"
+    subgraph F["src/ Source"]
         App[App.tsx Main App]
+        main[main.tsx Entry]
+        types[types.ts Types]
+        css[index.css Styles]
         
-        subgraph "components [components/]"
+        subgraph components["components/"]
             AgentCard[AgentCard.tsx]
             Mascot[Mascot.tsx]
-            subgraph "layout [layout/]"
+            subgraph layout["layout/"]
                 Header[Header.tsx]
                 Footer[Footer.tsx]
             end
-            subgraph "forms [forms/]"
+            subgraph forms["forms/"]
                 SearchForm[SearchForm.tsx]
             end
-            subgraph "results [results/]"
+            subgraph results["results/"]
                 ResultsGrid[ResultsGrid.tsx]
             end
         end
 
-        subgraph "hooks [hooks/]"
+        subgraph hooks["hooks/"]
             useTheme[useTheme.ts]
             useForm[useFormState.ts]
             useAgents[useFinancialAgents.ts]
         end
         
-        subgraph "services [services/]"
+        subgraph services["services/"]
             apiService[apiService.ts]
             pdfCSS[pdf.css]
         end
         
-        subgraph "utils [utils/]"
+        subgraph utils["utils/"]
             pdfGen[pdfGenerator.ts]
             cn[cn.ts]
         end
     end
 
-    subgraph "C [Configuration]"
+    subgraph C["Configuration"]
         pkg[package.json]
         vite[vite.config.ts]
         ts[tsconfig.json]
+        html[index.html]
+        meta[metadata.json]
         env[.env]
     end
 
@@ -154,7 +162,7 @@ graph LR
     App --> components
     apiService --> server
     server --> agents
-    agents --> backend
+    agents --> financial_agents
     App --> pdfGen
     pdfGen -.-> pdfCSS
 ```
