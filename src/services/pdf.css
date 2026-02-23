@@ -3,3 +3,27 @@
   --tw-shadow-color: rgba(0,0,0,0.2) !important;
   --tw-text-opacity: 1 !important;
 }
+
+/* Hide UI elements that shouldn't be in the PDF */
+.no-print,
+[data-pdf-ignore="true"],
+button:not([data-pdf-keep="true"]),
+input:not([data-pdf-keep="true"]),
+.search-bar,
+.nav-menu {
+  display: none !important;
+}
+
+/* Ensure colors are rendered correctly */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Fix for potential overflow issues in PDF chunks */
+[data-pdf-chunk] {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}

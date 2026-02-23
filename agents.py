@@ -30,8 +30,8 @@ def validate_key(provider_name: str, key: Optional[str]) -> str:
 
 # --- Core HTTP Request Logic ---
 
-def _http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 30, max_retries: int = 0) -> Any:
-    """Generic HTTP POST request with optional retry logic for 5xx errors."""
+def _http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 10, max_retries: int = 3) -> Any:
+    """Generic HTTP POST request with optional retry logic for 429/5xx errors."""
     for attempt in range(max_retries + 1):
         try:
             payload = json.dumps(data).encode("utf-8")
@@ -39,8 +39,11 @@ def _http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout:
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code in [502, 503, 504] and attempt < max_retries:
-                time.sleep(1 * (attempt + 1))
+            if e.code in [429, 502, 503, 504] and attempt < max_retries:
+                # Exponential backoff: 2s, 4s, 8s...
+                sleep_time = 2 ** (attempt + 1)
+                print(f"API Error {e.code}, retrying in {sleep_time}s... (Attempt {attempt + 1}/{max_retries})", file=sys.stderr)
+                time.sleep(sleep_time)
                 continue
             error_body = e.read().decode("utf-8")
             raise Exception(f"API Error {e.code}: {error_body}")
@@ -166,8 +169,8 @@ def extract_json(text: str) -> Any:
 
 def research_agent(ticker: str) -> str:
     """Agent that performs general equity research using Perplexity with Gemini fallback."""
-    prompt = f"Briefly research {ticker}: performance, metrics, sentiment."
-    system = "Equity analyst. Concise, data-driven. Cite sources."
+    prompt = f"Briefly research {ticker}: performance, metrics, sentiment. If {ticker} does not look like a standard stock ticker, try to find the company it might represent."
+    system = "Equity analyst. Concise, data-driven. Cite sources. If the provided ticker is invalid, suggest the closest matching company."
     try:
         return call_perplexity(prompt, system)
     except Exception as e:
@@ -196,9 +199,9 @@ def tax_agent(ticker: str, purchase_date: str, sell_date: str) -> str:
 
 def social_sentiment_agent(ticker: str) -> str:
     """Agent that analyzes market sentiment using Perplexity with Gemini fallback."""
-    prompt = f"""Search Reddit, X (Twitter), StockTwits, and major financial news websites (e.g., Bloomberg, Reuters, CNBC) for recent (last 7 days) discussions and sentiment about the stock ticker '{ticker}'. 
+    prompt = f"""Search Reddit, X (Twitter), StockTwits, and major financial news websites (e.g., Bloomberg, Reuters, CNBC) for recent (last 7 days) discussions and sentiment about the stock ticker or company '{ticker}'. 
     STRICT REQUIREMENTS:
-    1. The symbol '{ticker}' refers to a stock market ticker (e.g., 'T' is AT&T, 'F' is Ford). Do NOT confuse it with generic words or other entities.
+    1. The symbol '{ticker}' refers to a stock market ticker (e.g., 'T' is AT&T, 'F' is Ford) or a well-known company name. Do NOT confuse it with generic words or other entities.
     2. PRIORITIZE sources known for reliable financial sentiment analysis like StockTwits and reputable financial news outlets.
     3. STRICTLY EXCLUDE any cryptocurrency-related discussions or sentiment. Focus only on the equity/stock market.
     REQUIRED FORMAT:

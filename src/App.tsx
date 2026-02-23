@@ -20,7 +20,8 @@ import {
   Eye,
   Moon,
   Sun,
-  MessageSquare
+  MessageSquare,
+  Info
 } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { researchAgent, taxAgent, dividendAgent, sentimentAgent, type AgentResponse, type DividendResponse } from './services/geminiService';
@@ -29,6 +30,7 @@ import { AgentCard } from './components/AgentCard';
 import { downloadPDF } from './utils/pdfGenerator';
 import { cn } from './utils/cn';
 import { type Theme, type AccessMode } from './types';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const [ticker, setTicker] = useState('');
@@ -37,6 +39,9 @@ export default function App() {
   const [shares, setShares] = useState<string>('10');
   const [theme, setTheme] = useState<Theme>('light');
   const [accessMode, setAccessMode] = useState<AccessMode>('default');
+  const [pdfQuality, setPdfQuality] = useState<'standard' | 'high'>('high');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({
     research: false,
@@ -66,14 +71,68 @@ export default function App() {
     }
   }, [theme]);
 
+  const validateAll = () => {
+    const tickerRegex = /^[A-Z0-9.^=-]{1,10}$/;
+    if (!tickerRegex.test(ticker)) {
+      setError('Invalid Ticker format. Use up to 10 characters (A-Z, 0-9, ., ^, =, -).');
+      return false;
+    }
+
+    if (!purchaseDate || !sellDate) {
+      setError('Both Purchase and Sell dates are required.');
+      return false;
+    }
+
+    const pDate = parseISO(purchaseDate);
+    const sDate = parseISO(sellDate);
+    if (isNaN(pDate.getTime()) || isNaN(sDate.getTime())) {
+      setError('Invalid date format.');
+      return false;
+    }
+
+    if (differenceInDays(sDate, pDate) < 0) {
+      setError('Sell Date cannot be before Purchase Date.');
+      return false;
+    }
+
+    const shareNum = parseFloat(shares);
+    if (isNaN(shareNum) || shareNum <= 0) {
+      setError('Shares must be a positive number.');
+      return false;
+    }
+
+    if (shareNum > 1000000000) {
+      setError('Shares count exceeds maximum limit (1,000,000,000).');
+      return false;
+    }
+
+    setError(null);
+    return true;
+  };
+
+  const sanitizeShares = (val: string) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return val;
+    // Limit to 8 decimal places and cap at 1 billion
+    const capped = Math.min(num, 1000000000);
+    return Number(capped.toFixed(8)).toString();
+  };
+
   const handleResearch = async () => {
     if (!ticker) return;
+    const tickerRegex = /^[A-Z0-9.^=-]{1,10}$/;
+    if (!tickerRegex.test(ticker)) {
+      setError('Invalid Ticker format.');
+      return;
+    }
+    setError(null);
     setLoading(prev => ({ ...prev, research: true }));
     try {
       const res = await researchAgent(ticker);
       setResponses(prev => ({ ...prev, research: res }));
     } catch (error) {
       console.error(error);
+      setError('Research failed. Please check the ticker or try again.');
     } finally {
       setLoading(prev => ({ ...prev, research: false }));
     }
@@ -81,12 +140,20 @@ export default function App() {
 
   const handleTax = async () => {
     if (!ticker || !purchaseDate || !sellDate) return;
+    const pDate = parseISO(purchaseDate);
+    const sDate = parseISO(sellDate);
+    if (differenceInDays(sDate, pDate) < 0) {
+      setError('Sell Date cannot be before Purchase Date.');
+      return;
+    }
+    setError(null);
     setLoading(prev => ({ ...prev, tax: true }));
     try {
       const res = await taxAgent(ticker, purchaseDate, sellDate);
       setResponses(prev => ({ ...prev, tax: res }));
     } catch (error) {
       console.error(error);
+      setError('Tax analysis failed.');
     } finally {
       setLoading(prev => ({ ...prev, tax: false }));
     }
@@ -94,13 +161,22 @@ export default function App() {
 
   const handleDividend = async () => {
     if (!ticker || !shares) return;
+    const shareNum = parseFloat(shares);
+    if (isNaN(shareNum) || shareNum <= 0) {
+      setError('Shares must be a positive number.');
+      return;
+    }
+    const sanitizedShares = sanitizeShares(shares);
+    setShares(sanitizedShares);
+
     const years = Math.max(1, Math.ceil(differenceInDays(parseISO(sellDate), parseISO(purchaseDate)) / 365));
     setLoading(prev => ({ ...prev, dividend: true }));
     try {
-      const res = await dividendAgent(ticker, parseFloat(shares), years);
+      const res = await dividendAgent(ticker, parseFloat(sanitizedShares), years);
       setResponses(prev => ({ ...prev, dividend: res }));
     } catch (error) {
       console.error(error);
+      setError('Dividend analysis failed.');
     } finally {
       setLoading(prev => ({ ...prev, dividend: false }));
     }
@@ -108,18 +184,31 @@ export default function App() {
 
   const handleSentiment = async () => {
     if (!ticker) return;
+    const tickerRegex = /^[A-Z0-9.^=-]{1,10}$/;
+    if (!tickerRegex.test(ticker)) {
+      setError('Invalid Ticker format.');
+      return;
+    }
+    setError(null);
     setLoading(prev => ({ ...prev, sentiment: true }));
     try {
       const res = await sentimentAgent(ticker);
       setResponses(prev => ({ ...prev, sentiment: res }));
     } catch (error) {
       console.error(error);
+      setError('Sentiment analysis failed.');
     } finally {
       setLoading(prev => ({ ...prev, sentiment: false }));
     }
   };
 
   const runAll = async () => {
+    if (!validateAll()) return;
+    
+    // Sanitize shares before running
+    const sanitized = sanitizeShares(shares);
+    setShares(sanitized);
+
     handleResearch();
     handleTax();
     handleDividend();
@@ -131,6 +220,7 @@ export default function App() {
     setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
     setSellDate(format(new Date(), 'yyyy-MM-dd'));
     setShares('10');
+    setError(null);
     setResponses({
       research: null,
       tax: null,
@@ -140,7 +230,14 @@ export default function App() {
   };
 
   const handleDownloadReport = async () => {
-    await downloadPDF(ticker, theme);
+    setGeneratingPdf(true);
+    try {
+      await downloadPDF(ticker, theme, pdfQuality === 'high' ? 2 : 1);
+    } catch (e) {
+      setError('PDF generation failed. Try standard quality.');
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   return (
@@ -193,6 +290,31 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-2xl p-4 flex items-center justify-between gap-4 overflow-hidden"
+            >
+              <div className="flex items-center gap-3 text-red-800 dark:text-red-400">
+                <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+                  <Info size={18} />
+                </div>
+                <p className="text-sm font-bold">{error}</p>
+              </div>
+              <button 
+                onClick={() => setError(null)}
+                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-red-400 transition-colors"
+              >
+                <RotateCcw size={16} className="rotate-45" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Controls Section */}
         <section className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -286,14 +408,43 @@ export default function App() {
                   <RotateCcw size={18} />
                 </button>
               </div>
+              
+              <div className="mt-4 flex items-center justify-between gap-2 px-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PDF Quality</span>
+                <div className="flex bg-cyan-50/50 dark:bg-slate-800/50 p-1 rounded-xl border border-cyan-100 dark:border-cyan-900">
+                  <button 
+                    onClick={() => setPdfQuality('standard')}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all",
+                      pdfQuality === 'standard' 
+                        ? "bg-white dark:bg-slate-700 text-cyan-600 shadow-sm" 
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Standard
+                  </button>
+                  <button 
+                    onClick={() => setPdfQuality('high')}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-[9px] font-black uppercase transition-all",
+                      pdfQuality === 'high' 
+                        ? "bg-cyan-600 text-white shadow-sm" 
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    High
+                  </button>
+                </div>
+              </div>
+
               <button 
                 onClick={handleDownloadReport}
-                disabled={!responses.research && !responses.tax && !responses.dividend && !responses.sentiment}
+                disabled={generatingPdf || (!responses.research && !responses.tax && !responses.dividend && !responses.sentiment)}
                 className="w-full mt-2 p-2.5 rounded-2xl bg-[#2e7d32] hover:bg-[#1b5e20] text-white transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 font-bold uppercase text-xs tracking-widest"
                 title="Download PDF Report"
               >
-                <Download size={18} />
-                Download Report
+                {generatingPdf ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                {generatingPdf ? 'Generating...' : 'Download Report'}
               </button>
             </div>
           </div>
@@ -301,7 +452,7 @@ export default function App() {
 
         {/* Agents Grid */}
         <div id="report-container" className="p-4 rounded-[3rem]">
-          <div className="flex items-center gap-4 mb-8">
+          <div data-pdf-chunk="header" className="flex items-center gap-4 mb-8">
             <Mascot mode={accessMode} className="w-20 h-20" />
             <div>
               <h2 className="text-3xl font-black tracking-tighter text-cyan-900 dark:text-cyan-400">Market Analysis Report</h2>

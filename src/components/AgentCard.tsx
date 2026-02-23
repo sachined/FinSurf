@@ -60,7 +60,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
 
   return (
-    <div className={cn(
+    <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
       "bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl flex flex-col transition-all hover:scale-[1.01] resize overflow-auto min-h-[400px] min-w-[280px] h-fit",
       accessMode === 'colorblind' 
         ? "border-4 border-blue-600 shadow-blue-900/20" 
