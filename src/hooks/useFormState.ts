@@ -55,9 +55,11 @@ export function useFormState() {
     return true;
   };
 
+  const setTickerUpper = (val: string) => setTicker(val.toUpperCase());
+
   return {
     ticker,
-    setTicker,
+    setTicker: setTickerUpper,
     purchaseDate,
     setPurchaseDate,
     sellDate,

@@ -40,14 +40,14 @@
 *   **📄 Professional PDF Reports**: Optimized, high-quality analysis reports with row-based grouping, automated color conversion for modern CSS, and adaptive pagination. Choose between **Standard** and **High-Density (HD)** layouts via a dedicated toggle.
 *   **🎨 Personalized Experience**: Choose between Light/Dark modes and multiple themes, including **Accessibility Optimized** and **Enhanced Tropical** modes.
 *   **🏙️ Compact Grid Layout**: Automatic grid compression and seamless card design for a unified report look once generation is complete.
-*   **🔌 Flexible AI Backend**: Modular backend with fallback logic across Gemini, OpenAI, Anthropic, and Perplexity.
-*   **⚡ Modern Tech Stack**: React 19, Vite 6, Tailwind CSS 4, Express, and a modular Python backend.
+*   **🔌 Flexible AI Backend**: LangGraph-orchestrated backend with conditional routing, parallel fan-out, and automatic fallback across Gemini, OpenAI, Anthropic, and Perplexity.
+*   **⚡ Modern Tech Stack**: React 19, Vite 6, Tailwind CSS 4, Express, and a LangGraph-powered Python backend.
 
 ---
 
 ## 🤖 The Agent Network
 
-FinSurf leverages a modular multi-agent architecture where each agent is a specialist in its domain:
+FinSurf leverages a **LangGraph state-machine** where each agent is a specialist node in a directed graph. The guardrail runs first, then research fans out to tax and sentiment in parallel. The dividend node is only invoked when the research node signals the ticker pays dividends — saving tokens on every non-dividend query.
 
 *   **🔍 Research Analyst**: Performs deep-dives into stock performance, key metrics, and fundamental data.
 *   **⚖️ Tax Strategist**: Analyzes holding periods and provides US tax implications (Short-term vs. Long-term Capital Gains).
@@ -66,8 +66,10 @@ FinSurf is built with a highly modular and encapsulated architecture:
 *   **Unified Report Look**: Automatic shift to a dense, gapless layout upon analysis completion, providing a cohesive, professional-grade visual experience.
 *   **Dynamic Theme Engine**: State-managed experience between Light, Dark, Tropical (immersive blur effects), and Accessibility (Neobrutalist, high-contrast) modes.
 
-### Backend (Express + Python)
-*   **Modular Agent Architecture**: Decoupled backend logic where specialized agents (`financial_agents.py`) are orchestrated via a centralized CLI (`agents.py`).
+### Backend (Express + Python + LangGraph)
+*   **LangGraph Orchestration**: `backend/graph.py` defines a compiled `StateGraph` with a shared `FinSurfState`. Nodes are guardrail → research → [tax ‖ sentiment] → dividend (conditional).
+*   **Conditional Routing**: The dividend node is skipped entirely for non-dividend stocks — zero LLM tokens wasted.
+*   **Parallel Fan-Out**: Tax and sentiment agents execute simultaneously via LangGraph's `Send` API after research completes.
 *   **LLM Redundancy**: Built-in fallback logic across **Gemini, OpenAI, Anthropic, and Perplexity**.
 *   **Real-Time RAG**: Web-connected agents provide up-to-the-minute market data (via Perplexity).
 
@@ -91,20 +93,27 @@ graph TD
         C --> D[apiService.ts: API Helpers]
     end
 
-    subgraph BE["Backend (Express + Python)"]
+    subgraph BE["Backend (Express + Python + LangGraph)"]
         D -->|HTTP POST| E[server.ts: API Endpoints]
-        E -->|Child Process| F[agents.py: AI Backend]
+        E -->|Child Process| F[agents.py: CLI Dispatcher]
+        F --> G[graph.py: LangGraph StateGraph]
     end
 
     subgraph AL["AI Layer (External APIs)"]
-        F --> G{LLM Orchestrator}
-        G -->|Primary| H[Perplexity / Anthropic]
-        G -->|Fallback / Logic| I[Gemini / OpenAI]
+        G -->|guardrail node| GA[Security Check]
+        GA -->|research node| GB[Perplexity / Gemini]
+        GB -->|tax node parallel| GC[Gemini / Anthropic]
+        GB -->|sentiment node parallel| GD[Perplexity / Gemini]
+        GB -->|dividend node conditional| GE[Gemini / OpenAI]
     end
 
-    I --> J[JSON Results]
-    H --> J
-    J --> F
+    GA --> J[FinSurfState JSON]
+    GB --> J
+    GC --> J
+    GD --> J
+    GE --> J
+    J --> G
+    G --> F
     F --> E
     E -->|JSON Response| D
     D --> K[App.tsx: Update State]
@@ -118,8 +127,8 @@ graph TD
     end
 
     class A,B,C,D fe;
-    class E,F be;
-    class G,H,I,J ai;
+    class E,F,G be;
+    class GA,GB,GC,GD,GE,J ai;
     class K,LG,L,M,N,O ui;
 
     style FE fill:#f0fdff,stroke:#0891b2,stroke-width:1px,stroke-dasharray: 5 5,color:#044e5f,font-weight:bold;
@@ -148,6 +157,7 @@ graph LR
         agents[agents.py CLI Entry]
         server[server.ts Express Server]
         subgraph backend_dir["backend/"]
+            graph_py[graph.py LangGraph]
             financial_agents[financial_agents.py]
             llm_providers[llm_providers.py]
             utils_py[utils.py]
@@ -202,7 +212,7 @@ graph LR
     end
 
     class Root root;
-    class agents,server,financial_agents,llm_providers,utils_py be;
+    class agents,server,graph_py,financial_agents,llm_providers,utils_py be;
     class App,main,types,css,AgentCard,Mascot,Header,Footer,SearchForm,ResultsGrid,useTheme,useForm,useAgents,apiService,pdfCSS,pdfGen,cn fe;
     class pkg,vite,ts,html,meta,env cfg;
 
@@ -211,7 +221,8 @@ graph LR
     App --> components
     apiService --> server
     server --> agents
-    agents --> financial_agents
+    agents --> graph_py
+    graph_py --> financial_agents
     App --> pdfGen
     pdfGen -.-> pdfCSS
 
@@ -363,7 +374,11 @@ SPDX-License-Identifier: Apache-2.0
 
 ### 🔐 Cost Control & LLM Provider Policy
 
-To conserve tokens and run smoothly in production, FinSurf now enforces a strict provider allowlist and conservative token limits by default.
+FinSurf's LangGraph orchestration adds a second layer of token savings on top of the provider allowlist:
+- **Conditional dividend node**: skipped entirely for non-dividend stocks (saves ~2 000 Gemini tokens per query).
+- **Parallel execution**: tax and sentiment run simultaneously, reducing wall-clock time without extra API calls.
+
+Provider allowlist and conservative token limits are also enforced:
 
 - Default providers: `Gemini (gemini-flash-latest)` + `Perplexity (sonar)` — Perplexity is enabled by default for real-time Research and Social Sentiment analysis
 - Conservative caps: `max_tokens` generally limited to 500–800 per call, temperature 0.1

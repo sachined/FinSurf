@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { researchAgent, taxAgent, dividendAgent, sentimentAgent } from '../services/apiService';
-import { AgentResponse, DividendResponse, FinancialAgentsState, LoadingState } from '../types';
+import { AgentKey, AgentResponse, DividendResponse, FinancialAgentsState, LoadingState } from '../types';
 
 export function useFinancialAgents() {
   const [loading, setLoading] = useState<LoadingState>({
@@ -18,76 +18,68 @@ export function useFinancialAgents() {
     sentiment: null
   });
 
-  const runResearch = async (ticker: string, onError: (msg: string) => void) => {
-    if (!ticker) return;
-    setLoading(prev => ({ ...prev, research: true }));
+  /**
+   * DRY helper: sets the named agent's loading flag, awaits the call,
+   * stores the result, and clears loading — regardless of success or failure.
+   */
+  async function withLoading<T extends AgentResponse>(
+    key: AgentKey,
+    call: () => Promise<T>,
+    onError: (msg: string) => void,
+    errorMsg: string
+  ): Promise<void> {
+    setLoading(prev => ({ ...prev, [key]: true }));
     try {
-      const res = await researchAgent(ticker);
-      setResponses(prev => ({ ...prev, research: res }));
+      const res = await call();
+      setResponses(prev => ({ ...prev, [key]: res }));
     } catch (error) {
       console.error(error);
-      onError('Research failed. Please check the ticker or try again.');
+      onError(errorMsg);
     } finally {
-      setLoading(prev => ({ ...prev, research: false }));
+      setLoading(prev => ({ ...prev, [key]: false }));
     }
+  }
+
+  const runResearch = (ticker: string, onError: (msg: string) => void) => {
+    if (!ticker) return Promise.resolve();
+    return withLoading('research', () => researchAgent(ticker), onError, 'Research failed. Please check the ticker or try again.');
   };
 
-  const runTax = async (ticker: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
-    if (!ticker || !purchaseDate || !sellDate) return;
-    setLoading(prev => ({ ...prev, tax: true }));
-    try {
-      const res = await taxAgent(ticker, purchaseDate, sellDate);
-      setResponses(prev => ({ ...prev, tax: res }));
-    } catch (error) {
-      console.error(error);
-      onError('Tax analysis failed.');
-    } finally {
-      setLoading(prev => ({ ...prev, tax: false }));
-    }
+  const runTax = (ticker: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
+    if (!ticker || !purchaseDate || !sellDate) return Promise.resolve();
+    return withLoading('tax', () => taxAgent(ticker, purchaseDate, sellDate), onError, 'Tax analysis failed.');
   };
 
-  const runDividend = async (ticker: string, shares: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
-    if (!ticker || !shares) return;
-    const years = Math.max(1, Math.ceil(differenceInDays(parseISO(sellDate), parseISO(purchaseDate)) / 365));
-    setLoading(prev => ({ ...prev, dividend: true }));
-    try {
-      const res = await dividendAgent(ticker, parseFloat(shares), years);
-      setResponses(prev => ({ ...prev, dividend: res }));
-    } catch (error) {
-      console.error(error);
-      onError('Dividend analysis failed.');
-    } finally {
-      setLoading(prev => ({ ...prev, dividend: false }));
+  const runDividend = (ticker: string, shares: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
+    if (!ticker || !shares) return Promise.resolve();
+    // Guard against invalid / missing dates before calling parseISO
+    let years = 3;
+    if (purchaseDate && sellDate) {
+      const pDate = parseISO(purchaseDate);
+      const sDate = parseISO(sellDate);
+      if (!isNaN(pDate.getTime()) && !isNaN(sDate.getTime())) {
+        years = Math.max(1, Math.ceil(differenceInDays(sDate, pDate) / 365));
+      }
     }
+    return withLoading(
+      'dividend',
+      () => dividendAgent(ticker, parseFloat(shares), years) as Promise<AgentResponse>,
+      onError,
+      'Dividend analysis failed.'
+    );
   };
 
-  const runSentiment = async (ticker: string, onError: (msg: string) => void) => {
-    if (!ticker) return;
-    setLoading(prev => ({ ...prev, sentiment: true }));
-    try {
-      const res = await sentimentAgent(ticker);
-      setResponses(prev => ({ ...prev, sentiment: res }));
-    } catch (error) {
-      console.error(error);
-      onError('Sentiment analysis failed.');
-    } finally {
-      setLoading(prev => ({ ...prev, sentiment: false }));
-    }
+  const runSentiment = (ticker: string, onError: (msg: string) => void) => {
+    if (!ticker) return Promise.resolve();
+    return withLoading('sentiment', () => sentimentAgent(ticker), onError, 'Sentiment analysis failed.');
   };
 
   const runAll = async (ticker: string, purchaseDate: string, sellDate: string, shares: string, onError: (msg: string) => void) => {
     // Reset responses for new search
-    setResponses({
-      research: null,
-      tax: null,
-      dividend: null,
-      sentiment: null
-    });
+    setResponses({ research: null, tax: null, dividend: null, sentiment: null });
 
     const errors: string[] = [];
-    const collectError = (msg: string) => {
-      errors.push(msg);
-    };
+    const collectError = (msg: string) => errors.push(msg);
 
     await Promise.allSettled([
       runResearch(ticker, collectError),
@@ -96,23 +88,12 @@ export function useFinancialAgents() {
       runSentiment(ticker, collectError)
     ]);
 
-    if (errors.length > 0) {
-      // If multiple agents failed, show a generic message or the first one
-      if (errors.length > 2) {
-        onError('Multiple analysis agents encountered issues. Some results may be incomplete.');
-      } else {
-        onError(errors[0]);
-      }
+    if (errors.length > 2) {
+      onError('Multiple analysis agents encountered issues. Some results may be incomplete.');
+    } else if (errors.length > 0) {
+      onError(errors[0]);
     }
   };
 
-  return {
-    loading,
-    responses,
-    runResearch,
-    runTax,
-    runDividend,
-    runSentiment,
-    runAll
-  };
+  return { loading, responses, runResearch, runTax, runDividend, runSentiment, runAll };
 }

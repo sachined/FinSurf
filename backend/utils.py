@@ -5,6 +5,7 @@ import urllib.request
 import urllib.error
 import time
 from datetime import datetime
+from functools import lru_cache
 from typing import List, Optional, Dict, Any
 
 def get_env_key(keys: List[str]) -> Optional[str]:
@@ -84,14 +85,16 @@ def extract_json(text: str) -> Any:
 
 # --- Provider allowlist controls to minimize token spend ---
 
-def allowed_providers() -> List[str]:
-    """Return the list of allowed providers from env.
+@lru_cache(maxsize=1)
+def allowed_providers() -> tuple:
+    """Return a frozenset-like tuple of allowed providers from env.
+    Result is cached after the first call — env vars are read once per process.
     Priority: ALLOWED_PROVIDERS (comma-separated). If unset, fall back to individual ALLOW_* flags.
     Defaults to 'gemini' and 'perplexity' if nothing is configured.
     """
     raw = os.environ.get("ALLOWED_PROVIDERS", "")
     if raw:
-        return [p.strip().lower() for p in raw.split(",") if p.strip()]
+        return tuple(p.strip().lower() for p in raw.split(",") if p.strip())
     providers: List[str] = []
     # Defaults: Gemini + Perplexity enabled (for research/sentiment). OpenAI/Anthropic disabled unless opted in.
     if os.environ.get("ALLOW_GEMINI", "true").lower() == "true":
@@ -104,7 +107,7 @@ def allowed_providers() -> List[str]:
         providers.append("anthropic")
     if not providers:
         providers.append("gemini")
-    return providers
+    return tuple(providers)
 
 
 def is_provider_allowed(name: str) -> bool:
