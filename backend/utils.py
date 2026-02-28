@@ -54,7 +54,6 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
                 time.sleep(1 * (attempt + 1))
                 continue
             raise e
-    return None
 
 
 def calculate_holding_status(purchase_date: str, sell_date: str) -> str:

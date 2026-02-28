@@ -323,34 +323,75 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to start surfing the market.
 
-### Deployment & GitHub Secrets
+### Docker Deployment
 
-When deploying FinSurf to platforms like GitHub Pages (frontend only) or automated CI/CD pipelines, you should use **GitHub Secrets** to manage your API keys securely.
+FinSurf ships with a production-ready Docker setup. A single container holds both the Node.js server and the Python LangGraph backend — no inter-container networking required.
 
-1.  **Navigate to your repository** on GitHub.
-2.  Go to **Settings > Secrets and variables > Actions**.
-3.  Click **New repository secret** for each of the following:
-    *   `GEMINI_API_KEY` (Required)
-    *   `PERPLEXITY_API_KEY` (Optional)
-    *   `OPENAI_API_KEY` (Optional)
-    *   `ANTHROPIC_API_KEY` (Optional)
+#### Option A — Local machine (no HTTPS)
 
-In your GitHub Actions workflow (`.yml`), you can then expose these secrets to your build or run steps:
+```bash
+# 1. Copy and fill in your API keys
+cp .env.example .env
 
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build and Test
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
-        run: |
-          npm install
-          npm run build
+# 2. Generate a secret that protects your /api/ routes
+#    (skip APP_SECRET if you only want to run locally with no auth)
+echo "APP_SECRET=$(openssl rand -hex 32)" >> .env
+
+# 3. Build and start
+docker compose build
+docker compose up -d
+
+# App is available at http://localhost:3000
 ```
+
+#### Option B — Internet-facing server with automatic HTTPS
+
+Prerequisites: a domain with an A record pointing to your server's public IP, and ports 80/443 open.
+
+```bash
+# 1. Fill in .env — add your domain and a strong APP_SECRET
+echo "DOMAIN=finsurf.example.com" >> .env
+echo "APP_SECRET=$(openssl rand -hex 32)" >> .env
+echo "CORS_ORIGIN=https://finsurf.example.com" >> .env
+
+# 2. Build and start (Caddy provisions the Let's Encrypt certificate automatically)
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+
+# App is available at https://finsurf.example.com
+# Certificate auto-renews — no cron needed.
+```
+
+#### Environment variables reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ | Primary LLM provider |
+| `PERPLEXITY_API_KEY` | Optional | Real-time web search for research/sentiment |
+| `OPENAI_API_KEY` | Optional | Dividend agent fallback |
+| `ANTHROPIC_API_KEY` | Optional | Tax agent fallback |
+| `APP_SECRET` | Recommended | Bearer token — protects all `/api/` routes |
+| `CORS_ORIGIN` | Production | Comma-separated allowed origins |
+| `DOMAIN` | Production | Domain for Caddy TLS certificate |
+| `DAILY_BUDGET_USD` | Optional | Hard daily spend cap (e.g. `0.50`) |
+| `TELEMETRY_DB` | Optional | SQLite path (default: `finsurf_telemetry.db`) |
+| `ALLOWED_PROVIDERS` | Optional | Comma-separated provider allowlist |
+
+#### Persistent data
+
+Both SQLite databases (telemetry + future MemorySaver) are stored in a named Docker volume (`finsurf_data`) mounted at `/app/data`. Data survives container restarts and image rebuilds.
+
+#### Health check
+
+The `/health` endpoint (no auth required) returns `{"status":"ok","uptime":<seconds>}` and is used by both Docker's built-in `HEALTHCHECK` and any load balancer you add in front.
+
+#### Recommended VPS providers
+
+| Provider | Monthly cost | Notes |
+|---|---|---|
+| **Fly.io** | ~$5–10 | Best Docker-native PaaS; persistent volumes; auto TLS |
+| **DigitalOcean Droplet** | ~$6 | Most control; run Docker Compose yourself |
+| **Railway** | ~$5 | Easiest setup; builds from Dockerfile |
 
 ---
 

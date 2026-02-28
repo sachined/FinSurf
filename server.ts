@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
@@ -50,13 +50,56 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || "3000", 10);
+  const isProd = process.env.NODE_ENV === "production";
 
   // Security Middlewares
+  // CSP is disabled in dev (Vite HMR requires relaxed policy);
+  // in production the compiled dist/ assets are all same-origin.
   app.use(helmet({
-    contentSecurityPolicy: false, // Vite needs this disabled or carefully configured for dev
+    contentSecurityPolicy: isProd ? {
+      directives: {
+        defaultSrc:  ["'self'"],
+        scriptSrc:   ["'self'"],
+        styleSrc:    ["'self'", "'unsafe-inline'"], // Tailwind compiled styles
+        imgSrc:      ["'self'", "data:", "blob:"],   // blob: for PDF canvas
+        connectSrc:  ["'self'"],
+        fontSrc:     ["'self'", "data:"],
+        objectSrc:   ["'none'"],
+        frameSrc:    ["'none'"],
+        workerSrc:   ["'self'", "blob:"],            // jsPDF web worker
+      },
+    } : false,
   }));
-  app.use(cors());
+
+  // Lock CORS to the configured origin(s) in production.
+  // Multiple origins can be supplied as a comma-separated list in CORS_ORIGIN.
+  const rawOrigins = process.env.CORS_ORIGIN || "";
+  const allowedOrigins = rawOrigins
+    ? rawOrigins.split(",").map((o) => o.trim()).filter(Boolean)
+    : null; // null = allow any origin (dev default)
+  app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : {}));
+
   app.use(express.json());
+
+  // ── Health check (no auth required — used by Docker HEALTHCHECK) ──────────
+  app.get("/health", (_req: Request, res: Response) => {
+    res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
+  });
+
+  // ── Bearer-token authentication (optional — active when APP_SECRET is set) ─
+  // Protects all /api/ routes from unauthorised use on a public server.
+  // Set APP_SECRET to a long random string (e.g. `openssl rand -hex 32`).
+  const APP_SECRET = process.env.APP_SECRET;
+  if (APP_SECRET) {
+    app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
+      const auth = req.headers.authorization;
+      if (!auth || auth !== `Bearer ${APP_SECRET}`) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      next();
+    });
+  }
 
   // Rate limiting to prevent abuse
   const limiter = rateLimit({
@@ -100,7 +143,7 @@ async function startServer() {
       res.status(400).json({ error: "ticker is required." });
       return;
     }
-    console.log(`Researching: ${ticker}`);
+    console.log(`Researching: ${ticker.slice(0, 20)}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("research", [ticker], isSafe);
@@ -111,7 +154,8 @@ async function startServer() {
         res.json({ content: stdout.trim(), agentName: "Research Analyst" });
       }
     } catch (error) {
-      res.status(500).json({ error });
+      console.error("Research agent error:", error);
+      res.status(500).json({ error: "Research analysis failed. Please try again." });
     }
   });
 
@@ -125,7 +169,7 @@ async function startServer() {
       res.status(400).json({ error: "purchaseDate and sellDate are required." });
       return;
     }
-    console.log(`Tax analysis: ${ticker}`);
+    console.log(`Tax analysis: ${ticker.slice(0, 20)}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate], isSafe);
@@ -136,7 +180,8 @@ async function startServer() {
         res.json({ content: stdout.trim(), agentName: "Tax Strategist" });
       }
     } catch (error) {
-      res.status(500).json({ error });
+      console.error("Tax agent error:", error);
+      res.status(500).json({ error: "Tax analysis failed. Please try again." });
     }
   });
 
@@ -156,7 +201,7 @@ async function startServer() {
       res.status(400).json({ error: "years must be a positive integer." });
       return;
     }
-    console.log(`Dividend analysis: ${ticker}`);
+    console.log(`Dividend analysis: ${ticker.slice(0, 20)}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum], isSafe);
@@ -181,7 +226,7 @@ async function startServer() {
       res.status(400).json({ error: "ticker is required." });
       return;
     }
-    console.log(`Sentiment analysis: ${ticker}`);
+    console.log(`Sentiment analysis: ${ticker.slice(0, 20)}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("sentiment", [ticker], isSafe);
@@ -192,7 +237,8 @@ async function startServer() {
         res.json({ content: stdout.trim(), agentName: "Social Sentiment Analyst" });
       }
     } catch (error) {
-      res.status(500).json({ error });
+      console.error("Sentiment agent error:", error);
+      res.status(500).json({ error: "Sentiment analysis failed. Please try again." });
     }
   });
 
@@ -210,9 +256,27 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Graceful shutdown — allows in-flight Python child processes to complete
+  // before the container is stopped (SIGTERM from Docker / Kubernetes).
+  const shutdown = (signal: string) => {
+    console.log(`${signal} received — shutting down gracefully`);
+    server.close(() => {
+      console.log("HTTP server closed");
+      process.exit(0);
+    });
+    // Force-exit after 10 s if requests are still pending
+    setTimeout(() => {
+      console.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT",  () => shutdown("SIGINT"));
 }
 
 startServer();

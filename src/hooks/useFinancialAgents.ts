@@ -61,9 +61,9 @@ export function useFinancialAgents() {
         years = Math.max(1, Math.ceil(differenceInDays(sDate, pDate) / 365));
       }
     }
-    return withLoading(
+    return withLoading<DividendResponse>(
       'dividend',
-      () => dividendAgent(ticker, parseFloat(shares), years) as Promise<AgentResponse>,
+      () => dividendAgent(ticker, parseFloat(shares), years),
       onError,
       'Dividend analysis failed.'
     );

@@ -24,13 +24,6 @@ export interface DividendResponse extends AgentResponse {
   stats?: DividendStats;
 }
 
-export interface SentimentBreakdown {
-  overall?: string;
-  score?: string;
-  retail?: string;
-  institutional?: string;
-  trending?: string;
-}
 
 export interface FinancialAgentsState {
   research: AgentResponse | null;

@@ -1,10 +1,9 @@
 import json
 import sys
-import os
 import re
 from typing import Dict, Any, Optional
 from .llm_providers import call_gemini, call_openai, call_anthropic, call_perplexity
-from .utils import calculate_holding_status, extract_json, is_placeholder
+from .utils import calculate_holding_status, extract_json, is_provider_allowed
 
 # ---------------------------------------------------------------------------
 # Shared helpers — DRY building blocks used across all agents
@@ -17,17 +16,17 @@ def _blocked_json() -> str:
     return json.dumps({"content": _BLOCKED_MSG, "citations": []})
 
 
-def _perplexity_with_gemini_fallback(prompt: str, system: str, max_tokens: int) -> str:
+def _perplexity_with_gemini_fallback(prompt: str, system: str, max_tokens: int, agent: str = "unknown") -> str:
     """
     Call Perplexity; on any failure, fall back to Gemini and wrap the plain
     text response in the same {content, citations} JSON envelope so callers
     always receive a consistent format.
     """
     try:
-        return call_perplexity(prompt, system, max_tokens=max_tokens)
+        return call_perplexity(prompt, system, max_tokens=max_tokens, agent=agent)
     except Exception as e:
         print(f"Perplexity unavailable or failed, using Gemini: {e}", file=sys.stderr)
-        content = call_gemini(prompt, system, max_tokens=max_tokens)
+        content = call_gemini(prompt, system, max_tokens=max_tokens, agent=agent)
         return json.dumps({"content": content, "citations": []})
 
 
@@ -73,7 +72,7 @@ def security_guardrail(user_input: str) -> bool:
     """
     try:
         # Use cost-effective model for guardrail (only for ambiguous inputs)
-        response = call_gemini(guard_prompt, guard_system, model="gemini-flash-latest", max_tokens=64).strip()
+        response = call_gemini(guard_prompt, guard_system, model="gemini-flash-latest", max_tokens=64, agent="guardrail").strip()
         up = response.upper().strip()
         if up.startswith("BLOCKED"):
             return False
@@ -102,7 +101,7 @@ def research_agent(ticker: str, skip_guardrail: bool = False) -> str:
     If {ticker} is not a recognized stock or company, clearly say "Ticker Not Found" and stop. Do not guess or speculate.
     """
     system = "You are a friendly but accurate stock research assistant helping everyday retail investors understand a company. Write as if explaining to someone who invests as a hobby, not a Wall Street professional. Be factual and concise — no fluff, but no unnecessary jargon either."
-    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=800)
+    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=800, agent="research")
 
 
 def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: bool = False) -> str:
@@ -124,11 +123,11 @@ def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: b
     """
     system = "You are a helpful tax education assistant for retail investors. You explain US capital gains tax concepts in simple, relatable terms based on IRS rules. You do not provide personalized legal or tax advice, but you help investors understand the general tax landscape so they can have better conversations with their own accountant."
     try:
-        content = call_gemini(prompt, system, max_tokens=1200)
+        content = call_gemini(prompt, system, max_tokens=1200, agent="tax")
         return json.dumps({"content": content, "citations": []})
     except Exception as e:
         print(f"Gemini failed, falling back to Anthropic: {e}", file=sys.stderr)
-        content = call_anthropic(prompt, system, max_tokens=1200)
+        content = call_anthropic(prompt, system, max_tokens=1200, agent="tax")
         return json.dumps({"content": content, "citations": []})
 
 
@@ -176,7 +175,7 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False) -> str:
     | News | [Bullish/Bearish/Neutral/Not Found] | one-line note |
     """
     system = "You are a friendly market sentiment reporter helping everyday retail investors quickly understand how the crowd feels about a stock. Search social media and financial news actively, and report what you find in plain, jargon-free language. If data is unavailable for a platform, say so honestly. Never cover cryptocurrency — focus only on the stock in question."
-    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200)
+    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200, agent="sentiment")
 
 
 def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool = False) -> Dict[str, Any]:
@@ -230,14 +229,13 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
     }
 
     try:
-        res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema, max_tokens=2000)
+        res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema, max_tokens=2000, agent="dividend")
         return json.loads(res_text)
     except Exception as e:
         print(f"Gemini dividend analysis failed: {e}", file=sys.stderr)
         try:
-            openai_key = os.environ.get("OPENAI_API_KEY")
-            if openai_key and not is_placeholder(openai_key):
-                res_text = call_openai(prompt + " IMPORTANT: Return ONLY raw JSON.", system, model="gpt-4o-mini", max_tokens=800)
+            if is_provider_allowed("openai"):
+                res_text = call_openai(prompt + " IMPORTANT: Return ONLY raw JSON.", system, model="gpt-4o-mini", max_tokens=800, agent="dividend")
                 return extract_json(res_text)
         except Exception as oe:
             print(f"OpenAI fallback failed: {oe}", file=sys.stderr)
