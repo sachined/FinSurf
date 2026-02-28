@@ -293,12 +293,17 @@ FinSurf is an evolving ecosystem. To maintain a simple and efficient development
     npm install
     ```
 3.  **Configure API Keys**:
-    Create a `.env` file in the root directory:
+    Copy the example environment file and fill in your keys:
+    ```bash
+    cp .env.example .env
+    ```
+    Or create a `.env` file manually:
     ```env
     GEMINI_API_KEY=your_key_here
     PERPLEXITY_API_KEY=your_key_here  # Optional
     OPENAI_API_KEY=your_key_here      # Optional
     ANTHROPIC_API_KEY=your_key_here   # Optional
+    PORT=3000
     ```
 
 ### Running the App
@@ -306,6 +311,35 @@ FinSurf is an evolving ecosystem. To maintain a simple and efficient development
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to start surfing the market.
+
+### Deployment & GitHub Secrets
+
+When deploying FinSurf to platforms like GitHub Pages (frontend only) or automated CI/CD pipelines, you should use **GitHub Secrets** to manage your API keys securely.
+
+1.  **Navigate to your repository** on GitHub.
+2.  Go to **Settings > Secrets and variables > Actions**.
+3.  Click **New repository secret** for each of the following:
+    *   `GEMINI_API_KEY` (Required)
+    *   `PERPLEXITY_API_KEY` (Optional)
+    *   `OPENAI_API_KEY` (Optional)
+    *   `ANTHROPIC_API_KEY` (Optional)
+
+In your GitHub Actions workflow (`.yml`), you can then expose these secrets to your build or run steps:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and Test
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: |
+          npm install
+          npm run build
+```
 
 ---
 
@@ -323,3 +357,44 @@ For discussions or questions, reach out to Sachin at `sachin.nediyanchath@gmail.
 
 ## 📄 License
 SPDX-License-Identifier: Apache-2.0
+
+
+---
+
+### 🔐 Cost Control & LLM Provider Policy
+
+To conserve tokens and run smoothly in production, FinSurf now enforces a strict provider allowlist and conservative token limits by default.
+
+- Default providers: `Gemini (gemini-flash-latest)` + `Perplexity (sonar)` — Perplexity is enabled by default for real-time Research and Social Sentiment analysis
+- Conservative caps: `max_tokens` generally limited to 500–800 per call, temperature 0.1
+- Guardrail short‑circuit: Valid ticker-like inputs (A–Z/0–9/.- up to 10 chars) bypass LLM guardrail, saving tokens; ambiguous inputs are checked once via Gemini.
+
+You can control which providers are permitted via environment variables:
+
+- `ALLOWED_PROVIDERS` (comma-separated): e.g. `gemini,perplexity`
+- or granular flags (fallback if `ALLOWED_PROVIDERS` is unset):
+  - `ALLOW_GEMINI` (default: `true`)
+  - `ALLOW_PERPLEXITY` (default: `true` — enabled for research/sentiment)
+  - `ALLOW_OPENAI` (default: `false`)
+  - `ALLOW_ANTHROPIC` (default: `false`)
+
+Examples:
+
+```bash
+# Default behavior: Gemini + Perplexity (research/sentiment use Perplexity for real-time data)
+export ALLOWED_PROVIDERS=gemini,perplexity
+
+# Strictly Gemini-only (lower cost, no real-time web search)
+export ALLOWED_PROVIDERS=gemini
+
+# Explicit granular flags (used if ALLOWED_PROVIDERS is not set)
+export ALLOW_GEMINI=true
+export ALLOW_PERPLEXITY=true
+export ALLOW_OPENAI=false
+export ALLOW_ANTHROPIC=false
+```
+
+Notes:
+- Research/Sentiment use Perplexity by default (enabled out-of-the-box) for real-time web search; they fall back to Gemini automatically if Perplexity is disabled or fails.
+- Dividend analysis uses Gemini JSON mode; OpenAI fallback is only used when `OPENAI_API_KEY` is present and OpenAI is allowed.
+- Tax analysis prefers Gemini with Anthropic as a secondary fallback only if allowed.

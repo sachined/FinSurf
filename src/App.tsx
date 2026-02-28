@@ -7,6 +7,8 @@ import { Header } from './components/layout/Header';
 import { SearchForm } from './components/forms/SearchForm';
 import { ResultsGrid } from './components/results/ResultsGrid';
 import { Footer } from './components/layout/Footer';
+import { WelcomeHero } from './components/WelcomeHero';
+import { AgentProgressStrip } from './components/AgentProgressStrip';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
@@ -35,9 +37,12 @@ export default function App() {
 
   const isAnyLoading = Object.values(loading).some(v => v);
 
+  const hasResponses = Object.values(responses).some(r => r !== null);
+
   const handleSearch = async () => {
     if (!validateAll()) return;
     setHasSurfed(true);
+    setError(null);
     await runAll(ticker, purchaseDate, sellDate, shares, setError);
   };
 
@@ -45,7 +50,7 @@ export default function App() {
     setGeneratingPdf(true);
     try {
       const scale = 2.0;
-      await downloadPDF(ticker, theme, pdfMode, scale);
+      await downloadPDF(ticker, theme, accessMode, pdfMode, scale);
     } catch (err) {
       console.error(err);
       setError('Failed to generate PDF');
@@ -121,6 +126,12 @@ export default function App() {
             <div className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
           </div>
 
+          <AnimatePresence>
+            {!hasSurfed && (
+              <WelcomeHero accessMode={accessMode} />
+            )}
+          </AnimatePresence>
+
           <SearchForm
             ticker={ticker}
             setTicker={setTicker}
@@ -134,8 +145,10 @@ export default function App() {
             isLoading={isAnyLoading}
             hasSurfed={hasSurfed}
             accessMode={accessMode}
-            isCompact={hasSurfed && !isAnyLoading}
+            isCompact={hasResponses && !isAnyLoading}
           />
+
+          <AgentProgressStrip loading={loading} responses={responses} accessMode={accessMode} />
 
           <AnimatePresence>
             {error && (
@@ -164,6 +177,7 @@ export default function App() {
           accessMode={accessMode}
           pdfMode={pdfMode}
           setPdfMode={setPdfMode}
+          isDataAvailable={hasResponses && !isAnyLoading}
         />
       </div>
 
@@ -192,7 +206,7 @@ export default function App() {
 
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
-        <Mascot mode={accessMode} isThinking={isAnyLoading} />
+        <Mascot mode={accessMode} className="w-24 h-24" isThinking={isAnyLoading} />
       </div>
     </div>
   );

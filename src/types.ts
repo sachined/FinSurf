@@ -8,9 +8,28 @@ export interface AgentResponse {
   sources?: { title: string; uri: string }[];
 }
 
+export interface DividendStats {
+  currentYield?: string;
+  annualDividendPerShare?: string;
+  payoutRatio?: string;
+  fiveYearGrowthRate?: string;
+  paymentFrequency?: string;
+  exDividendDate?: string;
+  consecutiveYears?: string;
+}
+
 export interface DividendResponse extends AgentResponse {
   isDividendStock: boolean;
   hasDividendHistory: boolean;
+  stats?: DividendStats;
+}
+
+export interface SentimentBreakdown {
+  overall?: string;
+  score?: string;
+  retail?: string;
+  institutional?: string;
+  trending?: string;
 }
 
 export interface FinancialAgentsState {

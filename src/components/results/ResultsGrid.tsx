@@ -29,6 +29,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.research}
         response={responses.research}
         color="cyan"
+        emptyDescription="Analyzes fundamentals: P/E ratios, revenue growth & institutional ownership."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -38,6 +39,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.tax}
         response={responses.tax}
         color="emerald"
+        emptyDescription="Calculates your capital gains tax based on your holding period (short vs. long term)."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -48,6 +50,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.dividend}
         color="amber"
         isDividendAgent
+        emptyDescription="Projects dividend income on your shares including yield, payout ratio & growth rate."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -57,6 +60,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.sentiment}
         response={responses.sentiment}
         color="violet"
+        emptyDescription="Scans Reddit, X, StockTwits & news for real-time investor mood."
         accessMode={accessMode}
         isCompact={isDone}
       />

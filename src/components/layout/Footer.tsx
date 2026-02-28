@@ -9,9 +9,10 @@ interface FooterProps {
   accessMode?: AccessMode;
   pdfMode: PDFMode;
   setPdfMode: (mode: PDFMode) => void;
+  isDataAvailable?: boolean;
 }
 
-export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode, pdfMode, setPdfMode }: FooterProps) {
+export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode, pdfMode, setPdfMode, isDataAvailable }: FooterProps) {
   return (
     <footer className="relative z-20 space-y-8">
       <div className={cn(
@@ -70,7 +71,7 @@ export function Footer({ onDownloadPDF, isGeneratingPdf, accessMode, pdfMode, se
 
           <button
             onClick={() => onDownloadPDF()}
-            disabled={isGeneratingPdf}
+            disabled={isGeneratingPdf || !isDataAvailable}
             className={cn(
               "w-full sm:w-auto disabled:opacity-50 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3",
               accessMode === 'tropical' 

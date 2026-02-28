@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../utils/cn';
-import { type AgentResponse, type DividendResponse, type AccessMode } from '../types';
+import { type AgentResponse, type DividendResponse, type AccessMode, type DividendStats } from '../types';
 
 interface AgentCardProps {
   title: string;
@@ -22,11 +22,12 @@ interface AgentCardProps {
   response: AgentResponse | DividendResponse | null;
   color: 'cyan' | 'emerald' | 'amber' | 'violet';
   isDividendAgent?: boolean;
+  emptyDescription?: string;
   accessMode: AccessMode;
   isCompact?: boolean;
 }
 
-export function AgentCard({ title, icon, loading, response, color, isDividendAgent, accessMode, isCompact }: AgentCardProps) {
+export function AgentCard({ title, icon, loading, response, color, isDividendAgent, emptyDescription, accessMode, isCompact }: AgentCardProps) {
   const colorClasses = {
     cyan: accessMode === 'tropical' 
       ? 'bg-teal-50/50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800'
@@ -58,6 +59,16 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
+
+  const statLabels: { key: keyof DividendStats; label: string; icon: string }[] = [
+    { key: 'currentYield',          label: 'Current Yield',      icon: '📈' },
+    { key: 'annualDividendPerShare', label: 'Annual Div/Share',   icon: '💵' },
+    { key: 'payoutRatio',            label: 'Payout Ratio',       icon: '⚖️' },
+    { key: 'fiveYearGrowthRate',     label: '5-Year Growth',      icon: '🚀' },
+    { key: 'paymentFrequency',       label: 'Frequency',          icon: '🗓️' },
+    { key: 'exDividendDate',         label: 'Ex-Div Date',        icon: '📅' },
+    { key: 'consecutiveYears',       label: 'Consecutive Yrs',    icon: '🏆' },
+  ];
 
   return (
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
@@ -103,12 +114,17 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="h-full flex flex-col items-center justify-center text-cyan-200 dark:text-cyan-900 text-center space-y-3 py-12"
+              className="h-full flex flex-col items-center justify-center text-cyan-200 dark:text-cyan-900 text-center space-y-4 py-12"
             >
               <div className="w-16 h-16 rounded-full bg-cyan-50/50 dark:bg-cyan-900/10 flex items-center justify-center">
                 <TrendingUp size={32} />
               </div>
-              <p className="text-xs font-bold uppercase tracking-widest">Waiting for waves...</p>
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold uppercase tracking-widest">Ready to analyse</p>
+                {emptyDescription && (
+                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 max-w-[200px] mx-auto leading-relaxed">{emptyDescription}</p>
+                )}
+              </div>
             </motion.div>
           ) : loading ? (
             <motion.div 
@@ -144,6 +160,54 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                   </div>
                 </div>
               ) : null}
+
+              {isDividendAgent && divResponse?.stats && (
+                <div className={cn(
+                  "mb-5 rounded-2xl border overflow-hidden",
+                  accessMode === 'colorblind'
+                    ? "border-yellow-600"
+                    : accessMode === 'tropical'
+                    ? "border-yellow-200 dark:border-yellow-800"
+                    : "border-amber-100 dark:border-amber-900/40"
+                )}>
+                  <div className={cn(
+                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest",
+                    accessMode === 'colorblind'
+                      ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200"
+                      : accessMode === 'tropical'
+                      ? "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300"
+                      : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                  )}>
+                    📊 Key Dividend Stats
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 divide-x divide-y divide-amber-100 dark:divide-amber-900/30">
+                    {statLabels.map(({ key, label, icon }) => {
+                      const val = divResponse.stats![key];
+                      if (!val || val === 'N/A') return null;
+                      const isRisk = key === 'payoutRatio' && parseFloat(val) > 90;
+                      return (
+                        <div key={key} className={cn(
+                          "px-3 py-2.5 flex flex-col gap-0.5",
+                          isRisk ? "bg-red-50 dark:bg-red-900/10" : "bg-white dark:bg-slate-900"
+                        )}>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{icon} {label}</span>
+                          <span className={cn(
+                            "text-sm font-black",
+                            isRisk
+                              ? "text-red-600 dark:text-red-400"
+                              : accessMode === 'colorblind'
+                              ? "text-yellow-900 dark:text-yellow-200"
+                              : "text-amber-700 dark:text-amber-300"
+                          )}>
+                            {val}
+                            {isRisk && <span className="ml-1 text-[9px] font-black text-red-500 uppercase"> ⚠ Risk</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className={cn(
                 "markdown-body dark:text-slate-300 overflow-x-auto", 

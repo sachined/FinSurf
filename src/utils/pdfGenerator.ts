@@ -1,11 +1,14 @@
-import { type Theme, type PDFMode } from '../types';
+import { type Theme, type PDFMode, type AccessMode } from '../types';
 import pdfStyles from '../services/pdf.css?inline';
+
+// Global cache for color conversion to speed up repeated chunk capture
+const colorCache = new Map<string, string>();
 
 /**
  * Generates and downloads a PDF of the market analysis report.
  * Uses dynamic imports to keep the initial bundle small.
  */
-export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode = 'standard', scale: number = 2) => {
+export const downloadPDF = async (ticker: string, theme: Theme, accessMode: AccessMode = 'default', pdfMode: PDFMode = 'standard', scale: number = 2) => {
   const container = document.getElementById('report-container');
   if (!container) return;
   
@@ -72,13 +75,17 @@ export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode
         width: 1400,
         backgroundColor: theme === 'dark' ? '#0a1114' : '#fdfaf6',
         onclone: (clonedDoc) => {
-          // Force theme class on clone for CSS selection consistency
+          // Force theme class and access mode on clone for CSS selection consistency
+          clonedDoc.documentElement.classList.remove('dark', 'tropical', 'colorblind');
+          clonedDoc.body.classList.remove('dark', 'tropical', 'colorblind');
+
           if (theme === 'dark') {
             clonedDoc.documentElement.classList.add('dark');
             clonedDoc.body.classList.add('dark');
-          } else {
-            clonedDoc.documentElement.classList.remove('dark');
-            clonedDoc.body.classList.remove('dark');
+          }
+          if (accessMode !== 'default') {
+            clonedDoc.documentElement.classList.add(accessMode);
+            clonedDoc.body.classList.add(accessMode);
           }
 
           const style = clonedDoc.createElement('style');
@@ -128,7 +135,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode
             clonedHeader.style.marginBottom = '2rem';
           }
 
-          // Optimized color conversion
+          // Optimized color conversion with caching
           const convCanvas = clonedDoc.createElement('canvas');
           convCanvas.width = 1; convCanvas.height = 1;
           const convCtx = convCanvas.getContext('2d');
@@ -137,6 +144,8 @@ export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode
 
           const convertColor = (color: string) => {
             if (!color || (!color.includes('oklch') && !color.includes('oklab') && !color.includes('color-mix'))) return color;
+            if (colorCache.has(color)) return colorCache.get(color)!;
+            
             if (!convCtx) return theme === 'dark' ? '#cbd5e1' : '#334155';
             try {
               // Reset to check if browser actually parses the new color
@@ -150,6 +159,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode
                   result.includes('color-mix') || result.includes('var(')) {
                 return theme === 'dark' ? '#cbd5e1' : '#334155';
               }
+              colorCache.set(color, result);
               return result;
             } catch (e) { 
               return theme === 'dark' ? '#cbd5e1' : '#334155'; 
@@ -295,6 +305,6 @@ export const downloadPDF = async (ticker: string, theme: Theme, pdfMode: PDFMode
     }
   } catch (error) {
     console.error('PDF Generation failed:', error);
-    alert('PDF generation failed. Check console for details.');
+    throw error; // Re-throw so the caller can handle it (e.g., via UI notification)
   }
 };

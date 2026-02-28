@@ -84,12 +84,26 @@ export function useFinancialAgents() {
       sentiment: null
     });
 
+    const errors: string[] = [];
+    const collectError = (msg: string) => {
+      errors.push(msg);
+    };
+
     await Promise.allSettled([
-      runResearch(ticker, onError),
-      runTax(ticker, purchaseDate, sellDate, onError),
-      runDividend(ticker, shares, purchaseDate, sellDate, onError),
-      runSentiment(ticker, onError)
+      runResearch(ticker, collectError),
+      runTax(ticker, purchaseDate, sellDate, collectError),
+      runDividend(ticker, shares, purchaseDate, sellDate, collectError),
+      runSentiment(ticker, collectError)
     ]);
+
+    if (errors.length > 0) {
+      // If multiple agents failed, show a generic message or the first one
+      if (errors.length > 2) {
+        onError('Multiple analysis agents encountered issues. Some results may be incomplete.');
+      } else {
+        onError(errors[0]);
+      }
+    }
   };
 
   return {
