@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Runtime SQLite databases (generated at runtime; not part of the source tree)
+*.db
+*.db-wal
+*.db-shm
+
+# Captured output artifacts
+.output.txt

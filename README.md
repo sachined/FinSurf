@@ -71,7 +71,6 @@ FinSurf is built with a highly modular and encapsulated architecture:
 *   **Conditional Routing**: The dividend node is skipped entirely for non-dividend stocks — zero LLM tokens wasted.
 *   **Parallel Fan-Out**: Tax and sentiment agents execute simultaneously via LangGraph's `Send` API after research completes.
 *   **LLM Redundancy**: Built-in fallback logic across **Gemini, OpenAI, Anthropic, and Perplexity**.
-*   **Real-Time RAG**: Web-connected agents provide up-to-the-minute market data (via Perplexity).
 
 ---
 
