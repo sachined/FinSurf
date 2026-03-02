@@ -41,6 +41,7 @@
 *   **🎨 Personalized Experience**: Choose between Light/Dark modes and multiple themes, including **Accessibility Optimized** and **Enhanced Tropical** modes.
 *   **🏙️ Compact Grid Layout**: Automatic grid compression and seamless card design for a unified report look once generation is complete.
 *   **🔌 Flexible AI Backend**: LangGraph-orchestrated backend with conditional routing, parallel fan-out, and automatic fallback across Gemini, OpenAI, Anthropic, and Perplexity.
+*   **📊 Built-in Telemetry**: Per-agent token usage and cost tracking persisted to SQLite, with an optional daily spend cap that blocks new runs when exceeded.
 *   **⚡ Modern Tech Stack**: React 19, Vite 6, Tailwind CSS 4, Express, and a LangGraph-powered Python backend.
 
 ---
@@ -61,7 +62,7 @@ FinSurf leverages a **LangGraph state-machine** where each agent is a specialist
 FinSurf is built with a highly modular and encapsulated architecture:
 
 ### Frontend (React + Vite + Tailwind CSS)
-*   **Modular Components**: Extracted UI elements for better maintainability (e.g., `Mascot`, `AgentCard`, `SearchForm`, `ResultsGrid`).
+*   **Modular Components**: Extracted UI elements for better maintainability (e.g., `Mascot`, `AgentCard`, `SearchForm`, `ResultsGrid`, `AgentProgressStrip`, `WelcomeHero`).
 *   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with parallelized capture, adaptive pagination, automated color conversion (`oklch` support), and **Dual-Density layouts** (Standard vs HD).
 *   **Unified Report Look**: Automatic shift to a dense, gapless layout upon analysis completion, providing a cohesive, professional-grade visual experience.
 *   **Dynamic Theme Engine**: State-managed experience between Light, Dark, Tropical (immersive blur effects), and Accessibility (Neobrutalist, high-contrast) modes.
@@ -71,6 +72,8 @@ FinSurf is built with a highly modular and encapsulated architecture:
 *   **Conditional Routing**: The dividend node is skipped entirely for non-dividend stocks — zero LLM tokens wasted.
 *   **Parallel Fan-Out**: Tax and sentiment agents execute simultaneously via LangGraph's `Send` API after research completes.
 *   **LLM Redundancy**: Built-in fallback logic across **Gemini, OpenAI, Anthropic, and Perplexity**.
+*   **Telemetry & Cost Control**: `backend/telemetry.py` tracks per-agent token usage and cost in a local SQLite database (`finsurf_telemetry.db`). Supports a configurable daily spend cap (`DAILY_BUDGET_USD`) that short-circuits new runs when exceeded, protecting API balances.
+*   **Test Suite**: `backend/tests/` contains unit tests for all four core modules (`financial_agents`, `graph`, `telemetry`, `utils`) using Python's `unittest` with fully mocked LLM calls — no real API usage during testing.
 
 ---
 
@@ -158,8 +161,10 @@ graph LR
         subgraph backend_dir["backend/"]
             graph_py[graph.py LangGraph]
             financial_agents[financial_agents.py]
+            telemetry_py[telemetry.py]
             llm_providers[llm_providers.py]
             utils_py[utils.py]
+            tests_dir[tests/]
         end
     end
 
@@ -172,6 +177,8 @@ graph LR
         subgraph components["components/"]
             AgentCard[AgentCard.tsx]
             Mascot[Mascot.tsx]
+            AgentProgressStrip[AgentProgressStrip.tsx]
+            WelcomeHero[WelcomeHero.tsx]
             subgraph layout["layout/"]
                 Header[Header.tsx]
                 Footer[Footer.tsx]
@@ -211,8 +218,8 @@ graph LR
     end
 
     class Root root;
-    class agents,server,graph_py,financial_agents,llm_providers,utils_py be;
-    class App,main,types,css,AgentCard,Mascot,Header,Footer,SearchForm,ResultsGrid,useTheme,useForm,useAgents,apiService,pdfCSS,pdfGen,cn fe;
+    class agents,server,graph_py,financial_agents,telemetry_py,llm_providers,utils_py,tests_dir be;
+    class App,main,types,css,AgentCard,Mascot,AgentProgressStrip,WelcomeHero,Header,Footer,SearchForm,ResultsGrid,useTheme,useForm,useAgents,apiService,pdfCSS,pdfGen,cn fe;
     class pkg,vite,ts,html,meta,env cfg;
 
     %% Relationships
@@ -222,6 +229,7 @@ graph LR
     server --> agents
     agents --> graph_py
     graph_py --> financial_agents
+    graph_py --> telemetry_py
     App --> pdfGen
     pdfGen -.-> pdfCSS
 
@@ -400,7 +408,8 @@ We welcome contributions! Whether it's adding new agent modules, strengthening v
 
 1.  **Fork the Repo**: Create your own branch for experiments.
 2.  **Report Bugs**: Open an issue if you find any "holes" in the logic or architecture.
-3.  **Submit a PR**: Ensure your code follows existing patterns to keep the agent's reasoning pure.
+3.  **Add Tests**: Backend unit tests live in `backend/tests/`. New agent modules or utility functions should include a corresponding test file following the existing `unittest` + mock pattern.
+4.  **Submit a PR**: Ensure your code follows existing patterns to keep the agent's reasoning pure.
 
 For discussions or questions, reach out to Sachin at `sachin.nediyanchath@gmail.com`.
 
