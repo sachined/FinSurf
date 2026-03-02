@@ -4,6 +4,7 @@ import re
 from typing import Dict, Any, Optional
 from .llm_providers import call_gemini, call_openai, call_anthropic, call_perplexity
 from .utils import calculate_holding_status, extract_json, is_provider_allowed
+from .data_fetcher import fetch_dividend_data, fetch_research_data
 
 # ---------------------------------------------------------------------------
 # Shared helpers — DRY building blocks used across all agents
@@ -35,10 +36,16 @@ def _perplexity_with_gemini_fallback(prompt: str, system: str, max_tokens: int, 
 # ---------------------------------------------------------------------------
 
 def validate_ticker(ticker: str) -> bool:
-    """Basic validation for stock tickers or company names."""
-    if not ticker or len(ticker) > 50:
+    """Strict allowlist validation for stock tickers.
+
+    Accepts only uppercase letters, digits, dot, and hyphen — max 10 chars.
+    Spaces are intentionally excluded: real tickers never contain them, and
+    allowing spaces widens the prompt-injection surface by letting multi-word
+    strings bypass the character-level filter and reach the LLM guardrail.
+    """
+    if not ticker or len(ticker) > 10:
         return False
-    return bool(re.match(r'^[A-Za-z0-9\.\-\s]+$', ticker))
+    return bool(re.match(r'^[A-Z0-9.\-]+$', ticker))
 
 
 def security_guardrail(user_input: str) -> bool:
@@ -86,11 +93,37 @@ def security_guardrail(user_input: str) -> bool:
 # ---------------------------------------------------------------------------
 
 def research_agent(ticker: str, skip_guardrail: bool = False) -> str:
-    """Agent that performs general equity research using Perplexity with Gemini fallback."""
+    """Agent that performs general equity research using Perplexity with Gemini fallback.
+
+    Attempts to pre-fetch P/E ratios, revenue growth, and institutional ownership
+    from yfinance so the LLM only needs to explain pre-verified numbers rather than
+    look them up — reducing token usage and improving factual accuracy.
+    """
     if not skip_guardrail and not security_guardrail(ticker):
         return _blocked_json()
 
-    prompt = f"""Give a clear, plain-English stock overview of {ticker} for an everyday investor who wants to understand if this company is worth researching further.
+    fetched = fetch_research_data(ticker)
+
+    if fetched:
+        data_block = f"""Here is current fundamental data for {ticker} retrieved from market data (do not re-fetch or guess — use only these numbers):
+- Trailing P/E: {fetched['pe_trailing']}
+- Forward P/E:  {fetched['pe_forward']}
+- Revenue growth (year over year): {fetched['revenue_growth_yoy']}
+- Institutional ownership: {fetched['institutional_ownership']}
+"""
+        prompt = f"""{data_block}
+Using only the data above, write a clear plain-English overview of {ticker} for an everyday investor.
+Explain what each number means in simple terms:
+1. P/E Ratio (Trailing & Forward) — is the stock cheap or expensive compared to its earnings?
+2. Revenue Growth — is the company actually growing its sales?
+3. Institutional Ownership — what does this level of professional ownership signal?
+
+If any value shows N/A, acknowledge the data was unavailable rather than guessing.
+If {ticker} is not a recognized stock, say "Ticker Not Found" and stop."""
+        max_tokens = 500
+    else:
+        # yfinance unavailable — ask the LLM to both find and explain the data
+        prompt = f"""Give a clear, plain-English stock overview of {ticker} for an everyday investor who wants to understand if this company is worth researching further.
 
     Include the following, and briefly explain what each number means in simple terms:
     1. P/E Ratio (Trailing & Forward) — Is the stock cheap or expensive compared to its earnings?
@@ -100,8 +133,10 @@ def research_agent(ticker: str, skip_guardrail: bool = False) -> str:
     Use plain language. Avoid jargon where possible, and when you must use a financial term, explain it in one short sentence.
     If {ticker} is not a recognized stock or company, clearly say "Ticker Not Found" and stop. Do not guess or speculate.
     """
+        max_tokens = 800
+
     system = "You are a friendly but accurate stock research assistant helping everyday retail investors understand a company. Write as if explaining to someone who invests as a hobby, not a Wall Street professional. Be factual and concise — no fluff, but no unnecessary jargon either."
-    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=800, agent="research")
+    return _perplexity_with_gemini_fallback(prompt, system, max_tokens=max_tokens, agent="research")
 
 
 def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: bool = False) -> str:
@@ -179,7 +214,12 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False) -> str:
 
 
 def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool = False) -> Dict[str, Any]:
-    """Agent that analyzes dividend history and projects future payouts."""
+    """Agent that analyzes dividend history and projects future payouts.
+
+    Attempts to pre-fetch all dividend stats from yfinance so the LLM only
+    needs to explain and project pre-verified numbers — reducing max_tokens
+    from 2000 to 600 and eliminating LLM data-lookup hallucination risk.
+    """
     if not skip_guardrail and not security_guardrail(ticker):
         return {
             "isDividendStock": False,
@@ -187,7 +227,33 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
             "analysis": _BLOCKED_MSG
         }
 
-    prompt = f"""Help a retail investor understand the dividend picture for {ticker}. They own {shares} shares and are thinking about the next {years} year(s).
+    fetched = fetch_dividend_data(ticker)
+
+    if fetched:
+        data_block = f"""Here is current dividend data for {ticker} retrieved from market data (use only these numbers — do not re-fetch or guess):
+- Pays dividends: {"Yes" if fetched["is_dividend_stock"] else "No"}
+- Annual dividend per share: {fetched["annual_dividend_per_share"]}
+- Current yield: {fetched["current_yield"]}
+- Payout ratio: {fetched["payout_ratio"]}
+- 5-year average yield: {fetched["five_year_avg_yield"]}
+- Ex-dividend date: {fetched["ex_dividend_date"]}
+- Payment frequency: {fetched["payment_frequency"]}
+- Consecutive years paying dividends: {fetched["consecutive_years"]}
+
+The investor holds {shares} shares and is thinking about the next {years} year(s).
+"""
+        prompt = f"""{data_block}
+Using only the data above, explain the dividend picture to a retail investor in plain English:
+1. Is the dividend safe? Comment on the payout ratio — flag it if above 90%.
+2. Income projection: using the annual dividend per share above, calculate the estimated total dividend income over {years} year(s) for {shares} shares under two scenarios:
+   - Conservative: 3% annual dividend growth
+   - Optimistic: 7% annual dividend growth
+3. Note the ex-dividend date and explain what it means for the investor.
+If any value is N/A, acknowledge it rather than guessing."""
+        max_tokens = 600
+    else:
+        # yfinance unavailable — ask the LLM to both look up and explain
+        prompt = f"""Help a retail investor understand the dividend picture for {ticker}. They own {shares} shares and are thinking about the next {years} year(s).
 
     Answer these questions in plain English, using real data where available:
     - Does this company pay dividends? If yes, how much per share per year, and how often (monthly, quarterly, annually)?
@@ -205,6 +271,7 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
     If this company does not pay dividends, say so clearly and share any relevant historical context (e.g., did it used to pay dividends? Are there any buyback programs instead?).
     Use 'N/A' for any data that is not available.
     """
+        max_tokens = 2000
     system = "You are a dividend education assistant for retail investors. Explain dividend data in simple, relatable terms — as if helping a friend understand whether a stock will pay them regular income. Be accurate and data-driven, but always translate the numbers into what they mean for the investor. Use 'N/A' for unavailable fields."
     schema = {
         "type": "OBJECT",
@@ -229,8 +296,23 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
     }
 
     try:
-        res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema, max_tokens=2000, agent="dividend")
-        return json.loads(res_text)
+        res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema, max_tokens=max_tokens, agent="dividend")
+        result = json.loads(res_text)
+        # Override boolean flags and stats with accurate yfinance values when available
+        if fetched:
+            result["isDividendStock"] = fetched["is_dividend_stock"]
+            result["hasDividendHistory"] = fetched["has_history"]
+            result.setdefault("stats", {})
+            result["stats"].update({
+                "currentYield": fetched["current_yield"],
+                "annualDividendPerShare": fetched["annual_dividend_per_share"],
+                "payoutRatio": fetched["payout_ratio"],
+                "fiveYearGrowthRate": fetched["five_year_avg_yield"],
+                "paymentFrequency": fetched["payment_frequency"],
+                "exDividendDate": fetched["ex_dividend_date"],
+                "consecutiveYears": fetched["consecutive_years"],
+            })
+        return result
     except Exception as e:
         print(f"Gemini dividend analysis failed: {e}", file=sys.stderr)
         try:

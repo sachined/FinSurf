@@ -12,5 +12,10 @@ coverage/
 *.db-wal
 *.db-shm
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
 # Captured output artifacts
 .output.txt
