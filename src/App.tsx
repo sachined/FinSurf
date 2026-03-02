@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mascot } from './components/Mascot';
+import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
 import { downloadPDF } from './utils/pdfGenerator';
 import { Header } from './components/layout/Header';
 import { SearchForm } from './components/forms/SearchForm';
 import { ResultsGrid } from './components/results/ResultsGrid';
 import { Footer } from './components/layout/Footer';
-import { WelcomeHero } from './components/WelcomeHero';
-import { AgentProgressStrip } from './components/AgentProgressStrip';
+import { WelcomeHero } from './components/ui/WelcomeHero';
+import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';

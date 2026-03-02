@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { type AccessMode } from '../types';
-import { cn } from '../utils/cn';
+import { type AccessMode } from '../../types';
+import { cn } from '../../utils/cn';
 
 interface MascotProps {
   mode: AccessMode;

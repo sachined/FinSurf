@@ -1,87 +1,57 @@
-# FinSurf 🏄‍♂️
+﻿# FinSurf 🏄‍♂️
 ![FinSurf_run](https://github.com/user-attachments/assets/ea6af548-1cb0-4cfa-9bf9-170c31d59558)
+*AI-Powered Stock Analysis Platform*
 
-**FinSurf** is a sophisticated, AI-driven stock analysis platform designed to help investors navigate market volatility. By deploying a collaborative network of specialized autonomous agents, FinSurf transforms raw market data into professional-grade investment reports in seconds.
-
-<p align="center">
-  <a href="#-overview"><b>🌟 Overview</b></a> &nbsp; • &nbsp;
-  <a href="#-key-features"><b>🚀 Key Features</b></a> &nbsp; • &nbsp;
-  <a href="#-the-agent-network"><b>🤖 Agent Network</b></a> &nbsp; • &nbsp;
-  <a href="#-tech-stack--architecture"><b>🛠 Tech Stack</b></a> &nbsp; • &nbsp;
-  <a href="#-system-architecture--data-flow"><b>🏗 Architecture</b></a> &nbsp; • &nbsp;
-  <a href="#-visuals--reports"><b>📸 Visuals & Reports</b></a> &nbsp; • &nbsp;
-  <a href="#-future-roadmap"><b>🔮 Future Roadmap</b></a> &nbsp; • &nbsp;
-  <a href="#-getting-started"><b>🚀 Getting Started</b></a> &nbsp; • &nbsp;
-  <a href="#-contributing"><b>🤝 Contributing</b></a>
-</p>
+**FinSurf** is an AI-driven stock analysis platform that deploys a collaborative network of specialized autonomous agents to transform raw market data into professional-grade investment reports in seconds — covering fundamentals, tax implications, dividends, and market sentiment.
 
 ---
 
-## 🌟 Overview
+## Project Status
 
-**FinSurf** is designed to take the complexity out of stock analysis. Instead of manually searching for data across multiple websites, FinSurf uses a team of **AI Autonomous Agents** to gather, analyze, and summarize everything you need to know about a stock in one place. It’s like having a team of elite financial analysts working for you around the clock.
+> Core analysis pipeline is fully functional end-to-end. Active development continues.
 
-### 🎯 Who is it for?
-*   **Individual Investors**: Get professional-grade research without the complexity.
-*   **Time-Savers**: Get a comprehensive view of a stock in seconds, not hours.
-*   **Clarity Seekers**: See how research, taxes, dividends, and market sentiment all fit together.
-
-### 📖 How to Use FinSurf
-1.  **Identify your Target**: Enter a stock ticker symbol (like `AAPL` for Apple or `TSLA` for Tesla).
-2.  **Provide Context**: Enter when you bought (or plan to buy) the stock and how many shares you hold.
-3.  **Ride the Wave**: Click the **Surf** button. Our AI agents will immediately begin their specialized analysis.
-4.  **Instant Insights**: Review the results in your interactive dashboard as the agents report back.
-5.  **Export & Share**: Click **Download PDF** to generate a beautiful, professionally formatted report of the entire analysis.
-
----
-
-## 🚀 Key Features
-
-*   **🤖 Multi-Agent Intelligence**: Four specialized AI agents work in parallel to provide research, tax, dividend, and sentiment analysis.
-*   **📄 Professional PDF Reports**: Optimized, high-quality analysis reports with row-based grouping, automated color conversion for modern CSS, and adaptive pagination. Choose between **Standard** and **High-Density (HD)** layouts via a dedicated toggle.
-*   **🎨 Personalized Experience**: Choose between Light/Dark modes and multiple themes, including **Accessibility Optimized** and **Enhanced Tropical** modes.
-*   **🏙️ Compact Grid Layout**: Automatic grid compression and seamless card design for a unified report look once generation is complete.
-*   **🔌 Flexible AI Backend**: LangGraph-orchestrated backend with conditional routing, parallel fan-out, and automatic fallback across Gemini, OpenAI, Anthropic, and Perplexity.
-*   **📊 Built-in Telemetry**: Per-agent token usage and cost tracking persisted to SQLite, with an optional daily spend cap that blocks new runs when exceeded.
-*   **⚡ Modern Tech Stack**: React 19, Vite 6, Tailwind CSS 4, Express, and a LangGraph-powered Python backend.
+| Feature | Status |
+|---|---|
+| Guardrail Agent | ✅ Production |
+| Research Agent | ✅ Production |
+| Tax Strategist Agent | ✅ Production |
+| Dividend Specialist Agent | ✅ Production |
+| Sentiment Agent | ✅ Production |
+| PDF Export (Standard + HD) | ✅ Production |
+| React + Vite Frontend | ✅ Production |
+| Tax Clock | 🔨 In Development |
+| Blind Spot Detector | 🔨 In Development |
+| Sector Health Monitor | 📋 Planned |
 
 ---
 
-## 🤖 The Agent Network
+## 🌟 What It Does
 
-FinSurf leverages a **LangGraph state-machine** where each agent is a specialist node in a directed graph. The guardrail runs first, then research fans out to tax and sentiment in parallel. The dividend node is only invoked when the research node signals the ticker pays dividends — saving tokens on every non-dividend query.
+Enter a stock ticker, your purchase date, and share count. FinSurf's agent network immediately gets to work:
 
-*   **🔍 Research Analyst**: Performs deep-dives into stock performance, key metrics, and fundamental data.
-*   **⚖️ Tax Strategist**: Analyzes holding periods and provides US tax implications (Short-term vs. Long-term Capital Gains).
-*   **💰 Dividend Specialist**: Projects future payouts with mathematical precision, accounting for fractional shares.
-*   **🗣️ Social Sentiment Analyst**: Scours Reddit, X, StockTwits, and news outlets to gauge real-time investor mood.
+1. **Guardrail Agent** validates your query before spending any API tokens
+2. **Research Agent** pulls fundamentals, key metrics, and recent performance
+3. **Tax Strategist** calculates your holding period and capital gains tax status
+4. **Sentiment Analyst** aggregates signals from Reddit, X, StockTwits, and news outlets
+5. **Dividend Specialist** *(conditional)* projects future payouts using Python arithmetic — not LLM guesses
 
----
+Results appear in an interactive dashboard. Click **Download PDF** for a professionally formatted report in Standard or HD layout.
 
-## 🛠 Tech Stack & Architecture
+> ⚠️ **Disclaimer:** FinSurf is an informational research tool, not financial advice. Verify all outputs independently before making any investment decision.
 
-FinSurf is built with a highly modular and encapsulated architecture:
-
-### Frontend (React + Vite + Tailwind CSS)
-*   **Modular Components**: Extracted UI elements for better maintainability (e.g., `Mascot`, `AgentCard`, `SearchForm`, `ResultsGrid`, `AgentProgressStrip`, `WelcomeHero`).
-*   **Advanced Document Engineering**: Professional PDF generation using `html2canvas` and `jsPDF` with parallelized capture, adaptive pagination, automated color conversion (`oklch` support), and **Dual-Density layouts** (Standard vs HD).
-*   **Unified Report Look**: Automatic shift to a dense, gapless layout upon analysis completion, providing a cohesive, professional-grade visual experience.
-*   **Dynamic Theme Engine**: State-managed experience between Light, Dark, Tropical (immersive blur effects), and Accessibility (Neobrutalist, high-contrast) modes.
-
-### Backend (Express + Python + LangGraph)
-*   **LangGraph Orchestration**: `backend/graph.py` defines a compiled `StateGraph` with a shared `FinSurfState`. Nodes are guardrail → research → [tax ‖ sentiment] → dividend (conditional).
-*   **Conditional Routing**: The dividend node is skipped entirely for non-dividend stocks — zero LLM tokens wasted.
-*   **Parallel Fan-Out**: Tax and sentiment agents execute simultaneously via LangGraph's `Send` API after research completes.
-*   **LLM Redundancy**: Built-in fallback logic across **Gemini, OpenAI, Anthropic, and Perplexity**.
-*   **Telemetry & Cost Control**: `backend/telemetry.py` tracks per-agent token usage and cost in a local SQLite database (`finsurf_telemetry.db`). Supports a configurable daily spend cap (`DAILY_BUDGET_USD`) that short-circuits new runs when exceeded, protecting API balances.
-*   **Test Suite**: `backend/tests/` contains unit tests for all four core modules (`financial_agents`, `graph`, `telemetry`, `utils`) using Python's `unittest` with fully mocked LLM calls — no real API usage during testing.
+| Landing Page | Agents Running |
+|:---:|:---:|
+| <img src="Images/InputScreen.png" width="450"> | <img src="Images/LoadingAgents.png" width="450"> |
 
 ---
 
-## 🏗 System Architecture & Data Flow
+## ⚙️ How It Works
 
-### Project Logic Flow
-The following diagram illustrates the end-to-end data flow from user input to final analysis and report generation.
+FinSurf uses a **LangGraph state machine** where each agent is a specialist node in a directed graph. Tax and Sentiment run in parallel after Research completes. The Dividend node fires only when Research signals the ticker pays dividends — saving tokens on every non-dividend query.
+
+```
+User Input → 🛡️ Guardrail → 🔍 Research → ⚖️ Tax ‖ 🗣️ Sentiment → 💰 Dividend (conditional) → Report
+```
 
 ```mermaid
 graph TD
@@ -92,374 +62,151 @@ graph TD
 
     subgraph FE["Frontend (React)"]
         A[User Input: Ticker, Dates, Shares] --> B{Click Surf}
-        B --> C[App.tsx: runAll]
-        C --> D[apiService.ts: API Helpers]
+        B --> C[App.tsx]
+        C --> D[apiService.ts]
     end
 
     subgraph BE["Backend (Express + Python + LangGraph)"]
-        D -->|HTTP POST| E[server.ts: API Endpoints]
-        E -->|Child Process| F[agents.py: CLI Dispatcher]
+        D -->|HTTP POST| E[server.ts]
+        E -->|Child Process| F[agents.py]
         F --> G[graph.py: LangGraph StateGraph]
     end
 
-    subgraph AL["AI Layer (External APIs)"]
-        G -->|guardrail node| GA[Security Check]
-        GA -->|research node| GB[Perplexity / Gemini]
-        GB -->|tax node parallel| GC[Gemini / Anthropic]
-        GB -->|sentiment node parallel| GD[Perplexity / Gemini]
-        GB -->|dividend node conditional| GE[Gemini / OpenAI]
+    subgraph AL["AI Layer"]
+        G -->|guardrail| GA[Validation]
+        GA -->|research| GB[Perplexity / Gemini]
+        GB -->|parallel| GC[Tax: Gemini / Anthropic]
+        GB -->|parallel| GD[Sentiment: Perplexity / Gemini]
+        GB -->|conditional| GE[Dividend: Gemini / OpenAI]
     end
 
-    GA --> J[FinSurfState JSON]
-    GB --> J
-    GC --> J
+    GC --> J[FinSurfState JSON]
     GD --> J
     GE --> J
-    J --> G
-    G --> F
-    F --> E
-    E -->|JSON Response| D
-    D --> K[App.tsx: Update State]
-    
-    subgraph UI["UI & Output"]
-        K --> LG[ResultsGrid.tsx: Layout Manager]
-        LG --> L[AgentCard.tsx: Render Markdown]
-        L --> M{User Actions}
-        M -->|Download| N[pdfGenerator.ts]
-        N --> O[Professional PDF Report]
+    J --> E
+    E --> D
+
+    subgraph UI["Output"]
+        D --> K[ResultsGrid.tsx]
+        K --> L[AgentCard.tsx]
+        L -->|Download| M[pdfGenerator.ts #rarr; PDF Report]
     end
 
     class A,B,C,D fe;
     class E,F,G be;
     class GA,GB,GC,GD,GE,J ai;
-    class K,LG,L,M,N,O ui;
-
-    style FE fill:#f0fdff,stroke:#0891b2,stroke-width:1px,stroke-dasharray: 5 5,color:#044e5f,font-weight:bold;
-    style BE fill:#f0fdf4,stroke:#059669,stroke-width:1px,stroke-dasharray: 5 5,color:#064e3b,font-weight:bold;
-    style AL fill:#f5f3ff,stroke:#7c3aed,stroke-width:1px,stroke-dasharray: 5 5,color:#4c1d95,font-weight:bold;
-    style UI fill:#fffbeb,stroke:#d97706,stroke-width:1px,stroke-dasharray: 5 5,color:#78350f,font-weight:bold;
-```
-
-### Project Structure
-This diagram shows the organization of the codebase and key file relationships.
-
-```mermaid
-graph LR
-    classDef root fill:#f1f5f9,stroke:#475569,stroke-width:3px,color:#1e293b,font-weight:bold;
-    classDef be fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b,font-weight:bold;
-    classDef fe fill:#cffafe,stroke:#0891b2,stroke-width:2px,color:#044e5f,font-weight:bold;
-    classDef cfg fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#334155,font-weight:bold;
-
-    Root[FinSurf Root]
-    
-    Root --- B[Backend Logic]
-    Root --- F[Frontend Source]
-    Root --- C[Configuration]
-
-    subgraph B["Backend Logic"]
-        agents[agents.py CLI Entry]
-        server[server.ts Express Server]
-        subgraph backend_dir["backend/"]
-            graph_py[graph.py LangGraph]
-            financial_agents[financial_agents.py]
-            telemetry_py[telemetry.py]
-            llm_providers[llm_providers.py]
-            utils_py[utils.py]
-            tests_dir[tests/]
-        end
-    end
-
-    subgraph F["src/ Source"]
-        App[App.tsx Main App]
-        main[main.tsx Entry]
-        types[types.ts Types]
-        css[index.css Styles]
-        
-        subgraph components["components/"]
-            AgentCard[AgentCard.tsx]
-            Mascot[Mascot.tsx]
-            AgentProgressStrip[AgentProgressStrip.tsx]
-            WelcomeHero[WelcomeHero.tsx]
-            subgraph layout["layout/"]
-                Header[Header.tsx]
-                Footer[Footer.tsx]
-            end
-            subgraph forms["forms/"]
-                SearchForm[SearchForm.tsx]
-            end
-            subgraph results["results/"]
-                ResultsGrid[ResultsGrid.tsx]
-            end
-        end
-
-        subgraph hooks["hooks/"]
-            useTheme[useTheme.ts]
-            useForm[useFormState.ts]
-            useAgents[useFinancialAgents.ts]
-        end
-        
-        subgraph services["services/"]
-            apiService[apiService.ts]
-            pdfCSS[pdf.css]
-        end
-        
-        subgraph utils["utils/"]
-            pdfGen[pdfGenerator.ts]
-            cn[cn.ts]
-        end
-    end
-
-    subgraph C["Configuration"]
-        pkg[package.json]
-        vite[vite.config.ts]
-        ts[tsconfig.json]
-        html[index.html]
-        meta[metadata.json]
-        env[.env]
-    end
-
-    class Root root;
-    class agents,server,graph_py,financial_agents,telemetry_py,llm_providers,utils_py,tests_dir be;
-    class App,main,types,css,AgentCard,Mascot,AgentProgressStrip,WelcomeHero,Header,Footer,SearchForm,ResultsGrid,useTheme,useForm,useAgents,apiService,pdfCSS,pdfGen,cn fe;
-    class pkg,vite,ts,html,meta,env cfg;
-
-    %% Relationships
-    App --> apiService
-    App --> components
-    apiService --> server
-    server --> agents
-    agents --> graph_py
-    graph_py --> financial_agents
-    graph_py --> telemetry_py
-    App --> pdfGen
-    pdfGen -.-> pdfCSS
-
-    style B fill:#f0fdf4,stroke:#059669,stroke-width:1px,color:#064e3b,font-weight:bold;
-    style F fill:#f0fdff,stroke:#0891b2,stroke-width:1px,color:#044e5f,font-weight:bold;
-    style C fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#334155,font-weight:bold;
+    class K,L,M ui;
 ```
 
 ---
 
-## 📸 Visuals & Reports
+## 🛠 Tech Stack
 
-### Main Dashboard
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 19, Vite 6, TypeScript, Tailwind CSS 4 |
+| **Backend** | Node.js, Express, Python 3 |
+| **AI Orchestration** | LangGraph, LangChain |
+| **LLM Providers** | Gemini, Perplexity, OpenAI, Anthropic (with fallback logic) |
+| **PDF Generation** | html2canvas, jsPDF (custom `oklch` color resolver for Tailwind CSS 4) |
+| **Telemetry** | SQLite — per-agent token usage, cost tracking, configurable daily budget cap |
+| **Testing** | Python `unittest` with fully mocked LLM calls |
+| **Deployment** | Docker, Caddy (automatic HTTPS via Let's Encrypt) |
+
+---
+
+## 💡 What I Learned Building This
+
+### 1. Validate with Python, explain with LLMs
+Early versions asked the LLM to calculate dividend projections including fractional shares. Outputs looked plausible but were frequently wrong in ways that compound over time. **Fix:** Python handles all arithmetic; the LLM handles explanation only. This pattern applies to any financial agent where precision matters.
+
+### 2. LangGraph over CrewAI for conditional workflows
+For workflows where one agent's output determines whether another agent runs at all, LangGraph's explicit state management is worth the steeper learning curve. CrewAI is faster to start; LangGraph gives you the fine-grained routing control you need when the logic gets complex.
+
+### 3. PDF generation from Tailwind CSS 4 is non-trivial
+`html2canvas` predates CSS custom properties and the `oklch` color space. If you are generating PDFs from a Tailwind CSS 4 app, build the color-resolution utility early and test across browsers before it becomes a blocker.
+
+---
+
+## 📸 Visuals
+
 | Light Mode | Night Mode |
 |:---:|:---:|
 | <img src="Images/DayTime.png" width="450"> | <img src="Images/NighTime.png" width="450"> |
 
-### Themes
-| Standard Theme | Accessibility Theme | Tropical Theme |
-|:---:|:---:|:---:|
-| <img src="Images/DayTime.png" width="300"> | <img src="Images/AccessibleTheme.png" width="300"> | <img src="Images/TropicalTheme.png" width="300"> |
-
-### Results & PDF Output
-|                                   Results Dashboard                                    | Market Analysis PDF Report |
-|:--------------------------------------------------------------------------------------:|:---:|
-| <img src="Images/Result1.png" width="450"><br/><img src="Images/Result2.png" width="450"> | <img src="Images/FitPageReport.png" width="450"> |
-
-### Optimized Report Layout
-| PDF Mode Comparison (HD vs Standard) | Adaptive PDF Pagination |
+| Accessibility Theme | Tropical Theme |
 |:---:|:---:|
-| <img src="Images/ReportsHDStd.png" width="450"> | <img src="Images/FitWidthReport.png" width="450"> |
+| <img src="Images/AccessibleTheme.png" width="450"> | <img src="Images/TropicalTheme.png" width="450"> |
 
----
-
-## 🔮 Future Roadmap
-
-FinSurf is an evolving ecosystem. To maintain a simple and efficient development cycle as a solo project, we are focusing on high-impact, achievable milestones that prioritize core functionality and user experience:
-
-### 📈 Phase 1: The Profit Navigator (Q2 2026)
-*   **Feature**: Historical Profit Analyzer & Exit Strategist.
-*   **Why**: Bridges the gap between research and reality by automatically retrieving price history for your purchase/sell dates. It intelligently handles "Future Sell Dates" as a unique edge case, providing projected insights for planned exits based on current market trends.
-*   **Difficulty**: 💪💪 Medium
-*   **Timeline**: April - June 2026
-
-### 🌊 Phase 2: Portfolio Wave (Q3 - Q4 2026)
-*   **Feature**: Multi-Ticker Batch Analysis (CSV Upload).
-*   **Why**: Allows investors to analyze their entire holding list in a single session rather than ticker-by-ticker, making it more practical for those with 10+ stocks.
-*   **Difficulty**: 💪💪 Medium
-*   **Timeline**: July - December 2026
-
-### 🏛️ Phase 3: Archive Vault (2027)
-*   **Feature**: Analysis History Database & Interactive AI Chat.
-*   **Why**: Lets users save their reports to track changes over time and ask follow-up questions to the agents through a persistent chat interface.
-*   **Difficulty**: 💪💪💪 High
-*   **Timeline**: 2027 and Beyond
-
-### 🎯 Stretch Goal: Options Radar
-*   **Feature**: Popular Options Summary.
-*   **Why**: Provides a quick overview of the most active options contracts for the selected stock, including type (Call/Put), strike price, expiration, and real-time bid/ask prices. This helps users gauge market sentiment and volatility at a glance.
-*   **Difficulty**: 💪💪 Medium
-*   **Timeline**: Stretch Goal
+| Results Dashboard | PDF Report |
+|:---:|:---:|
+| <img src="Images/Result1.png" width="450"> | <img src="Images/Report_zoomedout25.png" width="450"> |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-*   **Node.js** (v18+)
-*   **Python** (3.9+)
+- **Node.js** v18+
+- **Python** 3.9+
 
 ### Installation
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/sachined/FinSurf.git
-    cd FinSurf
-    ```
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-3.  **Configure API Keys**:
-    Copy the example environment file and fill in your keys:
-    ```bash
-    cp .env.example .env
-    ```
-    Or create a `.env` file manually:
-    ```env
-    GEMINI_API_KEY=your_key_here
-    PERPLEXITY_API_KEY=your_key_here  # Optional
-    OPENAI_API_KEY=your_key_here      # Optional
-    ANTHROPIC_API_KEY=your_key_here   # Optional
-    PORT=3000
-    ```
 
-### Running the App
+```bash
+git clone https://github.com/sachined/FinSurf.git
+cd FinSurf
+npm install
+```
+
+Create a `.env` file with your API keys:
+
+```env
+GEMINI_API_KEY=your_key_here
+PERPLEXITY_API_KEY=your_key_here  # Optional but recommended
+OPENAI_API_KEY=your_key_here      # Optional
+ANTHROPIC_API_KEY=your_key_here   # Optional
+PORT=3000
+```
+
+### Run
+
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) to start surfing the market.
 
-### Docker Deployment
+Open [http://localhost:3000](http://localhost:3000).
 
-FinSurf ships with a production-ready Docker setup. A single container holds both the Node.js server and the Python LangGraph backend — no inter-container networking required.
-
-#### Option A — Local machine (no HTTPS)
+### Docker
 
 ```bash
-# 1. Copy and fill in your API keys
-cp .env.example .env
-
-# 2. Generate a secret that protects your /api/ routes
-#    (skip APP_SECRET if you only want to run locally with no auth)
-echo "APP_SECRET=$(openssl rand -hex 32)" >> .env
-
-# 3. Build and start
+cp .env.example .env   # fill in your keys
 docker compose build
 docker compose up -d
-
-# App is available at http://localhost:3000
+# → http://localhost:3000
 ```
 
-#### Option B — Internet-facing server with automatic HTTPS
+For internet-facing deployment with automatic HTTPS, see the [Docker section of CONTRIBUTING.md](CONTRIBUTING.md#-docker--production-deployment).
 
-Prerequisites: a domain with an A record pointing to your server's public IP, and ports 80/443 open.
+---
 
-```bash
-# 1. Fill in .env — add your domain and a strong APP_SECRET
-echo "DOMAIN=finsurf.example.com" >> .env
-echo "APP_SECRET=$(openssl rand -hex 32)" >> .env
-echo "CORS_ORIGIN=https://finsurf.example.com" >> .env
+## 🔮 Roadmap
 
-# 2. Build and start (Caddy provisions the Let's Encrypt certificate automatically)
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up -d
-
-# App is available at https://finsurf.example.com
-# Certificate auto-renews — no cron needed.
-```
-
-#### Environment variables reference
-
-| Variable | Required | Description |
-|---|---|---|
-| `GEMINI_API_KEY` | ✅ | Primary LLM provider |
-| `PERPLEXITY_API_KEY` | Optional | Real-time web search for research/sentiment |
-| `OPENAI_API_KEY` | Optional | Dividend agent fallback |
-| `ANTHROPIC_API_KEY` | Optional | Tax agent fallback |
-| `APP_SECRET` | Recommended | Bearer token — protects all `/api/` routes |
-| `CORS_ORIGIN` | Production | Comma-separated allowed origins |
-| `DOMAIN` | Production | Domain for Caddy TLS certificate |
-| `DAILY_BUDGET_USD` | Optional | Hard daily spend cap (e.g. `0.50`) |
-| `TELEMETRY_DB` | Optional | SQLite path (default: `finsurf_telemetry.db`) |
-| `ALLOWED_PROVIDERS` | Optional | Comma-separated provider allowlist |
-
-#### Persistent data
-
-Both SQLite databases (telemetry + future MemorySaver) are stored in a named Docker volume (`finsurf_data`) mounted at `/app/data`. Data survives container restarts and image rebuilds.
-
-#### Health check
-
-The `/health` endpoint (no auth required) returns `{"status":"ok","uptime":<seconds>}` and is used by both Docker's built-in `HEALTHCHECK` and any load balancer you add in front.
-
-#### Recommended VPS providers
-
-| Provider | Monthly cost | Notes |
-|---|---|---|
-| **Fly.io** | ~$5–10 | Best Docker-native PaaS; persistent volumes; auto TLS |
-| **DigitalOcean Droplet** | ~$6 | Most control; run Docker Compose yourself |
-| **Railway** | ~$5 | Easiest setup; builds from Dockerfile |
+| Phase | Feature | Notes | Timeline |
+|---|---|---|---|
+| **Phase 1** | Historical Profit Analyzer | P&L, holding period, and cost-basis arithmetic in Python — no LLM guesses | Q2 2026 |
+| **Phase 2** | Multi-Ticker Batch Analysis (CSV upload) | Sequential processing with SSE progress stream; max 20 tickers per batch; per-request token budget enforced before processing starts | Q3–Q4 2026 |
+| **Phase 3a** | Analysis History Database | Persist `FinSurfState JSON` to SQLite; simple history list UI and re-open-report feature — no LLM involved | Early 2027 |
+| **Phase 3b** | AI Chat | Single-session "ask about this analysis" chat built on top of 3a using a conversational LangGraph node; cross-analysis RAG deferred | Mid–Late 2027 |
+| **Stretch** | Scenario Planner | "If price reaches $X, your gain is Y and your tax status is Z" — informational only, not prescriptive | TBD |
+| **Stretch** | Options Radar | Read-only display of top 5 contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins | TBD |
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Whether it's adding new agent modules, strengthening validation layers, or improving the data architecture, your help is appreciated.
-
-1.  **Fork the Repo**: Create your own branch for experiments.
-2.  **Report Bugs**: Open an issue if you find any "holes" in the logic or architecture.
-3.  **Add Tests**: Backend unit tests live in `backend/tests/`. New agent modules or utility functions should include a corresponding test file following the existing `unittest` + mock pattern.
-4.  **Submit a PR**: Ensure your code follows existing patterns to keep the agent's reasoning pure.
-
-For discussions or questions, reach out to Sachin at `sachin.nediyanchath@gmail.com`.
+Contributions are welcome — new agent modules, improved validation, bug reports, or tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code conventions, and the PR process.
 
 ---
 
 ## 📄 License
 SPDX-License-Identifier: Apache-2.0
-
-
----
-
-### 🔐 Cost Control & LLM Provider Policy
-
-FinSurf's LangGraph orchestration adds a second layer of token savings on top of the provider allowlist:
-- **Conditional dividend node**: skipped entirely for non-dividend stocks (saves ~2 000 Gemini tokens per query).
-- **Parallel execution**: tax and sentiment run simultaneously, reducing wall-clock time without extra API calls.
-
-Provider allowlist and conservative token limits are also enforced:
-
-- Default providers: `Gemini (gemini-flash-latest)` + `Perplexity (sonar)` — Perplexity is enabled by default for real-time Research and Social Sentiment analysis
-- Conservative caps: `max_tokens` generally limited to 500–800 per call, temperature 0.1
-- Guardrail short‑circuit: Valid ticker-like inputs (A–Z/0–9/.- up to 10 chars) bypass LLM guardrail, saving tokens; ambiguous inputs are checked once via Gemini.
-
-You can control which providers are permitted via environment variables:
-
-- `ALLOWED_PROVIDERS` (comma-separated): e.g. `gemini,perplexity`
-- or granular flags (fallback if `ALLOWED_PROVIDERS` is unset):
-  - `ALLOW_GEMINI` (default: `true`)
-  - `ALLOW_PERPLEXITY` (default: `true` — enabled for research/sentiment)
-  - `ALLOW_OPENAI` (default: `false`)
-  - `ALLOW_ANTHROPIC` (default: `false`)
-
-Examples:
-
-```bash
-# Default behavior: Gemini + Perplexity (research/sentiment use Perplexity for real-time data)
-export ALLOWED_PROVIDERS=gemini,perplexity
-
-# Strictly Gemini-only (lower cost, no real-time web search)
-export ALLOWED_PROVIDERS=gemini
-
-# Explicit granular flags (used if ALLOWED_PROVIDERS is not set)
-export ALLOW_GEMINI=true
-export ALLOW_PERPLEXITY=true
-export ALLOW_OPENAI=false
-export ALLOW_ANTHROPIC=false
-```
-
-Notes:
-- Research/Sentiment use Perplexity by default (enabled out-of-the-box) for real-time web search; they fall back to Gemini automatically if Perplexity is disabled or fails.
-- Dividend analysis uses Gemini JSON mode; OpenAI fallback is only used when `OPENAI_API_KEY` is present and OpenAI is allowed.
-- Tax analysis prefers Gemini with Anthropic as a secondary fallback only if allowed.

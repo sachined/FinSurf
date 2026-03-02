@@ -12,8 +12,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { cn } from '../utils/cn';
-import { type AgentResponse, type DividendResponse, type AccessMode, type DividendStats } from '../types';
+import { cn } from '../../utils/cn';
+import { type AgentResponse, type DividendResponse, type AccessMode, type DividendStats } from '../../types';
 
 interface AgentCardProps {
   title: string;

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Search, Receipt, Coins, MessageSquare, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../utils/cn';
-import { type AccessMode } from '../types';
+import { cn } from '../../utils/cn';
+import { type AccessMode } from '../../types';
 
 interface WelcomeHeroProps {
   accessMode: AccessMode;

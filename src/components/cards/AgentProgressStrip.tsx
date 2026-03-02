@@ -1,8 +1,8 @@
 import React from 'react';
 import { Search, Receipt, Coins, MessageSquare, CheckCircle2, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { cn } from '../utils/cn';
-import { type LoadingState, type FinancialAgentsState, type AccessMode } from '../types';
+import { cn } from '../../utils/cn';
+import { type LoadingState, type FinancialAgentsState, type AccessMode } from '../../types';
 
 interface AgentProgressStripProps {
   loading: LoadingState;

@@ -36,7 +36,7 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
   return new Promise((resolve, reject) => {
     // execFile avoids shell injection — args are passed as an array, never interpolated
     // 120 s timeout prevents hung Python processes from blocking the event loop indefinitely
-    execFile(pythonCommand, ["agents.py", mode, ...argStrings], { env, maxBuffer: 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
+    execFile(pythonCommand, ["backend/agents.py", mode, ...argStrings], { env, maxBuffer: 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
       if (error) {
         console.error(`Exec error: ${error}`);
         reject(stderr || error.message);
@@ -79,7 +79,23 @@ async function startServer() {
     : null; // null = allow any origin (dev default)
   app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : {}));
 
-  app.use(express.json());
+  app.use(express.json({ limit: "16kb" }));
+
+  // ── Input validation helpers ──────────────────────────────────────────────
+  // Tickers: uppercase letters, digits, dot, hyphen only — max 10 chars.
+  // This matches the fast-path in the Python guardrail and prevents oversized
+  // or space-containing strings from ever reaching the child process.
+  const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
+  const DATE_RE   = /^\d{4}-\d{2}-\d{2}$/;
+
+  const validateTicker = (ticker: unknown): string | null => {
+    if (!ticker || typeof ticker !== "string") return null;
+    const t = ticker.trim().toUpperCase();
+    return TICKER_RE.test(t) ? t : null;
+  };
+
+  const validateDate = (date: unknown): boolean =>
+    typeof date === "string" && DATE_RE.test(date.trim());
 
   // ── Health check (no auth required — used by Docker HEALTHCHECK) ──────────
   app.get("/health", (_req: Request, res: Response) => {
@@ -138,12 +154,12 @@ async function startServer() {
 
   // API Routes
   app.post("/api/research", async (req, res) => {
-    const { ticker } = req.body;
-    if (!ticker || typeof ticker !== "string" || !ticker.trim()) {
-      res.status(400).json({ error: "ticker is required." });
+    const ticker = validateTicker(req.body.ticker);
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    console.log(`Researching: ${ticker.slice(0, 20)}`);
+    console.log(`Researching: ${ticker}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("research", [ticker], isSafe);
@@ -160,16 +176,17 @@ async function startServer() {
   });
 
   app.post("/api/tax", async (req, res) => {
-    const { ticker, purchaseDate, sellDate } = req.body;
-    if (!ticker || typeof ticker !== "string" || !ticker.trim()) {
-      res.status(400).json({ error: "ticker is required." });
+    const ticker = validateTicker(req.body.ticker);
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    if (!purchaseDate || !sellDate) {
-      res.status(400).json({ error: "purchaseDate and sellDate are required." });
+    const { purchaseDate, sellDate } = req.body;
+    if (!validateDate(purchaseDate) || !validateDate(sellDate)) {
+      res.status(400).json({ error: "purchaseDate and sellDate are required in YYYY-MM-DD format." });
       return;
     }
-    console.log(`Tax analysis: ${ticker.slice(0, 20)}`);
+    console.log(`Tax analysis: ${ticker}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate], isSafe);
@@ -186,22 +203,23 @@ async function startServer() {
   });
 
   app.post("/api/dividend", async (req, res) => {
-    const { ticker, shares, years } = req.body;
-    if (!ticker || typeof ticker !== "string" || !ticker.trim()) {
-      res.status(400).json({ error: "ticker is required." });
+    const ticker = validateTicker(req.body.ticker);
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
+    const { shares, years } = req.body;
     const sharesNum = parseFloat(shares);
     const yearsNum = parseInt(years, 10);
-    if (isNaN(sharesNum) || sharesNum <= 0) {
-      res.status(400).json({ error: "shares must be a positive number." });
+    if (isNaN(sharesNum) || sharesNum <= 0 || sharesNum > 1_000_000) {
+      res.status(400).json({ error: "shares must be a positive number no greater than 1,000,000." });
       return;
     }
-    if (isNaN(yearsNum) || yearsNum <= 0) {
-      res.status(400).json({ error: "years must be a positive integer." });
+    if (isNaN(yearsNum) || yearsNum <= 0 || yearsNum > 50) {
+      res.status(400).json({ error: "years must be a positive integer no greater than 50." });
       return;
     }
-    console.log(`Dividend analysis: ${ticker.slice(0, 20)}`);
+    console.log(`Dividend analysis: ${ticker}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum], isSafe);
@@ -221,12 +239,12 @@ async function startServer() {
   });
 
   app.post("/api/sentiment", async (req, res) => {
-    const { ticker } = req.body;
-    if (!ticker || typeof ticker !== "string" || !ticker.trim()) {
-      res.status(400).json({ error: "ticker is required." });
+    const ticker = validateTicker(req.body.ticker);
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    console.log(`Sentiment analysis: ${ticker.slice(0, 20)}`);
+    console.log(`Sentiment analysis: ${ticker}`);
     try {
       const isSafe = await checkGuardrail(ticker);
       const stdout = await runPythonAgent("sentiment", [ticker], isSafe);

@@ -51,7 +51,6 @@ COPY package*.json ./
 RUN npm ci
 
 # ── Application source ────────────────────────────────────────────────────────
-COPY agents.py      ./
 COPY server.ts      ./
 COPY tsconfig.json  ./
 COPY backend/       ./backend/
@@ -61,6 +60,13 @@ COPY --from=frontend-builder /app/dist ./dist
 
 # ── Persistent data directory (overridden by a Docker volume in production) ──
 RUN mkdir -p /app/data
+
+# ── Drop root privileges ──────────────────────────────────────────────────────
+# The node:bookworm-slim base image ships a non-root "node" user (uid 1000).
+# Running as a non-root user limits the blast radius of any container escape:
+# the process cannot modify system files, install packages, or bind ports < 1024.
+RUN chown -R node:node /app/data
+USER node
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runtime configuration

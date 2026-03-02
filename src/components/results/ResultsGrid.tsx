@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, Receipt, Coins, MessageSquare } from 'lucide-react';
-import { AgentCard } from '../AgentCard';
+import { AgentCard } from '../cards/AgentCard';
 import { FinancialAgentsState, LoadingState, AccessMode } from '../../types';
 import { cn } from '../../utils/cn';
 
