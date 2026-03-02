@@ -85,18 +85,23 @@ async function startServer() {
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);
   // in production the compiled dist/ assets are all same-origin.
+  const useHttps = process.env.HTTPS === "true";
   app.use(helmet({
+    // Disable HSTS when not behind HTTPS — otherwise the browser upgrades
+    // all asset requests to https:// and the page fails to load over plain HTTP.
+    hsts: useHttps ? { maxAge: 31536000, includeSubDomains: true } : false,
     contentSecurityPolicy: isProd ? {
       directives: {
-        defaultSrc:  ["'self'"],
-        scriptSrc:   ["'self'"],
-        styleSrc:    ["'self'"],
-        imgSrc:      ["'self'"],
-        connectSrc:  ["'self'"],
-        fontSrc:     ["'self'"],
-        objectSrc:   ["'none'"],
-        frameSrc:    ["'none'"],
-        workerSrc:   ["'self'"],
+        defaultSrc:           ["'self'"],
+        scriptSrc:            ["'self'"],
+        styleSrc:             ["'self'"],
+        imgSrc:               ["'self'"],
+        connectSrc:           ["'self'"],
+        fontSrc:              ["'self'"],
+        objectSrc:            ["'none'"],
+        frameSrc:             ["'none'"],
+        workerSrc:            ["'self'"],
+        upgradeInsecureRequests: useHttps ? [] : null,
       },
     } : false,
   }));
