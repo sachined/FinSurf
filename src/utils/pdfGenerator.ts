@@ -210,17 +210,28 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             });
           });
 
-          // 3. Process all rules in all accessible stylesheets
+          // 3. Process all rules in all accessible stylesheets.
+          // Uses setProperty (not cssText) so CSS custom properties (--foo: oklch(...))
+          // are updated — html2canvas cannot parse oklch/oklab/color-mix.
+          // Recurses into nested at-rules (@media, @layer, @supports).
+          const processSheetRules = (rules: any[]) => {
+            Array.from(rules).forEach((rule: any) => {
+              if (rule.cssRules) processSheetRules(Array.from(rule.cssRules));
+              if (!rule.style) return;
+              Array.from(rule.style).forEach((prop: string) => {
+                const val = rule.style.getPropertyValue(prop);
+                if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
+                  const converted = val.replace(modernColorRegex, (m: string) => convertColor(m));
+                  rule.style.setProperty(prop, converted, rule.style.getPropertyPriority(prop) || undefined);
+                }
+              });
+            });
+          };
           try {
             Array.from(clonedDoc.styleSheets).forEach((sheet: any) => {
               try {
                 const rules = sheet.cssRules || sheet.rules;
-                if (!rules) return;
-                Array.from(rules).forEach((rule: any) => {
-                  if (rule.style && rule.style.cssText && (rule.style.cssText.includes('oklch') || rule.style.cssText.includes('oklab') || rule.style.cssText.includes('color-mix'))) {
-                    rule.style.cssText = rule.style.cssText.replace(modernColorRegex, (m: string) => convertColor(m));
-                  }
-                });
+                if (rules) processSheetRules(Array.from(rules));
               } catch (e) { }
             });
           } catch (e) { }

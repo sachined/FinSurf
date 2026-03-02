@@ -1,8 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# docker-compose.yml — Local development / testing
+# docker-compose.yml — Local development / testing with Docker Secrets
 #
-# Usage:
-#   docker compose build --build-arg VITE_APP_SECRET=$APP_SECRET
+# Usage (Docker Swarm mode):
+#   docker swarm init  # Only needed once
+#   docker secret create gemini_api_key <(echo "your_key_here")
+#   docker secret create perplexity_api_key <(echo "your_key_here")
+#   docker secret create openai_api_key <(echo "your_key_here")
+#   docker secret create anthropic_api_key <(echo "your_key_here")
+#   docker secret create app_secret <(echo "your_secret_here")
+#   docker compose build --build-arg VITE_APP_SECRET=$(cat .app_secret)
 #   docker compose up
 #
 # The app is available at http://localhost:3000
@@ -19,10 +25,23 @@ services:
         VITE_APP_SECRET: ${APP_SECRET:-}
     ports:
       - "${PORT:-3000}:3000"
-    env_file: .env
+    env_file: .env.nonsecret
     environment:
       NODE_ENV: production
       TELEMETRY_DB: /app/data/finsurf_telemetry.db
+      # Secrets are mounted as files in /run/secrets/ inside the container
+      # The application reads them from there instead of env vars.
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
+      PERPLEXITY_API_KEY_FILE: /run/secrets/perplexity_api_key
+      OPENAI_API_KEY_FILE: /run/secrets/openai_api_key
+      ANTHROPIC_API_KEY_FILE: /run/secrets/anthropic_api_key
+      APP_SECRET_FILE: /run/secrets/app_secret
+    secrets:
+      - gemini_api_key
+      - perplexity_api_key
+      - openai_api_key
+      - anthropic_api_key
+      - app_secret
     volumes:
       # Named volume persists both the telemetry DB and the future MemorySaver DB
       # across container restarts and image rebuilds.
@@ -38,3 +57,15 @@ services:
 volumes:
   finsurf_data:
     driver: local
+
+secrets:
+  gemini_api_key:
+    file: ./secrets/gemini_api_key.txt
+  perplexity_api_key:
+    file: ./secrets/perplexity_api_key.txt
+  openai_api_key:
+    file: ./secrets/openai_api_key.txt
+  anthropic_api_key:
+    file: ./secrets/anthropic_api_key.txt
+  app_secret:
+    file: ./secrets/app_secret.txt

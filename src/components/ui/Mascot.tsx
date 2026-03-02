@@ -23,9 +23,8 @@ export function Mascot({ mode, className, isThinking }: MascotProps) {
       isThinking && "animate-bounce"
     )}>
       <img 
-        src="https://api.dicebear.com/7.x/bottts/svg?seed=Mascot&backgroundColor=transparent" 
+        src="/mascot.svg"
         alt="FINSURF Mascot"
-        crossOrigin="anonymous"
         className="w-full h-full object-contain transition-all duration-500"
         style={{ filter: filters[mode] }}
       />
