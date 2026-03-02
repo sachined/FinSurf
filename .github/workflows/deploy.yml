@@ -1,0 +1,143 @@
+name: Build and Deploy FinSurf
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: sleepykiwi91/finsurf-trial-run-app
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      # ── Checkout code ────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Set up Docker Buildx ─────────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── Log in to Docker Hub ─────────────────────────────────────────────────
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      # ── Build and push Docker image ──────────────────────────────────────────
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            VITE_APP_SECRET=${{ secrets.APP_SECRET }}
+
+      # ── Deploy to production server ──────────────────────────────────────────
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOYMENT_HOST }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          key: ${{ secrets.DEPLOYMENT_SSH_KEY }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          script: |
+            set -e
+            echo "🚀 Starting FinSurf deployment..."
+            
+            cd /opt/finsurf
+            
+            # ── Initialize Docker Swarm if needed ────────────────────────────
+            docker swarm init 2>/dev/null || true
+            
+            # ── Create Docker Secrets ────────────────────────────────────────
+            # Remove old secrets and create new ones (safe on first run)
+            echo "📝 Creating Docker Secrets..."
+            
+            docker secret rm gemini_api_key 2>/dev/null || true
+            echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key -
+            
+            docker secret rm perplexity_api_key 2>/dev/null || true
+            echo "${{ secrets.PERPLEXITY_API_KEY }}" | docker secret create perplexity_api_key -
+            
+            docker secret rm openai_api_key 2>/dev/null || true
+            echo "${{ secrets.OPENAI_API_KEY }}" | docker secret create openai_api_key -
+            
+            docker secret rm anthropic_api_key 2>/dev/null || true
+            echo "${{ secrets.ANTHROPIC_API_KEY }}" | docker secret create anthropic_api_key -
+            
+            docker secret rm app_secret 2>/dev/null || true
+            echo "${{ secrets.APP_SECRET }}" | docker secret create app_secret -
+            
+            echo "✅ Docker Secrets created successfully"
+            
+            # ── Update .env.nonsecret ────────────────────────────────────────
+            echo "📋 Updating environment configuration..."
+            cat > .env.nonsecret << 'EOF'
+            PORT=3000
+            NODE_ENV=production
+            DOMAIN=${{ secrets.DOMAIN }}
+            TELEMETRY_DB=/app/data/finsurf_telemetry.db
+            TELEMETRY_DISABLED=false
+            DAILY_BUDGET_USD=${{ secrets.DAILY_BUDGET_USD }}
+            ALLOWED_PROVIDERS=gemini,perplexity,openai,anthropic
+            EOF
+            
+            # ── Pull latest image ────────────────────────────────────────────
+            echo "📥 Pulling latest Docker image..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            
+            # ── Deploy with docker-compose ───────────────────────────────────
+            echo "🐳 Deploying with docker-compose..."
+            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+              # Production deployment with Caddy
+              docker compose -f docker-compose.prod.yml down || true
+              docker compose -f docker-compose.prod.yml build \
+                --build-arg VITE_APP_SECRET="${{ secrets.APP_SECRET }}" \
+                --no-cache
+              docker compose -f docker-compose.prod.yml up -d
+            else
+              # Staging/develop deployment
+              docker compose down || true
+              docker compose build --build-arg VITE_APP_SECRET="${{ secrets.APP_SECRET }}" --no-cache
+              docker compose up -d
+            fi
+            
+            # ── Wait for health check ────────────────────────────────────────
+            echo "⏳ Waiting for application to be healthy..."
+            for i in {1..30}; do
+              if docker compose ps | grep -q "healthy"; then
+                echo "✅ Application is healthy"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "❌ Application failed to become healthy"
+                docker compose logs
+                exit 1
+              fi
+              sleep 2
+            done
+            
+            # ── Clean up unused resources ────────────────────────────────────
+            echo "🧹 Cleaning up unused Docker resources..."
+            docker system prune -f
+            
+            echo "✅ Deployment completed successfully!"
+            docker compose ps
+
+      # ── Notify on failure ────────────────────────────────────────────────────
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed. Check the logs above for details."
+          exit 1

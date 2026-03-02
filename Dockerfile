@@ -61,6 +61,10 @@ COPY --from=frontend-builder /app/dist ./dist
 # ── Persistent data directory (overridden by a Docker volume in production) ──
 RUN mkdir -p /app/data
 
+# ── Copy entrypoint script and make it executable (before USER switch) ────────
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # ── Drop root privileges ──────────────────────────────────────────────────────
 # The node:bookworm-slim base image ships a non-root "node" user (uid 1000).
 # Running as a non-root user limits the blast radius of any container escape:
@@ -81,4 +85,5 @@ ENV TELEMETRY_DB=/app/data/finsurf_telemetry.db
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
 
-CMD ["npm", "start"]
+# Use entrypoint to ensure SIGTERM signals reach the Node.js process
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

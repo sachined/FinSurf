@@ -6,6 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+!.env.nonsecret
+
+# Secrets directory — never commit actual keys
+# Use secrets/TEMPLATE/ instead
+secrets/*.txt
+!secrets/.gitkeep
 
 # Runtime SQLite databases (generated at runtime; not part of the source tree)
 *.db

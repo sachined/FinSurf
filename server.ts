@@ -6,12 +6,29 @@ import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFileSync } from "fs";
 import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pythonCommand = process.platform === "win32" ? "python" : "python3";
+
+// ── Helper to read secrets from files or environment ────────────────────────
+// In Docker Swarm/Kubernetes, secrets are mounted as files in /run/secrets/
+// Falls back to environment variables for backwards compatibility.
+function getSecret(envVar: string, fileEnvVar: string): string | undefined {
+  const filePath = process.env[fileEnvVar];
+  if (filePath) {
+    try {
+      return readFileSync(filePath, "utf-8").trim();
+    } catch (e) {
+      console.error(`Failed to read secret from ${filePath}:`, e);
+      return undefined;
+    }
+  }
+  return process.env[envVar];
+}
 
 // Simple in-memory cache for the security guardrail to minimize API calls
 // MAX_CACHE_SIZE prevents unbounded memory growth during long-running sessions.
@@ -52,6 +69,19 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || "3000", 10);
   const isProd = process.env.NODE_ENV === "production";
 
+  // Load secrets from files (Docker Secrets) or environment variables
+  const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
+  const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
+  const OPENAI_API_KEY = getSecret("OPENAI_API_KEY", "OPENAI_API_KEY_FILE");
+  const ANTHROPIC_API_KEY = getSecret("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE");
+  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
+
+  // Make secrets available to child processes (Python agents)
+  process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
+  process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
+  process.env.OPENAI_API_KEY = OPENAI_API_KEY || "";
+  process.env.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY || "";
+
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);
   // in production the compiled dist/ assets are all same-origin.
@@ -60,13 +90,13 @@ async function startServer() {
       directives: {
         defaultSrc:  ["'self'"],
         scriptSrc:   ["'self'"],
-        styleSrc:    ["'self'", "'unsafe-inline'"], // Tailwind compiled styles
-        imgSrc:      ["'self'", "data:", "blob:"],   // blob: for PDF canvas
+        styleSrc:    ["'self'"],
+        imgSrc:      ["'self'"],
         connectSrc:  ["'self'"],
-        fontSrc:     ["'self'", "data:"],
+        fontSrc:     ["'self'"],
         objectSrc:   ["'none'"],
         frameSrc:    ["'none'"],
-        workerSrc:   ["'self'", "blob:"],            // jsPDF web worker
+        workerSrc:   ["'self'"],
       },
     } : false,
   }));
@@ -105,7 +135,6 @@ async function startServer() {
   // ── Bearer-token authentication (optional — active when APP_SECRET is set) ─
   // Protects all /api/ routes from unauthorised use on a public server.
   // Set APP_SECRET to a long random string (e.g. `openssl rand -hex 32`).
-  const APP_SECRET = process.env.APP_SECRET;
   if (APP_SECRET) {
     app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
       const auth = req.headers.authorization;
@@ -149,8 +178,8 @@ async function startServer() {
     }
   };
 
-  // Log key presence on startup
-  console.log("GEMINI_API_KEY present:", !!process.env.GEMINI_API_KEY);
+  // Log key presence on startup (without exposing the value)
+  console.log("GEMINI_API_KEY present:", !!GEMINI_API_KEY);
 
   // API Routes
   app.post("/api/research", async (req, res) => {
