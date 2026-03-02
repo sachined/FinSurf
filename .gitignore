@@ -8,6 +8,10 @@ coverage/
 !.env.example
 !.env.nonsecret
 
+# SSH keys — never commit private keys
+sachmuelbeck
+sachmuelbeck.pub
+
 # Secrets directory — never commit actual keys
 # Use secrets/TEMPLATE/ instead
 secrets/*.txt
