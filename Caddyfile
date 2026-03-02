@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Caddyfile — Reverse proxy configuration for FinSurf
+#
+# Replace {$DOMAIN} with your actual domain, or set the DOMAIN environment
+# variable before starting. Caddy provisions and auto-renews a Let's Encrypt
+# TLS certificate for the domain automatically.
+#
+# Example: DOMAIN=finsurf.example.com docker compose -f docker-compose.prod.yml up -d
+# ─────────────────────────────────────────────────────────────────────────────
+
+{$DOMAIN} {
+    # Proxy all requests to the FinSurf Express server
+    reverse_proxy finsurf:3000
+
+    # Security headers (Caddy adds HSTS automatically with TLS)
+    header {
+        # Remove server fingerprinting
+        -Server
+        # Prevent browsers from MIME-sniffing the response
+        X-Content-Type-Options "nosniff"
+        # Clickjacking protection
+        X-Frame-Options "DENY"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Permissions policy — deny unnecessary browser APIs
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # Compress responses for faster page loads
+    encode gzip
+
+    # Access log (written to stdout, captured by Docker)
+    log {
+        output stdout
+        format json
+    }
+}

@@ -1,0 +1,41 @@
+# Dependencies — reinstalled inside the image
+node_modules/
+.npm/
+
+# Build output — rebuilt inside the image during Stage 1
+dist/
+
+# Python bytecode — regenerated at runtime
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment files — injected at runtime via --env-file or secrets manager
+.env
+.env.local
+.env.*.local
+
+# Version control
+.git/
+.gitignore
+
+# Editor / IDE metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Runtime artefacts
+*.log
+finsurf_telemetry.db
+finsurf_telemetry.db-wal
+finsurf_telemetry.db-shm
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# Test files — not needed in the production image
+backend/tests/
