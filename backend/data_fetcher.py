@@ -132,8 +132,12 @@ def fetch_dividend_data(ticker: str) -> Optional[Dict[str, Any]]:
         return {
             "is_dividend_stock": is_dividend_stock,
             "has_history": has_history,
-            "annual_dividend_per_share": _fmt_usd(annual_div),
-            "current_yield": _fmt_pct(info.get("dividendYield")),
+            "annual_dividend_per_share": _fmt_usd(annual_div, 2),
+            "current_yield": (
+                f"{info['dividendYield']:.2f}%"
+                if info.get("dividendYield") is not None
+                else "N/A"
+            ),
             "payout_ratio": _fmt_pct(info.get("payoutRatio")),
             "five_year_avg_yield": (
                 f"{info['fiveYearAvgDividendYield']:.2f}%"

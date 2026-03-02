@@ -24,7 +24,7 @@ MOCK_RESEARCH_DATA = {
 MOCK_DIVIDEND_DATA = {
     "is_dividend_stock": True,
     "has_history": True,
-    "annual_dividend_per_share": "$3.0800",
+    "annual_dividend_per_share": "$3.08",
     "current_yield": "0.87%",
     "payout_ratio": "14.60%",
     "five_year_avg_yield": "0.70%",
@@ -249,9 +249,29 @@ class TestDividendAgent(unittest.TestCase):
                 self.assertEqual(result["stats"]["currentYield"], MOCK_DIVIDEND_DATA["current_yield"])
                 self.assertEqual(result["stats"]["paymentFrequency"], MOCK_DIVIDEND_DATA["payment_frequency"])
 
-    def test_returns_error_dict_when_all_providers_fail(self):
+    def test_returns_yfinance_fallback_when_all_providers_fail(self):
+        """When both Gemini and OpenAI fail but yfinance data is available,
+        the agent must return a valid factual response from yfinance rather
+        than an error dict — so the user always sees real numbers."""
         from backend.financial_agents import dividend_agent
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=MOCK_DIVIDEND_DATA):
+            with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
+                with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+                    result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)
+                    # isDividendStock must reflect the real yfinance value, not a hardcoded False
+                    self.assertEqual(result["isDividendStock"], MOCK_DIVIDEND_DATA["is_dividend_stock"])
+                    self.assertIn("analysis", result)
+                    # The analysis should contain factual data, not an error message
+                    self.assertNotIn("Analysis Unavailable", result["analysis"])
+                    # Stats must be populated from yfinance
+                    self.assertIn("stats", result)
+                    self.assertEqual(result["stats"]["currentYield"], MOCK_DIVIDEND_DATA["current_yield"])
+
+    def test_returns_error_dict_when_all_providers_and_yfinance_fail(self):
+        """When both LLM providers AND yfinance all fail, the error dict is the
+        correct last-resort response."""
+        from backend.financial_agents import dividend_agent
+        with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=None):
             with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
                 with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
                     result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)

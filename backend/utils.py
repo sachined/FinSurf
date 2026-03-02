@@ -71,16 +71,74 @@ def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
         return "UNKNOWN"
 
 def extract_json(text: str) -> Any:
-    """Attempt to parse JSON from a string, handling formatting language code blocks."""
+    """Attempt to parse JSON from a string, handling code fences and Python-literal responses.
+
+    Fallback chain:
+      1. Direct json.loads (fastest path, handles well-formed JSON).
+      2. Strip markdown code fences (```json ... ``` or ``` ... ```) then retry.
+      3. Replace Python boolean/None literals (True/False/None → true/false/null) then retry.
+      4. ast.literal_eval — handles Python dict/list syntax with single-quoted keys or values.
+      5. Regex brace extraction — pulls the first {...} block from mixed prose/JSON responses.
+    Raises json.JSONDecodeError if all five attempts fail.
+    """
+    import re
+    import ast
+
     text = text.strip()
+
+    # Guard — nothing to parse
+    if not text:
+        raise json.JSONDecodeError("extract_json: LLM returned an empty response", "", 0)
+
+    # Pass 1 — direct parse
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-        return json.loads(text)
+        pass
+
+    # Pass 2 — strip markdown code fences
+    stripped = text
+    if "```json" in stripped:
+        stripped = stripped.split("```json")[1].split("```")[0].strip()
+    elif "```" in stripped:
+        stripped = stripped.split("```")[1].split("```")[0].strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+
+    # Pass 3 — replace Python-style literals emitted by some LLMs
+    normalised = re.sub(r'\bTrue\b', 'true', stripped)
+    normalised = re.sub(r'\bFalse\b', 'false', normalised)
+    normalised = re.sub(r'\bNone\b', 'null', normalised)
+    try:
+        return json.loads(normalised)
+    except json.JSONDecodeError:
+        pass
+
+    # Pass 4 — ast.literal_eval handles Python dict/list with single-quoted strings
+    try:
+        parsed = ast.literal_eval(stripped)
+        if isinstance(parsed, (dict, list)):
+            return json.loads(json.dumps(parsed))
+    except Exception:
+        pass
+
+    # Pass 5 — regex: extract the first {...} block from mixed prose+JSON responses
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        candidate = match.group(0)
+        # Also apply Python-literal normalisation on this candidate
+        candidate = re.sub(r'\bTrue\b', 'true', candidate)
+        candidate = re.sub(r'\bFalse\b', 'false', candidate)
+        candidate = re.sub(r'\bNone\b', 'null', candidate)
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+
+    # All passes exhausted — raise to trigger the agent's fallback/error handler
+    raise json.JSONDecodeError("extract_json: unable to parse LLM response as JSON", text, 0)
 
 # --- Provider allowlist controls to minimize token spend ---
 

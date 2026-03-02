@@ -149,7 +149,7 @@ def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: b
     prompt = f"""Help a retail investor understand the tax situation for selling {ticker} after holding it for a {status} period.
 
     Explain in plain English:
-    1. Short-Term vs. Long-Term Capital Gains — What is the difference, and which one applies here? (Holding over 1 year = long-term, which is usually taxed at a lower rate.)
+    1. Which capital gains type applies — short-term or long-term?
     2. Approximate tax rate ranges — Based on typical US tax brackets, what rate might this investor pay? Give a range (e.g., 0%, 15%, or 20% for long-term; ordinary income rates for short-term).
     3. A simple takeaway — In one or two sentences, what should this investor know about the tax impact of this trade?
 
@@ -158,7 +158,7 @@ def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: b
     """
     system = "You are a helpful tax education assistant for retail investors. You explain US capital gains tax concepts in simple, relatable terms based on IRS rules. You do not provide personalized legal or tax advice, but you help investors understand the general tax landscape so they can have better conversations with their own accountant."
     try:
-        content = call_gemini(prompt, system, max_tokens=1200, agent="tax")
+        content = call_gemini(prompt, system, max_tokens=900, agent="tax")
         return json.dumps({"content": content, "citations": []})
     except Exception as e:
         print(f"Gemini failed, falling back to Anthropic: {e}", file=sys.stderr)
@@ -297,7 +297,7 @@ If any value is N/A, acknowledge it rather than guessing."""
 
     try:
         res_text = call_gemini(prompt, system, response_mime_type="application/json", response_schema=schema, max_tokens=max_tokens, agent="dividend")
-        result = json.loads(res_text)
+        result = extract_json(res_text)
         # Override boolean flags and stats with accurate yfinance values when available
         if fetched:
             result["isDividendStock"] = fetched["is_dividend_stock"]
@@ -318,9 +318,55 @@ If any value is N/A, acknowledge it rather than guessing."""
         try:
             if is_provider_allowed("openai"):
                 res_text = call_openai(prompt + " IMPORTANT: Return ONLY raw JSON.", system, model="gpt-4o-mini", max_tokens=800, agent="dividend")
-                return extract_json(res_text)
+                result = extract_json(res_text)
+                if fetched:
+                    result["isDividendStock"] = fetched["is_dividend_stock"]
+                    result["hasDividendHistory"] = fetched["has_history"]
+                    result.setdefault("stats", {})
+                    result["stats"].update({
+                        "currentYield": fetched["current_yield"],
+                        "annualDividendPerShare": fetched["annual_dividend_per_share"],
+                        "payoutRatio": fetched["payout_ratio"],
+                        "fiveYearGrowthRate": fetched["five_year_avg_yield"],
+                        "paymentFrequency": fetched["payment_frequency"],
+                        "exDividendDate": fetched["ex_dividend_date"],
+                        "consecutiveYears": fetched["consecutive_years"],
+                    })
+                return result
         except Exception as oe:
             print(f"OpenAI fallback failed: {oe}", file=sys.stderr)
+
+        # If yfinance data is available, build a factual response from it rather
+        # than surfacing "Analysis Unavailable" — the numbers are already verified.
+        if fetched:
+            is_div = fetched["is_dividend_stock"]
+            if is_div:
+                analysis = (
+                    f"**{ticker}** pays dividends. "
+                    f"Annual dividend per share: **{fetched['annual_dividend_per_share']}** "
+                    f"({fetched['payment_frequency']}), "
+                    f"current yield: **{fetched['current_yield']}**, "
+                    f"payout ratio: **{fetched['payout_ratio']}**. "
+                    f"Ex-dividend date: **{fetched['ex_dividend_date']}**. "
+                    f"Consecutive years paying dividends: **{fetched['consecutive_years']}**. "
+                    f"*(Narrative analysis unavailable — LLM provider did not respond. Key figures sourced from market data.)*"
+                )
+            else:
+                analysis = f"**{ticker}** does not currently pay dividends based on available market data."
+            return {
+                "isDividendStock": is_div,
+                "hasDividendHistory": fetched["has_history"],
+                "analysis": analysis,
+                "stats": {
+                    "currentYield": fetched["current_yield"],
+                    "annualDividendPerShare": fetched["annual_dividend_per_share"],
+                    "payoutRatio": fetched["payout_ratio"],
+                    "fiveYearGrowthRate": fetched["five_year_avg_yield"],
+                    "paymentFrequency": fetched["payment_frequency"],
+                    "exDividendDate": fetched["ex_dividend_date"],
+                    "consecutiveYears": fetched["consecutive_years"],
+                },
+            }
 
         return {
             "isDividendStock": False,

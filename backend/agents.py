@@ -16,6 +16,12 @@ Modes (legacy interface kept intact for server.ts compatibility):
 import sys
 import json
 import os
+
+# Ensure the project root (parent of this file's directory) is on sys.path so
+# that `from backend.X import ...` works whether agents.py is invoked as
+# `python backend/agents.py` (adds backend/ to path) or via `-m backend.agents`.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dotenv import load_dotenv
 
 load_dotenv()
