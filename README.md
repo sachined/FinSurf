@@ -1,4 +1,5 @@
 # FinSurf 🏄‍♂️
+![FinSurf_run](https://github.com/user-attachments/assets/ea6af548-1cb0-4cfa-9bf9-170c31d59558)
 
 **FinSurf** is a sophisticated, AI-driven stock analysis platform designed to help investors navigate market volatility. By deploying a collaborative network of specialized autonomous agents, FinSurf transforms raw market data into professional-grade investment reports in seconds.
 
