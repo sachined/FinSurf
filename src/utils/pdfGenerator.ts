@@ -18,6 +18,22 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
       import('jspdf')
     ]);
 
+    // Pre-fetch all SVG images as base64 data URLs — html2canvas cannot load
+    // SVGs via <img> src due to browser security restrictions.
+    const svgDataUrlCache = new Map<string, string>();
+    const svgImgs = Array.from(container.querySelectorAll('img[src$=".svg"]')) as HTMLImageElement[];
+    await Promise.all(svgImgs.map(async (img) => {
+      const src = img.getAttribute('src') || '';
+      if (!src || svgDataUrlCache.has(src)) return;
+      try {
+        const abs = new URL(src, window.location.origin).href;
+        const resp = await fetch(abs);
+        const svgText = await resp.text();
+        const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+        svgDataUrlCache.set(src, dataUrl);
+      } catch (e) { /* skip — image will be blank but won't break PDF */ }
+    }));
+
     // Find logical chunks and group cards into rows
     const rawChunks = Array.from(container.querySelectorAll('[data-pdf-chunk], [data-pdf-break="before"]')) as HTMLElement[];
     if (rawChunks.length === 0) rawChunks.push(container); // Fallback
@@ -128,6 +144,15 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             clonedGrid.style.width = '100%';
             clonedGrid.style.gap = pdfMode === 'hd' ? '0' : '20px';
             clonedGrid.style.marginBottom = pdfMode === 'hd' ? '0' : '20px';
+          }
+
+          // Replace SVG img srcs with pre-fetched data URLs so html2canvas renders them
+          if (svgDataUrlCache.size > 0) {
+            clonedDoc.querySelectorAll('img').forEach(img => {
+              const src = img.getAttribute('src') || '';
+              const dataUrl = svgDataUrlCache.get(src);
+              if (dataUrl) img.src = dataUrl;
+            });
           }
 
           const clonedHeader = clonedDoc.querySelector('[data-pdf-chunk="pdf-header"]') as HTMLElement;
