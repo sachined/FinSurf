@@ -93,10 +93,10 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'"],
+        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "'sha256-oxQ1EoFDN3KqY0CGCVg2MoKi98m8iXgiT1ntlvDTVsc='"],
         styleSrc:             ["'self'"],
         imgSrc:               ["'self'"],
-        connectSrc:           ["'self'"],
+        connectSrc:           ["'self'", "https://cloudflareinsights.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
         frameSrc:             ["'none'"],
