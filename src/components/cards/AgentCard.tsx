@@ -171,7 +171,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                     : "border-amber-100 dark:border-amber-900/40"
                 )}>
                   <div className={cn(
-                    "px-4 py-2 text-[10px] font-black uppercase tracking-widest",
+                    "pdf-stat-header px-4 py-2 text-[10px] font-black uppercase tracking-widest",
                     accessMode === 'colorblind'
                       ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200"
                       : accessMode === 'tropical'

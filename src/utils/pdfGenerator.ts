@@ -83,14 +83,24 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
         ? firstEl.parentElement 
         : firstEl;
 
-      // Pre-compute icon colours from the live DOM before html2canvas clones it.
-      // window.getComputedStyle() does NOT work on cloned-document elements, so we
-      // read the colour here (original DOM) and stash it in a data attribute so
-      // the onclone callback can use it without touching the computed style API.
+      // Pre-compute icon box and stat header styles from the live DOM before
+      // html2canvas clones it. window.getComputedStyle() does NOT work on
+      // cloned-document elements, and Tailwind v4 uses oklch(... / alpha) which
+      // loses its alpha in canvas conversion — so we stash all needed values as
+      // data attributes here and apply them verbatim in onclone.
       const iconBoxes = Array.from(captureTarget.querySelectorAll('.pdf-icon-box')) as HTMLElement[];
       iconBoxes.forEach((box) => {
-        const color = window.getComputedStyle(box).color;
-        if (color) box.dataset.iconColor = color;
+        const cs = window.getComputedStyle(box);
+        if (cs.color)           box.dataset.iconColor  = cs.color;
+        if (cs.backgroundColor) box.dataset.iconBg     = cs.backgroundColor;
+        if (cs.borderColor)     box.dataset.iconBorder = cs.borderColor;
+      });
+
+      const statHeaders = Array.from(captureTarget.querySelectorAll('.pdf-stat-header')) as HTMLElement[];
+      statHeaders.forEach((el) => {
+        const cs = window.getComputedStyle(el);
+        if (cs.color)           el.dataset.pdfColor = cs.color;
+        if (cs.backgroundColor) el.dataset.pdfBg    = cs.backgroundColor;
       });
 
       const canvas = await html2canvas(captureTarget, {
@@ -224,30 +234,30 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             element.style.transition = 'none';
             element.style.animation = 'none';
 
-            // Ensure SVG icons in pdf-icon-box are visible.
-            // Use the pre-computed colour stored as a data attribute (set above, before
-            // the clone) because window.getComputedStyle() returns empty values on
-            // elements that belong to the cloned document rather than the main window.
+            // Restore pre-computed icon box styles (background, border, text colour).
+            // We bypass oklch/color-mix conversion entirely by using the values the
+            // browser already resolved in the live DOM.
             if (element.classList.contains('pdf-icon-box')) {
+              if (element.dataset.iconBg)     element.style.backgroundColor = element.dataset.iconBg;
+              if (element.dataset.iconBorder) element.style.borderColor     = element.dataset.iconBorder;
               const svg = element.querySelector('svg');
               if (svg) {
                 const colorToUse = element.dataset.iconColor ||
                   (theme === 'dark' ? '#94a3b8' : '#334155');
-                // Set colour on the SVG container so currentColor cascades down
                 svg.style.color = colorToUse;
                 svg.setAttribute('color', colorToUse);
-                // Also resolve currentColor explicitly on each child so html2canvas
-                // doesn't have to re-evaluate the cascade (it often fails to do so)
                 svg.querySelectorAll('*').forEach((child) => {
                   const c = child as SVGElement;
-                  if (c.getAttribute('stroke') === 'currentColor') {
-                    c.setAttribute('stroke', colorToUse);
-                  }
-                  if (c.getAttribute('fill') === 'currentColor') {
-                    c.setAttribute('fill', colorToUse);
-                  }
+                  if (c.getAttribute('stroke') === 'currentColor') c.setAttribute('stroke', colorToUse);
+                  if (c.getAttribute('fill')   === 'currentColor') c.setAttribute('fill',   colorToUse);
                 });
               }
+            }
+
+            // Restore pre-computed stat header styles.
+            if (element.classList.contains('pdf-stat-header')) {
+              if (element.dataset.pdfBg)    element.style.backgroundColor = element.dataset.pdfBg;
+              if (element.dataset.pdfColor) element.style.color           = element.dataset.pdfColor;
             }
             
             // Fix sticky elements for PDF capture
@@ -312,7 +322,15 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
       });
 
       // Clean up the temporary data attributes we added to the live DOM
-      iconBoxes.forEach((box) => { delete box.dataset.iconColor; });
+      iconBoxes.forEach((box) => {
+        delete box.dataset.iconColor;
+        delete box.dataset.iconBg;
+        delete box.dataset.iconBorder;
+      });
+      statHeaders.forEach((el) => {
+        delete el.dataset.pdfColor;
+        delete el.dataset.pdfBg;
+      });
 
       return { canvas, item };
     }));
