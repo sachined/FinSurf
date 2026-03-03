@@ -94,8 +94,8 @@ async function startServer() {
       directives: {
         defaultSrc:           ["'self'"],
         scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "'sha256-oxQ1EoFDN3KqY0CGCVg2MoKi98m8iXgiT1ntlvDTVsc='"],
-        styleSrc:             ["'self'"],
-        imgSrc:               ["'self'"],
+        styleSrc:             ["'self'", "'unsafe-inline'"],
+        imgSrc:               ["'self'", "data:", "https:"],
         connectSrc:           ["'self'", "https://cloudflareinsights.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
