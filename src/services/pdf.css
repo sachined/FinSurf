@@ -152,17 +152,23 @@ input:not([data-pdf-keep="true"]),
   filter: none !important;
 }
 
-/* Card Icon Box Overrides */
+/* Card Icon Box Overrides - ensure SVG icons are visible */
 .pdf-icon-box {
-  background-color: #f1f5f9 !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #0f172a !important;
+  position: relative !important;
+  overflow: visible !important;
 }
 
-.dark .pdf-icon-box {
-  background-color: #1e293b !important;
-  border: 1px solid #334155 !important;
-  color: #f1f5f9 !important;
+.pdf-icon-box svg {
+  position: relative !important;
+  z-index: 10 !important;
+  display: block !important;
+  opacity: 1 !important;
+  color: inherit !important;
+}
+
+.pdf-icon-box::before,
+.pdf-icon-box::after {
+  display: none !important;
 }
 
 /* Sources Section Overrides */
@@ -225,22 +231,53 @@ input:not([data-pdf-keep="true"]),
 .bg-yellow-50  { background-color: #fefce8 !important; }
 .bg-pink-50    { background-color: #fdf2f8 !important; }
 .bg-red-50     { background-color: #fef2f2 !important; }
+.bg-blue-50    { background-color: #eff6ff !important; }
+.bg-white      { background-color: #ffffff !important; }
+
+/* Tropical mode with opacity */
+.bg-teal-50\/50    { background-color: rgba(240, 253, 250, 0.5) !important; }
+.bg-orange-50\/50  { background-color: rgba(255, 247, 237, 0.5) !important; }
+.bg-yellow-50\/50  { background-color: rgba(254, 252, 232, 0.5) !important; }
+.bg-pink-50\/50    { background-color: rgba(253, 242, 248, 0.5) !important; }
 
 /* Icon box tinted backgrounds (dark mode) */
 .dark .bg-cyan-900\/20    { background-color: rgba(22, 78, 99,  0.2) !important; }
 .dark .bg-emerald-900\/20 { background-color: rgba(6,  78, 59,  0.2) !important; }
 .dark .bg-amber-900\/20   { background-color: rgba(120,53, 15,  0.2) !important; }
 .dark .bg-violet-900\/20  { background-color: rgba(76, 29, 149, 0.2) !important; }
+.dark .bg-teal-900\/30    { background-color: rgba(19, 78, 74, 0.3) !important; }
+.dark .bg-orange-900\/30  { background-color: rgba(124, 45, 18, 0.3) !important; }
+.dark .bg-yellow-900\/30  { background-color: rgba(113, 63, 18, 0.3) !important; }
+.dark .bg-pink-900\/30    { background-color: rgba(131, 24, 67, 0.3) !important; }
+.dark .bg-slate-900       { background-color: #0f172a !important; }
+.dark .bg-blue-900\/40    { background-color: rgba(30, 58, 138, 0.4) !important; }
+.dark .bg-yellow-900\/40  { background-color: rgba(113, 63, 18, 0.4) !important; }
 
 /* Icon box text colours */
 .text-cyan-600    { color: #0891b2 !important; }
 .text-emerald-600 { color: #059669 !important; }
 .text-amber-600   { color: #d97706 !important; }
 .text-violet-600  { color: #7c3aed !important; }
+.text-teal-700    { color: #0f766e !important; }
+.text-orange-700  { color: #c2410c !important; }
+.text-yellow-700  { color: #a16207 !important; }
+.text-pink-700    { color: #be185d !important; }
 .dark .text-cyan-400    { color: #22d3ee !important; }
 .dark .text-emerald-400 { color: #34d399 !important; }
 .dark .text-amber-400   { color: #fbbf24 !important; }
 .dark .text-violet-400  { color: #a78bfa !important; }
+.dark .text-teal-300    { color: #5eead4 !important; }
+.dark .text-orange-300  { color: #fdba74 !important; }
+.dark .text-yellow-300  { color: #fde047 !important; }
+.dark .text-pink-300    { color: #f9a8d4 !important; }
+
+/* Colorblind mode icon colors */
+.text-blue-950    { color: #172554 !important; }
+.text-slate-900   { color: #0f172a !important; }
+.text-yellow-950  { color: #422006 !important; }
+.dark .text-blue-100     { color: #dbeafe !important; }
+.dark .text-white        { color: #ffffff !important; }
+.dark .text-yellow-100   { color: #fef9c3 !important; }
 
 /* Dividend stats amber section */
 .bg-amber-50\/50   { background-color: rgba(255, 251, 235, 0.5) !important; }

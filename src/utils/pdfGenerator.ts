@@ -213,6 +213,16 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             element.style.transform = 'none';
             element.style.transition = 'none';
             element.style.animation = 'none';
+
+            // Ensure SVG icons in pdf-icon-box are visible
+            if (element.classList.contains('pdf-icon-box')) {
+              const svg = element.querySelector('svg');
+              if (svg) {
+                const computedColor = window.getComputedStyle(element).color;
+                svg.style.color = computedColor;
+                svg.setAttribute('color', computedColor);
+              }
+            }
             
             // Fix sticky elements for PDF capture
             const computedPos = window.getComputedStyle(element).position;
@@ -238,7 +248,11 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             ['fill', 'stroke'].forEach(attr => {
               const val = element.getAttribute(attr);
               if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
-                element.setAttribute(attr, convertColor(val));
+                element.setAttribute(attr, convertColor(val, attr));
+              }
+              // Ensure currentColor is preserved for icons
+              if (val === 'currentColor') {
+                element.style.color = element.style.color || window.getComputedStyle(element.parentElement || element).color;
               }
             });
           });
