@@ -83,6 +83,16 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
         ? firstEl.parentElement 
         : firstEl;
 
+      // Pre-compute icon colours from the live DOM before html2canvas clones it.
+      // window.getComputedStyle() does NOT work on cloned-document elements, so we
+      // read the colour here (original DOM) and stash it in a data attribute so
+      // the onclone callback can use it without touching the computed style API.
+      const iconBoxes = Array.from(captureTarget.querySelectorAll('.pdf-icon-box')) as HTMLElement[];
+      iconBoxes.forEach((box) => {
+        const color = window.getComputedStyle(box).color;
+        if (color) box.dataset.iconColor = color;
+      });
+
       const canvas = await html2canvas(captureTarget, {
         scale: scale,
         useCORS: true,
@@ -214,13 +224,29 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
             element.style.transition = 'none';
             element.style.animation = 'none';
 
-            // Ensure SVG icons in pdf-icon-box are visible
+            // Ensure SVG icons in pdf-icon-box are visible.
+            // Use the pre-computed colour stored as a data attribute (set above, before
+            // the clone) because window.getComputedStyle() returns empty values on
+            // elements that belong to the cloned document rather than the main window.
             if (element.classList.contains('pdf-icon-box')) {
               const svg = element.querySelector('svg');
               if (svg) {
-                const computedColor = window.getComputedStyle(element).color;
-                svg.style.color = computedColor;
-                svg.setAttribute('color', computedColor);
+                const colorToUse = element.dataset.iconColor ||
+                  (theme === 'dark' ? '#94a3b8' : '#334155');
+                // Set colour on the SVG container so currentColor cascades down
+                svg.style.color = colorToUse;
+                svg.setAttribute('color', colorToUse);
+                // Also resolve currentColor explicitly on each child so html2canvas
+                // doesn't have to re-evaluate the cascade (it often fails to do so)
+                svg.querySelectorAll('*').forEach((child) => {
+                  const c = child as SVGElement;
+                  if (c.getAttribute('stroke') === 'currentColor') {
+                    c.setAttribute('stroke', colorToUse);
+                  }
+                  if (c.getAttribute('fill') === 'currentColor') {
+                    c.setAttribute('fill', colorToUse);
+                  }
+                });
               }
             }
             
@@ -284,6 +310,9 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
           } catch (e) { }
         }
       });
+
+      // Clean up the temporary data attributes we added to the live DOM
+      iconBoxes.forEach((box) => { delete box.dataset.iconColor; });
 
       return { canvas, item };
     }));
