@@ -194,3 +194,68 @@ input:not([data-pdf-keep="true"]),
 [data-pdf-chunk="pdf-header"] img {
   filter: none !important;
 }
+
+/* ─── Explicit hex overrides for Tailwind colour classes ───────────────────
+   html2canvas cannot resolve oklch() at capture time; these hard-code the
+   most common coloured elements in AgentCard so they never "colour out".    */
+
+/* Accent bars at the bottom of each card */
+.bg-cyan-600   { background-color: #0891b2 !important; }
+.bg-emerald-600{ background-color: #059669 !important; }
+.bg-amber-600  { background-color: #d97706 !important; }
+.bg-violet-600 { background-color: #7c3aed !important; }
+
+/* Tropical gradient accent bars */
+.from-teal-400  { --tw-gradient-from: #2dd4bf !important; }
+.to-cyan-400    { --tw-gradient-to:   #22d3ee !important; }
+.from-orange-400{ --tw-gradient-from: #fb923c !important; }
+.to-amber-400   { --tw-gradient-to:   #fbbf24 !important; }
+.from-yellow-400{ --tw-gradient-from: #facc15 !important; }
+.to-orange-400  { --tw-gradient-to:   #fb923c !important; }
+.from-pink-400  { --tw-gradient-from: #f472b6 !important; }
+.to-rose-400    { --tw-gradient-to:   #fb7185 !important; }
+
+/* Icon box tinted backgrounds (light mode) */
+.bg-cyan-50    { background-color: #ecfeff !important; }
+.bg-emerald-50 { background-color: #ecfdf5 !important; }
+.bg-amber-50   { background-color: #fffbeb !important; }
+.bg-violet-50  { background-color: #f5f3ff !important; }
+.bg-teal-50    { background-color: #f0fdfa !important; }
+.bg-orange-50  { background-color: #fff7ed !important; }
+.bg-yellow-50  { background-color: #fefce8 !important; }
+.bg-pink-50    { background-color: #fdf2f8 !important; }
+.bg-red-50     { background-color: #fef2f2 !important; }
+
+/* Icon box tinted backgrounds (dark mode) */
+.dark .bg-cyan-900\/20    { background-color: rgba(22, 78, 99,  0.2) !important; }
+.dark .bg-emerald-900\/20 { background-color: rgba(6,  78, 59,  0.2) !important; }
+.dark .bg-amber-900\/20   { background-color: rgba(120,53, 15,  0.2) !important; }
+.dark .bg-violet-900\/20  { background-color: rgba(76, 29, 149, 0.2) !important; }
+
+/* Icon box text colours */
+.text-cyan-600    { color: #0891b2 !important; }
+.text-emerald-600 { color: #059669 !important; }
+.text-amber-600   { color: #d97706 !important; }
+.text-violet-600  { color: #7c3aed !important; }
+.dark .text-cyan-400    { color: #22d3ee !important; }
+.dark .text-emerald-400 { color: #34d399 !important; }
+.dark .text-amber-400   { color: #fbbf24 !important; }
+.dark .text-violet-400  { color: #a78bfa !important; }
+
+/* Dividend stats amber section */
+.bg-amber-50\/50   { background-color: rgba(255, 251, 235, 0.5) !important; }
+.dark .bg-amber-900\/20 { background-color: rgba(120, 53, 15, 0.2) !important; }
+.text-amber-700    { color: #b45309 !important; }
+.dark .text-amber-400   { color: #fbbf24 !important; }
+.border-amber-100  { border-color: #fde68a !important; }
+.dark .border-amber-900\/40 { border-color: rgba(120,53,15,0.4) !important; }
+.divide-amber-100  { border-color: #fde68a !important; }
+.dark .divide-amber-900\/30 { border-color: rgba(120,53,15,0.3) !important; }
+.text-amber-700    { color: #b45309 !important; }
+.dark .text-amber-300   { color: #fcd34d !important; }
+
+/* High-risk payout ratio highlight */
+.bg-red-50\/50 { background-color: rgba(254,242,242,0.5) !important; }
+.dark .bg-red-900\/10 { background-color: rgba(127,29,29,0.1) !important; }
+.text-red-600  { color: #dc2626 !important; }
+.dark .text-red-400 { color: #f87171 !important; }

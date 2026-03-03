@@ -142,27 +142,35 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
           // Handles up to 2 levels of nested parentheses (common in color-mix and oklch with var)
           const modernColorRegex = /(?:oklch|oklab|color-mix)\s*\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)/g;
 
-          const convertColor = (color: string) => {
+          // property param distinguishes background vs text fallbacks so a failed
+          // background conversion doesn't become a dark text colour (causing "coloured out" blocks).
+          const convertColor = (color: string, property?: string) => {
             if (!color || (!color.includes('oklch') && !color.includes('oklab') && !color.includes('color-mix'))) return color;
             if (colorCache.has(color)) return colorCache.get(color)!;
-            
-            if (!convCtx) return theme === 'dark' ? '#cbd5e1' : '#334155';
+
+            const isBackground = !!property && (
+              property.includes('background') || property === 'fill' || property.includes('border-color')
+            );
+            const textFallback = theme === 'dark' ? '#cbd5e1' : '#334155';
+            const bgFallback   = 'transparent';
+
+            if (!convCtx) return isBackground ? bgFallback : textFallback;
             try {
               // Reset to check if browser actually parses the new color
-              convCtx.fillStyle = '#00000000'; 
+              convCtx.fillStyle = '#00000000';
               convCtx.fillStyle = color;
               const result = convCtx.fillStyle;
-              
-              // If it's still transparent or contains unparsed modern syntax/vars, use theme-safe fallback
-              if (result === '#00000000' || result === 'rgba(0, 0, 0, 0)' || 
-                  result.includes('oklch') || result.includes('oklab') || 
+
+              // If it's still transparent or contains unparsed modern syntax/vars, use context-aware fallback
+              if (result === '#00000000' || result === 'rgba(0, 0, 0, 0)' ||
+                  result.includes('oklch') || result.includes('oklab') ||
                   result.includes('color-mix') || result.includes('var(')) {
-                return theme === 'dark' ? '#cbd5e1' : '#334155';
+                return isBackground ? bgFallback : textFallback;
               }
               colorCache.set(color, result);
               return result;
-            } catch (e) { 
-              return theme === 'dark' ? '#cbd5e1' : '#334155'; 
+            } catch (e) {
+              return isBackground ? bgFallback : textFallback;
             }
           };
 
@@ -221,7 +229,7 @@ export const downloadPDF = async (ticker: string, theme: Theme, accessMode: Acce
               Array.from(rule.style).forEach((prop: string) => {
                 const val = rule.style.getPropertyValue(prop);
                 if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('color-mix'))) {
-                  const converted = val.replace(modernColorRegex, (m: string) => convertColor(m));
+                  const converted = val.replace(modernColorRegex, (m: string) => convertColor(m, prop));
                   rule.style.setProperty(prop, converted, rule.style.getPropertyPriority(prop) || undefined);
                 }
               });
