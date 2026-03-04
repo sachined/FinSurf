@@ -21,10 +21,10 @@ RUN npm ci
 
 COPY .. .
 
-ARG VITE_APP_SECRET
-# Write VITE_APP_SECRET into .env.local so Vite's native env loading exposes
-# it as import.meta.env.VITE_APP_SECRET in the built bundle.
-RUN echo "VITE_APP_SECRET=${VITE_APP_SECRET}" > .env.local
+# BUILD_ID changes every commit, busting the Docker layer cache so Vite
+# always produces a fresh, consistent bundle with no stale chunk references.
+ARG BUILD_ID=dev
+RUN echo "BUILD_ID=${BUILD_ID}" > /dev/null
 
 RUN npm run build
 

@@ -28,10 +28,7 @@ export default defineConfig(() => {
               if (id.includes('jspdf') || id.includes('html2canvas')) {
                 return 'pdf-lib';
               }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
-                return 'react-core';
-              }
-              return 'vendor';
+              return 'vendor'; // React, ReactDOM, scheduler all go into vendor
             }
           },
         },
