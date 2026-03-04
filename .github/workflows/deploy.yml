@@ -88,6 +88,11 @@ jobs:
             git checkout -- .
             git pull origin main
 
+            # ── Export non-secret env vars (includes DOMAIN=finsurf.net) ───────
+            set -a
+            source /opt/finsurf/.env.nonsecret
+            set +a
+
             # ── Write API keys as plain files — no Docker Swarm required ─────
             #    These files are mounted into the container by docker-compose.prod.yml
             echo "🔑 Writing secret files..."
@@ -105,9 +110,9 @@ jobs:
             # ── Run docker compose using the pulled image (--no-build) ───────
             echo "🐳 Starting containers..."
             cd /opt/finsurf/deploy
-            docker compose -f docker-compose.prod.yml --env-file ../.env.nonsecret down --remove-orphans || true
+            docker compose -f docker-compose.prod.yml down --remove-orphans || true
             FINSURF_IMAGE=${{ env.IMAGE }}:latest \
-              docker compose -f docker-compose.prod.yml --env-file ../.env.nonsecret up -d --no-build
+              docker compose -f docker-compose.prod.yml up -d --no-build
 
             # ── Wait for health check (up to 60 s) ───────────────────────────
             echo "⏳ Waiting for application to become healthy..."
