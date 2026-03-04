@@ -94,7 +94,7 @@ jobs:
             printf '%s' "${{ secrets.PERPLEXITY_API_KEY }}" > secrets/perplexity_api_key.txt
             printf '%s' "${{ secrets.GROQ_API_KEY }}"        > secrets/groq_api_key.txt
             printf '%s' "${{ secrets.APP_SECRET }}"          > secrets/app_secret.txt
-            chmod 600 secrets/*.txt
+            chmod 644 secrets/*.txt
             echo "✅ Secret files written"
 
             # ── Pull the pre-built image (built on CI, not here) ─────────────
