@@ -42,7 +42,18 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
                 return result
         except urllib.error.HTTPError as e:
             if e.code in [429, 502, 503, 504] and attempt < max_retries:
-                sleep_time = 2 ** (attempt + 1)
+                if e.code == 429:
+                    # Honour Retry-After header (Gemini and most APIs send it).
+                    # Fall back to 60 s if absent — paid-tier 429s clear in ~60 s.
+                    retry_after = None
+                    try:
+                        retry_after = e.headers.get("Retry-After") if e.headers else None
+                        sleep_time = min(int(retry_after), 120)
+                    except (ValueError, TypeError):
+                        sleep_time = 60 * (attempt + 1)  # 60 s, 120 s, …
+                else:
+                    # Transient gateway errors: fast exponential back-off (2 s, 4 s, 8 s)
+                    sleep_time = 2 ** (attempt + 1)
                 print(f"API Error {e.code}, retrying in {sleep_time}s... (Attempt {attempt + 1}/{max_retries})", file=sys.stderr)
                 time.sleep(sleep_time)
                 continue

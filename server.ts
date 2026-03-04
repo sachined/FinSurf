@@ -46,8 +46,8 @@ function parseCitations(citations: unknown[]): { title: string; uri: string }[] 
   });
 }
 
-async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false): Promise<string> {
-  const env = { ...process.env, SKIP_GUARDRAIL: skipGuardrail ? "true" : "false" };
+async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false, envOverrides?: Record<string, string>): Promise<string> {
+  const env = { ...process.env, SKIP_GUARDRAIL: skipGuardrail ? "true" : "false", ...envOverrides };
   const argStrings = args.map(String);
 
   return new Promise((resolve, reject) => {
@@ -72,15 +72,13 @@ async function startServer() {
   // Load secrets from files (Docker Secrets) or environment variables
   const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
-  const OPENAI_API_KEY = getSecret("OPENAI_API_KEY", "OPENAI_API_KEY_FILE");
-  const ANTHROPIC_API_KEY = getSecret("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE");
+  const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
   const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
 
   // Make secrets available to child processes (Python agents)
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
   process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
-  process.env.OPENAI_API_KEY = OPENAI_API_KEY || "";
-  process.env.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY || "";
+  process.env.GROQ_API_KEY = GROQ_API_KEY || "";
 
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);
@@ -161,8 +159,21 @@ async function startServer() {
   });
   app.use("/api/", limiter);
 
+  // Extract user-supplied API keys from request headers (forwarded by the frontend).
+  // These override the server's keys so the user's own quota is consumed.
+  function getUserKeyEnv(req: Request): Record<string, string> {
+    const overrides: Record<string, string> = {};
+    const gemini     = req.headers["x-user-gemini-key"];
+    const perplexity = req.headers["x-user-perplexity-key"];
+    const groq       = req.headers["x-user-groq-key"];
+    if (typeof gemini     === "string" && gemini)     overrides["GEMINI_API_KEY"]     = gemini;
+    if (typeof perplexity === "string" && perplexity) overrides["PERPLEXITY_API_KEY"] = perplexity;
+    if (typeof groq       === "string" && groq)       overrides["GROQ_API_KEY"]       = groq;
+    return overrides;
+  }
+
   // Helper to check guardrail with caching
-  const checkGuardrail = async (ticker: string): Promise<boolean> => {
+  const checkGuardrail = async (ticker: string, envOverrides?: Record<string, string>): Promise<boolean> => {
     const key = ticker.toUpperCase().trim();
     const cached = guardrailCache.get(key);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -170,7 +181,7 @@ async function startServer() {
     }
 
     try {
-      const result = await runPythonAgent("guardrail", [ticker]);
+      const result = await runPythonAgent("guardrail", [ticker], false, envOverrides);
       const status = result.trim() === "SAFE";
       if (guardrailCache.size >= MAX_CACHE_SIZE) {
         // Evict the oldest entry (Maps preserve insertion order)
@@ -194,14 +205,15 @@ async function startServer() {
       return;
     }
     console.log(`Researching: ${ticker}`);
+    const userEnv = getUserKeyEnv(req);
     try {
-      const isSafe = await checkGuardrail(ticker);
-      const stdout = await runPythonAgent("research", [ticker], isSafe);
+      const isSafe = await checkGuardrail(ticker, userEnv);
+      const stdout = await runPythonAgent("research", [ticker], isSafe, userEnv);
       try {
         const data = JSON.parse(stdout);
-        res.json({ content: data.content, agentName: "Research Analyst", sources: parseCitations(data.citations) });
+        res.json({ content: data.content, agentName: "Research Analyst", sources: parseCitations(data.citations), priceHistory: data.price_history || [] });
       } catch (e) {
-        res.json({ content: stdout.trim(), agentName: "Research Analyst" });
+        res.json({ content: stdout.trim(), agentName: "Research Analyst", priceHistory: [] });
       }
     } catch (error) {
       console.error("Research agent error:", error);
@@ -221,9 +233,10 @@ async function startServer() {
       return;
     }
     console.log(`Tax analysis: ${ticker}`);
+    const userEnv = getUserKeyEnv(req);
     try {
-      const isSafe = await checkGuardrail(ticker);
-      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate], isSafe);
+      const isSafe = await checkGuardrail(ticker, userEnv);
+      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate], isSafe, userEnv);
       try {
         const data = JSON.parse(stdout);
         res.json({ content: data.content, agentName: "Tax Strategist", sources: parseCitations(data.citations) });
@@ -254,9 +267,10 @@ async function startServer() {
       return;
     }
     console.log(`Dividend analysis: ${ticker}`);
+    const userEnv = getUserKeyEnv(req);
     try {
-      const isSafe = await checkGuardrail(ticker);
-      const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum], isSafe);
+      const isSafe = await checkGuardrail(ticker, userEnv);
+      const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum], isSafe, userEnv);
       if (!stdout.trim()) throw new Error("Empty response from dividend agent");
       const data = JSON.parse(stdout);
       res.json({ 
@@ -279,9 +293,10 @@ async function startServer() {
       return;
     }
     console.log(`Sentiment analysis: ${ticker}`);
+    const userEnv = getUserKeyEnv(req);
     try {
-      const isSafe = await checkGuardrail(ticker);
-      const stdout = await runPythonAgent("sentiment", [ticker], isSafe);
+      const isSafe = await checkGuardrail(ticker, userEnv);
+      const stdout = await runPythonAgent("sentiment", [ticker], isSafe, userEnv);
       try {
         const data = JSON.parse(stdout);
         res.json({ content: data.content, agentName: "Social Sentiment Analyst", sources: parseCitations(data.citations) });

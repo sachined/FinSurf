@@ -1,11 +1,25 @@
 export type Theme = 'light' | 'dark';
+
+export interface UserApiKeys {
+  geminiKey: string;       // required
+  perplexityKey?: string;  // optional
+  groqKey?: string;        // optional
+}
 export type AccessMode = 'default' | 'colorblind' | 'tropical';
-export type PDFMode = 'standard' | 'hd';
 
 export interface AgentResponse {
   agentName: string;
   content: string;
   sources?: { title: string; uri: string }[];
+}
+
+export interface PricePoint {
+  date: string;
+  close: number;
+}
+
+export interface ResearchResponse extends AgentResponse {
+  priceHistory: PricePoint[];
 }
 
 export interface DividendStats {
@@ -26,7 +40,7 @@ export interface DividendResponse extends AgentResponse {
 
 
 export interface FinancialAgentsState {
-  research: AgentResponse | null;
+  research: ResearchResponse | null;
   tax: AgentResponse | null;
   dividend: DividendResponse | null;
   sentiment: AgentResponse | null;

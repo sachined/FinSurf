@@ -94,7 +94,7 @@ COPY --from=frontend-builder /app/dist ./dist
 RUN mkdir -p /app/data
 
 # Copy entrypoint
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Create non-root user

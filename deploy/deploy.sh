@@ -35,7 +35,7 @@ docker swarm init 2>/dev/null || echo "  (Swarm already initialized)"
 # ── Validate secret files exist ────────────────────────────────────────────────
 echo "📝 Checking for secret files..."
 for secret in gemini_api_key perplexity_api_key openai_api_key anthropic_api_key app_secret; do
-    if [ ! -f "$SCRIPT_DIR/secrets/${secret}.txt" ]; then
+    if [ ! -f "$SCRIPT_DIR/../secrets/${secret}.txt" ]; then
         echo "❌ Missing $SCRIPT_DIR/secrets/${secret}.txt"
         echo "   See SECRETS_SETUP.md for setup instructions"
         exit 1
@@ -46,17 +46,17 @@ done
 echo "📋 Creating Docker Secrets..."
 for secret in gemini_api_key perplexity_api_key openai_api_key anthropic_api_key app_secret; do
     docker secret rm "$secret" 2>/dev/null || true
-    cat "$SCRIPT_DIR/secrets/${secret}.txt" | docker secret create "$secret" -
+    cat "$SCRIPT_DIR/../secrets/${secret}.txt" | docker secret create "$secret" -
     echo "   ✅ Created secret: $secret"
 done
 
 # ── Update .env.nonsecret ──────────────────────────────────────────────────────
 echo "📋 Updating environment configuration..."
-if [ -f "$SCRIPT_DIR/.env.nonsecret" ]; then
+if [ -f "$SCRIPT_DIR/../.env.nonsecret" ]; then
     echo "   Using existing .env.nonsecret"
 else
     echo "⚠️  Warning: .env.nonsecret not found, creating default..."
-    cat > "$SCRIPT_DIR/.env.nonsecret" << 'EOF'
+    cat > "$SCRIPT_DIR/../.env.nonsecret" << 'EOF'
 PORT=3000
 NODE_ENV=production
 TELEMETRY_DB=/app/data/finsurf_telemetry.db
@@ -67,7 +67,7 @@ fi
 
 # ── Build and deploy ───────────────────────────────────────────────────────────
 echo "🐳 Building and deploying..."
-APP_SECRET=$(cat "$SCRIPT_DIR/secrets/app_secret.txt")
+APP_SECRET=$(cat "$SCRIPT_DIR/../secrets/app_secret.txt")
 
 if [ "$DEPLOY_ENV" = "prod" ]; then
     echo "   Deploying with docker-compose.prod.yml (with Caddy)..."

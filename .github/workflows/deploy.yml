@@ -4,46 +4,67 @@ on:
   push:
     branches:
       - main
-      - develop
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual triggers from the GitHub Actions UI
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/finsurf-trial-run-app
+  IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/finsurf-trial-run-app
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#
+#   DOCKER_HUB_USERNAME   — Your Docker Hub username
+#   DOCKER_HUB_PASSWORD   — Docker Hub access token (not your password)
+#   APP_SECRET            — Bearer token for API auth (contents of secrets/app_secret.txt)
+#   GEMINI_API_KEY        — Google Gemini API key
+#   PERPLEXITY_API_KEY    — Perplexity API key (leave blank to use Gemini-only)
+#   GROQ_API_KEY          — Groq API key (free tier at console.groq.com; leave blank to use Gemini-only)
+#   DEPLOYMENT_HOST       — Production server IP or hostname (e.g. 123.45.67.89)
+#   DEPLOYMENT_USER       — SSH user on the server (e.g. root)
+#   DEPLOYMENT_SSH_KEY    — Private SSH key for that user (PEM format, full contents)
+#   DEPLOYMENT_PORT       — SSH port (usually 22)
+#
+# Note: The repository must be public, OR replace the git clone URL below with
+#       a deploy key / PAT for private repo access from the server.
+# ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     environment: production
+
     steps:
-      # ── Checkout code ────────────────────────────────────────────────────────
+      # ── 1. Checkout code ─────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Set up Docker Buildx ─────────────────────────────────────────────────
+      # ── 2. Set up Docker Buildx ───────────────────────────────────────────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── Log in to Docker Hub ─────────────────────────────────────────────────
+      # ── 3. Log in to Docker Hub ───────────────────────────────────────────────
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
-      # ── Build and push Docker image ──────────────────────────────────────────
+      # ── 4. Build image on CI runner (avoids OOM on 1 GB server) and push ─────
+      #       VITE_APP_SECRET is baked into the Vite bundle here, not on the server.
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: deploy/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
           build-args: |
             VITE_APP_SECRET=${{ secrets.APP_SECRET }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # ── Deploy to production server ──────────────────────────────────────────
+      # ── 5. Deploy to production server via SSH ────────────────────────────────
       - name: Deploy to production server
         uses: appleboy/ssh-action@master
         with:
@@ -54,90 +75,63 @@ jobs:
           script: |
             set -e
             echo "🚀 Starting FinSurf deployment..."
-            
-            cd /opt/finsurf
-            
-            # ── Initialize Docker Swarm if needed ────────────────────────────
-            docker swarm init 2>/dev/null || true
-            
-            # ── Create Docker Secrets ────────────────────────────────────────
-            # Remove old secrets and create new ones (safe on first run)
-            echo "📝 Creating Docker Secrets..."
-            
-            docker secret rm gemini_api_key 2>/dev/null || true
-            echo "${{ secrets.GEMINI_API_KEY }}" | docker secret create gemini_api_key -
-            
-            docker secret rm perplexity_api_key 2>/dev/null || true
-            echo "${{ secrets.PERPLEXITY_API_KEY }}" | docker secret create perplexity_api_key -
-            
-            docker secret rm openai_api_key 2>/dev/null || true
-            echo "${{ secrets.OPENAI_API_KEY }}" | docker secret create openai_api_key -
-            
-            docker secret rm anthropic_api_key 2>/dev/null || true
-            echo "${{ secrets.ANTHROPIC_API_KEY }}" | docker secret create anthropic_api_key -
-            
-            docker secret rm app_secret 2>/dev/null || true
-            echo "${{ secrets.APP_SECRET }}" | docker secret create app_secret -
-            
-            echo "✅ Docker Secrets created successfully"
-            
-            # ── Update .env.nonsecret ────────────────────────────────────────
-            echo "📋 Updating environment configuration..."
-            cat > .env.nonsecret << 'EOF'
-            PORT=3000
-            NODE_ENV=production
-            DOMAIN=${{ secrets.DOMAIN }}
-            TELEMETRY_DB=/app/data/finsurf_telemetry.db
-            TELEMETRY_DISABLED=false
-            DAILY_BUDGET_USD=${{ secrets.DAILY_BUDGET_USD }}
-            ALLOWED_PROVIDERS=gemini,perplexity,openai,anthropic
-            EOF
-            
-            # ── Pull latest image ────────────────────────────────────────────
-            echo "📥 Pulling latest Docker image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            
-            # ── Deploy with docker-compose ───────────────────────────────────
-            echo "🐳 Deploying with docker-compose..."
-            if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-              # Production deployment with Caddy
-              docker compose -f docker-compose.prod.yml down || true
-              docker compose -f docker-compose.prod.yml build \
-                --build-arg VITE_APP_SECRET="${{ secrets.APP_SECRET }}" \
-                --no-cache
-              docker compose -f docker-compose.prod.yml up -d
-            else
-              # Staging/develop deployment
-              docker compose down || true
-              docker compose build --build-arg VITE_APP_SECRET="${{ secrets.APP_SECRET }}" --no-cache
-              docker compose up -d
+
+            # ── Ensure project directory exists (first deploy) ───────────────
+            if [ ! -d /opt/finsurf ]; then
+              echo "📂 Cloning repository for the first time..."
+              git clone https://github.com/${{ github.repository }} /opt/finsurf
             fi
-            
-            # ── Wait for health check ────────────────────────────────────────
-            echo "⏳ Waiting for application to be healthy..."
-            for i in {1..30}; do
-              if docker compose ps | grep -q "healthy"; then
-                echo "✅ Application is healthy"
+
+            # ── Pull latest config files (.env.nonsecret, deploy/, Caddyfile) ─
+            cd /opt/finsurf
+            git pull origin main
+
+            # ── Write API keys as plain files — no Docker Swarm required ─────
+            #    These files are mounted into the container by docker-compose.prod.yml
+            echo "🔑 Writing secret files..."
+            mkdir -p secrets
+            printf '%s' "${{ secrets.GEMINI_API_KEY }}"     > secrets/gemini_api_key.txt
+            printf '%s' "${{ secrets.PERPLEXITY_API_KEY }}" > secrets/perplexity_api_key.txt
+            printf '%s' "${{ secrets.GROQ_API_KEY }}"        > secrets/groq_api_key.txt
+            printf '%s' "${{ secrets.APP_SECRET }}"          > secrets/app_secret.txt
+            chmod 600 secrets/*.txt
+            echo "✅ Secret files written"
+
+            # ── Pull the pre-built image (built on CI, not here) ─────────────
+            echo "📥 Pulling Docker image ${{ env.IMAGE }}:latest ..."
+            docker pull ${{ env.IMAGE }}:latest
+
+            # ── Run docker compose using the pulled image (--no-build) ───────
+            echo "🐳 Starting containers..."
+            cd /opt/finsurf/deploy
+            docker compose -f docker-compose.prod.yml down --remove-orphans || true
+            FINSURF_IMAGE=${{ env.IMAGE }}:latest \
+              docker compose -f docker-compose.prod.yml up -d --no-build
+
+            # ── Wait for health check (up to 60 s) ───────────────────────────
+            echo "⏳ Waiting for application to become healthy..."
+            for i in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml ps | grep -q "healthy"; then
+                echo "✅ Application is healthy!"
                 break
               fi
-              if [ $i -eq 30 ]; then
-                echo "❌ Application failed to become healthy"
-                docker compose logs
+              if [ "$i" = "30" ]; then
+                echo "❌ Health check timed out after 60 s"
+                docker compose -f docker-compose.prod.yml logs finsurf --tail=50
                 exit 1
               fi
               sleep 2
             done
-            
-            # ── Clean up unused resources ────────────────────────────────────
-            echo "🧹 Cleaning up unused Docker resources..."
-            docker system prune -f
-            
-            echo "✅ Deployment completed successfully!"
-            docker compose ps
 
-      # ── Notify on failure ────────────────────────────────────────────────────
-      - name: Notify deployment failure
+            # ── Clean up dangling images / stopped containers ────────────────
+            docker system prune -f
+
+            echo "✅ Deployment complete!"
+            docker compose -f docker-compose.prod.yml ps
+
+      # ── 6. Surface failure clearly ────────────────────────────────────────────
+      - name: Notify on failure
         if: failure()
         run: |
-          echo "❌ Deployment failed. Check the logs above for details."
+          echo "❌ Deployment failed — check the logs above for details."
           exit 1

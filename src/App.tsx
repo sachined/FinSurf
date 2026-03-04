@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -9,10 +9,48 @@ import { ResultsGrid } from './components/results/ResultsGrid';
 import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
+import { ApiKeyModal } from './components/modals/ApiKeyModal';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
-import { type PDFMode } from './types';
+import { UserApiKeys } from './types';
+
+// localStorage keys
+const LS_SURF_COUNT = 'finsurf_surf_count';
+const LS_USER_KEYS  = 'finsurf_user_keys';
+const FREE_TRIES    = 3;
+
+function loadUserKeys(): UserApiKeys | null {
+  try {
+    const raw = localStorage.getItem(LS_USER_KEYS);
+    return raw ? (JSON.parse(raw) as UserApiKeys) : null;
+  } catch {
+    return null;
+  }
+}
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+}
+
+function getSurfCount(): number {
+  try {
+    const raw = localStorage.getItem(LS_SURF_COUNT);
+    if (!raw) return 0;
+    const { count, date } = JSON.parse(raw);
+    // Reset counter when the stored date is from a previous day
+    if (date !== todayISO()) return 0;
+    return typeof count === 'number' ? count : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementSurfCount(): number {
+  const next = getSurfCount() + 1;
+  localStorage.setItem(LS_SURF_COUNT, JSON.stringify({ count: next, date: todayISO() }));
+  return next;
+}
 
 export default function App() {
   const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
@@ -31,32 +69,48 @@ export default function App() {
     runAll
   } = useFinancialAgents();
 
-  const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [pdfMode, setPdfMode] = useState<PDFMode>('standard');
   const [hasSurfed, setHasSurfed] = useState(false);
+  const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   const isAnyLoading = Object.values(loading).some(v => v);
-
   const hasResponses = Object.values(responses).some(r => r !== null);
+
+  // isProd is true only in the Vite production build (Docker / CI).
+  // In dev (`npm run dev`) import.meta.env.PROD is always false.
+  const isProd = import.meta.env.PROD;
+
+  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
+    setHasSurfed(true);
+    setError(null);
+    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
+  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
 
   const handleSearch = async () => {
     if (!validateAll()) return;
-    setHasSurfed(true);
-    setError(null);
-    await runAll(ticker, purchaseDate, sellDate, shares, setError);
+
+    // In production: enforce free-try limit when no user keys are stored.
+    if (isProd && !userKeys) {
+      const count = incrementSurfCount();
+      if (count > FREE_TRIES) {
+        setShowApiKeyModal(true);
+        return;
+      }
+    }
+
+    await executeSearch(userKeys);
   };
 
-  const handleDownloadPDF = async () => {
-    setGeneratingPdf(true);
-    try {
-      const scale = 2.0;
-      await downloadPDF(ticker, theme, accessMode, pdfMode, scale);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to generate PDF');
-    } finally {
-      setGeneratingPdf(false);
-    }
+  const handleApiKeysSubmit = useCallback((keys: UserApiKeys) => {
+    localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
+    setUserKeys(keys);
+    setShowApiKeyModal(false);
+    // Run the search immediately with the newly provided keys.
+    executeSearch(keys);
+  }, [executeSearch]);
+
+  const handleDownloadPDF = () => {
+    downloadPDF(ticker);
   };
 
   return (
@@ -126,43 +180,51 @@ export default function App() {
             <div className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
           </div>
 
-          <AnimatePresence>
-            {!hasSurfed && (
-              <WelcomeHero accessMode={accessMode} />
-            )}
-          </AnimatePresence>
+          <div data-no-print="">
+            <AnimatePresence>
+              {!hasSurfed && (
+                <WelcomeHero accessMode={accessMode} />
+              )}
+            </AnimatePresence>
+          </div>
 
-          <SearchForm
-            ticker={ticker}
-            setTicker={setTicker}
-            purchaseDate={purchaseDate}
-            setPurchaseDate={setPurchaseDate}
-            sellDate={sellDate}
-            setSellDate={setSellDate}
-            shares={shares}
-            setShares={setShares}
-            onSearch={handleSearch}
-            isLoading={isAnyLoading}
-            hasSurfed={hasSurfed}
-            accessMode={accessMode}
-            isCompact={hasResponses && !isAnyLoading}
-          />
+          <div data-no-print="">
+            <SearchForm
+              ticker={ticker}
+              setTicker={setTicker}
+              purchaseDate={purchaseDate}
+              setPurchaseDate={setPurchaseDate}
+              sellDate={sellDate}
+              setSellDate={setSellDate}
+              shares={shares}
+              setShares={setShares}
+              onSearch={handleSearch}
+              isLoading={isAnyLoading}
+              hasSurfed={hasSurfed}
+              accessMode={accessMode}
+              isCompact={hasResponses && !isAnyLoading}
+            />
+          </div>
 
-          <AgentProgressStrip loading={loading} responses={responses} accessMode={accessMode} />
+          <div data-no-print="">
+            <AgentProgressStrip loading={loading} responses={responses} accessMode={accessMode} />
+          </div>
 
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-[2rem] text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
-              >
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div data-no-print="">
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-[2rem] text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
+                >
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <ResultsGrid 
             responses={responses} 
@@ -171,43 +233,22 @@ export default function App() {
           />
         </main>
 
-        <Footer 
-          onDownloadPDF={handleDownloadPDF} 
-          isGeneratingPdf={generatingPdf}
+        <Footer
+          onDownloadPDF={handleDownloadPDF}
           accessMode={accessMode}
-          pdfMode={pdfMode}
-          setPdfMode={setPdfMode}
           isDataAvailable={hasResponses && !isAnyLoading}
         />
       </div>
-
-      {/* PDF Generation Overlay */}
-      <AnimatePresence>
-        {generatingPdf && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center text-white"
-          >
-            <div className="bg-slate-800 p-8 rounded-[3rem] shadow-2xl border border-slate-700 flex flex-col items-center gap-6">
-              <div className="relative">
-                <div className="w-20 h-20 border-4 border-cyan-500/20 rounded-full animate-ping absolute inset-0" />
-                <div className="w-20 h-20 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin relative z-10" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-2xl font-black uppercase tracking-tight mb-2">Generating Report</h2>
-                <p className="text-slate-400 font-medium">Capturing the market waves... please wait.</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
         <Mascot mode={accessMode} className="w-24 h-24" isThinking={isAnyLoading} />
       </div>
+
+      {/* API Key Modal — production only, shown after free tries are exhausted */}
+      {showApiKeyModal && (
+        <ApiKeyModal onSubmit={handleApiKeysSubmit} />
+      )}
     </div>
   );
 }

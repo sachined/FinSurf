@@ -17,7 +17,7 @@ Conditional routing:
 import json
 import sys
 import uuid
-from typing import Any, Dict, List, Optional, Annotated
+from typing import Any, Dict, List, Optional, Annotated, Union
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, END
@@ -80,6 +80,12 @@ class FinSurfState(TypedDict):
     sentiment_output: Annotated[Optional[str], _merge]
     dividend_output: Annotated[Optional[Dict[str, Any]], lambda a, b: b if b is not None else a]
 
+    # --- chart data written by research node ---
+    price_history: Annotated[Optional[List[Dict[str, Union[str, float]]]], lambda a, b: b if b is not None else a]
+
+    # --- dividend data pre-fetched by research node and consumed by dividend node ---
+    dividend_data: Annotated[Optional[Dict[str, Any]], lambda a, b: b if b is not None else a]
+
     # --- error accumulation ---
     errors: Annotated[List[str], lambda a, b: a + b]
 
@@ -121,11 +127,21 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
         pays_dividend = any(kw in lower for kw in _DIVIDEND_SIGNALS)
         no_dividend = any(kw in lower for kw in _DIVIDEND_NEGATIONS)
         is_dividend = pays_dividend and not no_dividend
-        return {"research_output": raw, "is_dividend_stock": is_dividend}
+        # Extract price_history from the research envelope if present
+        price_history: Optional[List] = None
+        div_data: Optional[Dict[str, Any]] = None
+        try:
+            parsed = json.loads(raw)
+            price_history = parsed.get("price_history") or None
+            div_data = parsed.get("dividend_data") or None
+        except Exception:
+            pass
+        return {"research_output": raw, "is_dividend_stock": is_dividend, "price_history": price_history, "dividend_data": div_data}
     except Exception as exc:
         return {
-            "research_output": json.dumps({"content": f"Research failed: {exc}", "citations": []}),
+            "research_output": json.dumps({"content": f"Research failed: {exc}", "citations": [], "price_history": []}),
             "is_dividend_stock": False,
+            "price_history": None,
             "errors": [f"research error: {exc}"],
         }
 
@@ -166,8 +182,9 @@ def dividend_node(state: FinSurfState) -> Dict[str, Any]:
     ticker = state["ticker"]
     shares = state.get("shares", 1.0)
     years = state.get("years", 3)
+    prefetched = state.get("dividend_data")  # pre-fetched by research_node — no second yfinance call
     try:
-        result = dividend_agent(ticker, shares, years, skip_guardrail=True)
+        result = dividend_agent(ticker, shares, years, skip_guardrail=True, prefetched_data=prefetched)
         return {"dividend_output": result}
     except Exception as exc:
         return {
@@ -276,6 +293,8 @@ def run_graph(
         "tax_output": None,
         "sentiment_output": None,
         "dividend_output": None,
+        "price_history": None,
+        "dividend_data": None,
         "errors": [],
         "token_summary": None,
     }

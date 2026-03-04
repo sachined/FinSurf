@@ -1,0 +1,91 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml — Local development / testing with Docker Secrets
+#
+# Usage (no Docker Swarm required — file-based secrets work with plain compose):
+#   PowerShell:
+#     $s = (Get-Content ../secrets/app_secret.txt -Raw).Trim()
+#     docker compose build --build-arg VITE_APP_SECRET=$s
+#     docker compose up
+#
+# The app is available at http://localhost:3000
+# No HTTPS — use this for local-machine testing only.
+# For internet-facing deployment with automatic HTTPS, use docker-compose.prod.yml
+#
+# Ollama (optional — requires 4+ GB RAM):
+#   Uncomment the ollama service block and depends_on below, then:
+#     docker exec -it <ollama-container> ollama pull qwen2.5:7b
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  finsurf:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      # Bakes VITE_APP_SECRET into the Vite bundle so the frontend sends
+      # the correct Authorization header to the Express API middleware.
+      args:
+        VITE_APP_SECRET: ${APP_SECRET:-}
+    env_file: ../.env.nonsecret
+    environment:
+      NODE_ENV: production
+      TELEMETRY_DB: /app/data/finsurf_telemetry.db
+      # Secrets are mounted as files in /run/secrets/ inside the container
+      # The application reads them from there instead of env vars.
+      GEMINI_API_KEY_FILE: ../secrets/gemini_api_key
+      PERPLEXITY_API_KEY_FILE: ../secrets/perplexity_api_key
+      GROQ_API_KEY_FILE: ../secrets/groq_api_key
+      APP_SECRET_FILE: ../secrets/app_secret
+      # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
+      # Sign up at https://console.groq.com — no GPU needed.
+      # If key is missing, agents fall back to Gemini automatically.
+      GROQ_MODEL: llama-3.3-70b-versatile
+      # Ollama — optional local LLM (requires 4+ GB RAM).
+      # Leave empty to skip; agents fall back to Groq then Gemini.
+      OLLAMA_BASE_URL: ""
+      OLLAMA_MODEL: qwen2.5:7b
+    secrets:
+      - gemini_api_key
+      - perplexity_api_key
+      - groq_api_key
+      - app_secret
+    volumes:
+      # Named volume persists both the telemetry DB and the future MemorySaver DB
+      # across container restarts and image rebuilds.
+      - finsurf_data:/app/data
+    # depends_on:
+    #   - ollama  # Uncomment if using the ollama service below
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ollama:  # Uncomment to enable local LLM (requires 4+ GB RAM)
+  #   image: ollama/ollama
+  #   # GPU passthrough (optional):
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: all
+  #   #           capabilities: [gpu]
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+
+volumes:
+  finsurf_data:
+  # ollama_data:  # Uncomment if ollama service is enabled
+  #   driver: local
+
+secrets:
+  gemini_api_key:
+    file: ../secrets/gemini_api_key.txt
+  perplexity_api_key:
+    file: ../secrets/perplexity_api_key.txt
+  groq_api_key:
+    file: ../secrets/groq_api_key.txt
+  app_secret:
+    file: ../secrets/app_secret.txt

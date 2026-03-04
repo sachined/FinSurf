@@ -1,298 +1,130 @@
-/* pdf.css */
-* {
-  --tw-shadow-color: rgba(0,0,0,0.2) !important;
-  --tw-text-opacity: 1 !important;
-}
+/* pdf.css — loaded only at print time via @media print.
+   The browser's print renderer handles all CSS natively (including oklch,
+   color-mix, custom properties) so no JS colour conversion is needed. */
 
-/* Hide UI elements that shouldn't be in the PDF */
-.no-print,
-[data-pdf-ignore="true"],
-button:not([data-pdf-keep="true"]),
-input:not([data-pdf-keep="true"]),
-.search-bar,
-.nav-menu {
-  display: none !important;
-}
-
-/* Ensure colors are rendered correctly */
 @media print {
-  * {
+  /* ── Force light colour scheme regardless of OS/app theme ─────────────── */
+  html, body, * {
+    color-scheme: light !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  html, body {
+    background: #ffffff !important;
+    color: #1e293b !important;
+  }
+
+  /* ── Hide structural chrome ────────────────────────────────────────────── */
+  header,
+  footer,
+  .fixed,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* ── Show the PDF-only report header (hidden in screen mode) ───────────── */
+  [data-pdf-chunk="pdf-header"] {
+    display: flex !important;
+    margin-bottom: 2rem;
+  }
+
+  /* ── Report container layout ───────────────────────────────────────────── */
+  #report-container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* ── Page break control ────────────────────────────────────────────────── */
+  [data-pdf-chunk] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  [data-pdf-break="before"] {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* ── Agent cards ───────────────────────────────────────────────────────── */
+  [data-pdf-chunk="card"] {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-pdf-chunk="card"] > div:first-child {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  /* ── Markdown tables ───────────────────────────────────────────────────── */
+  .markdown-body table {
+    border: 1px solid #e2e8f0 !important;
+    background-color: #ffffff !important;
+  }
+
+  .markdown-body th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    font-weight: 800 !important;
+  }
+
+  .markdown-body td {
+    color: #334155 !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  .markdown-body tr:nth-child(even) {
+    background-color: #f8fafc !important;
+  }
+
+  /* ── Markdown prose ────────────────────────────────────────────────────── */
+  .markdown-body p,
+  .markdown-body li,
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body strong {
+    color: #1e293b !important;
+  }
+
+  .markdown-body a {
+    color: #0891b2 !important;
+  }
+
+  /* ── Sources section ───────────────────────────────────────────────────── */
+  .pdf-sources {
+    border-top: 1px solid #e2e8f0 !important;
+  }
+
+  .pdf-source-link {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0369a1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  /* ── Alert boxes ───────────────────────────────────────────────────────── */
+  .pdf-alert {
+    background-color: #fef2f2 !important;
+    border: 1px solid #fee2e2 !important;
+    color: #991b1b !important;
+  }
+
+  /* ── Utilities ─────────────────────────────────────────────────────────── */
+  [data-pdf-chunk="card"] .opacity-60,
+  [data-pdf-chunk="card"] .opacity-80,
+  [data-pdf-chunk="card"] .grayscale {
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  .pdf-icon-box svg {
+    display: block !important;
+    opacity: 1 !important;
+  }
 }
-
-/* Fix for potential overflow issues in PDF chunks */
-[data-pdf-chunk] {
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-
-/* High Contrast Card Overrides for PDF */
-[data-pdf-chunk="card"] {
-  background-color: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 2rem; /* Dynamic via component classes */
-  box-shadow: none !important;
-}
-
-.dark [data-pdf-chunk="card"] {
-  background-color: #0f172a !important;
-  border: 1px solid #1e293b !important;
-}
-
-/* Card Header Fixes */
-[data-pdf-chunk="card"] > div:first-child {
-  background-color: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-}
-
-.dark [data-pdf-chunk="card"] > div:first-child {
-  background-color: #0f172a !important;
-  border-bottom: 1px solid #1e293b !important;
-}
-
-/* High Contrast Table Overrides for PDF (uses standard HEX to avoid oklch conversion issues) */
-.markdown-body table {
-  border: 1px solid #e2e8f0 !important;
-  background-color: #ffffff !important;
-}
-
-.markdown-body th {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
-  font-weight: 800 !important;
-}
-
-.markdown-body td {
-  color: #334155 !important;
-  border: 1px solid #e2e8f0 !important;
-}
-
-.markdown-body tr:nth-child(even) {
-  background-color: #f8fafc !important;
-}
-
-/* General Text Overrides for PDF */
-.markdown-body p, 
-.markdown-body li, 
-.markdown-body h1, 
-.markdown-body h2, 
-.markdown-body h3, 
-.markdown-body strong {
-  color: #1e293b !important;
-}
-
-.markdown-body a {
-  color: #0891b2 !important;
-}
-
-/* Dark Mode Overrides for PDF */
-.dark .markdown-body table {
-  border: 1px solid #1e293b !important;
-  background-color: #0a1114 !important;
-}
-
-.dark .markdown-body th {
-  background-color: #1e293b !important;
-  color: #f1f5f9 !important;
-  border: 1px solid #334155 !important;
-}
-
-.dark .markdown-body td {
-  color: #cbd5e1 !important;
-  border: 1px solid #334155 !important;
-}
-
-.dark .markdown-body tr:nth-child(even) {
-  background-color: #0f172a !important;
-}
-
-/* Force text visibility in dark mode PDF */
-.dark .markdown-body p, 
-.dark .markdown-body li, 
-.dark .markdown-body h1, 
-.dark .markdown-body h2, 
-.dark .markdown-body h3, 
-.dark .markdown-body strong {
-  color: #f8fafc !important;
-}
-
-.dark .markdown-body a {
-  color: #22d3ee !important;
-}
-
-/* Alert/Warning Box Overrides (High Contrast for PDF) */
-.pdf-alert {
-  background-color: #fef2f2 !important; /* Light Red */
-  border: 1px solid #fee2e2 !important;
-  color: #991b1b !important; /* Dark Red */
-}
-
-.dark .pdf-alert {
-  background-color: #450a0a !important; /* Very Dark Red */
-  border: 1px solid #7f1d1d !important;
-  color: #fecaca !important; /* Light Red */
-}
-
-/* Ensure text inside alerts is visible */
-.pdf-alert p, 
-.pdf-alert strong,
-.pdf-alert div {
-  color: inherit !important;
-}
-
-/* Handle disabled/faded states in PDF */
-[data-pdf-chunk="card"] .opacity-60,
-[data-pdf-chunk="card"] .opacity-80,
-[data-pdf-chunk="card"] .grayscale,
-.pdf-alert * {
-  opacity: 1 !important;
-  filter: none !important;
-}
-
-/* Card Icon Box Overrides - ensure SVG icons are visible */
-.pdf-icon-box {
-  position: relative !important;
-  overflow: visible !important;
-}
-
-.pdf-icon-box svg {
-  position: relative !important;
-  z-index: 10 !important;
-  display: block !important;
-  opacity: 1 !important;
-  color: inherit !important;
-}
-
-.pdf-icon-box::before,
-.pdf-icon-box::after {
-  display: none !important;
-}
-
-/* Sources Section Overrides */
-.pdf-sources {
-  border-top: 1px solid #e2e8f0 !important;
-}
-
-.dark .pdf-sources {
-  border-top: 1px solid #334155 !important;
-}
-
-.pdf-source-link {
-  background-color: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #0369a1 !important; /* sky-700 */
-  white-space: nowrap !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  overflow: visible !important;
-}
-
-.dark .pdf-source-link {
-  background-color: #0f172a !important;
-  border: 1px solid #1e293b !important;
-  color: #38bdf8 !important; /* sky-400 */
-}
-
-/* Mascot Fix for PDF */
-[data-pdf-chunk="pdf-header"] img {
-  filter: none !important;
-}
-
-/* ─── Explicit hex overrides for Tailwind colour classes ───────────────────
-   html2canvas cannot resolve oklch() at capture time; these hard-code the
-   most common coloured elements in AgentCard so they never "colour out".    */
-
-/* Accent bars at the bottom of each card */
-.bg-cyan-600   { background-color: #0891b2 !important; }
-.bg-emerald-600{ background-color: #059669 !important; }
-.bg-amber-600  { background-color: #d97706 !important; }
-.bg-violet-600 { background-color: #7c3aed !important; }
-
-/* Tropical gradient accent bars */
-.from-teal-400  { --tw-gradient-from: #2dd4bf !important; }
-.to-cyan-400    { --tw-gradient-to:   #22d3ee !important; }
-.from-orange-400{ --tw-gradient-from: #fb923c !important; }
-.to-amber-400   { --tw-gradient-to:   #fbbf24 !important; }
-.from-yellow-400{ --tw-gradient-from: #facc15 !important; }
-.to-orange-400  { --tw-gradient-to:   #fb923c !important; }
-.from-pink-400  { --tw-gradient-from: #f472b6 !important; }
-.to-rose-400    { --tw-gradient-to:   #fb7185 !important; }
-
-/* Icon box tinted backgrounds (light mode) */
-.bg-cyan-50    { background-color: #ecfeff !important; }
-.bg-emerald-50 { background-color: #ecfdf5 !important; }
-.bg-amber-50   { background-color: #fffbeb !important; }
-.bg-violet-50  { background-color: #f5f3ff !important; }
-.bg-teal-50    { background-color: #f0fdfa !important; }
-.bg-orange-50  { background-color: #fff7ed !important; }
-.bg-yellow-50  { background-color: #fefce8 !important; }
-.bg-pink-50    { background-color: #fdf2f8 !important; }
-.bg-red-50     { background-color: #fef2f2 !important; }
-.bg-blue-50    { background-color: #eff6ff !important; }
-.bg-white      { background-color: #ffffff !important; }
-
-/* Tropical mode with opacity */
-.bg-teal-50\/50    { background-color: rgba(240, 253, 250, 0.5) !important; }
-.bg-orange-50\/50  { background-color: rgba(255, 247, 237, 0.5) !important; }
-.bg-yellow-50\/50  { background-color: rgba(254, 252, 232, 0.5) !important; }
-.bg-pink-50\/50    { background-color: rgba(253, 242, 248, 0.5) !important; }
-
-/* Icon box tinted backgrounds (dark mode) */
-.dark .bg-cyan-900\/20    { background-color: rgba(22, 78, 99,  0.2) !important; }
-.dark .bg-emerald-900\/20 { background-color: rgba(6,  78, 59,  0.2) !important; }
-.dark .bg-amber-900\/20   { background-color: rgba(120,53, 15,  0.2) !important; }
-.dark .bg-violet-900\/20  { background-color: rgba(76, 29, 149, 0.2) !important; }
-.dark .bg-teal-900\/30    { background-color: rgba(19, 78, 74, 0.3) !important; }
-.dark .bg-orange-900\/30  { background-color: rgba(124, 45, 18, 0.3) !important; }
-.dark .bg-yellow-900\/30  { background-color: rgba(113, 63, 18, 0.3) !important; }
-.dark .bg-pink-900\/30    { background-color: rgba(131, 24, 67, 0.3) !important; }
-.dark .bg-slate-900       { background-color: #0f172a !important; }
-.dark .bg-blue-900\/40    { background-color: rgba(30, 58, 138, 0.4) !important; }
-.dark .bg-yellow-900\/40  { background-color: rgba(113, 63, 18, 0.4) !important; }
-
-/* Icon box text colours */
-.text-cyan-600    { color: #0891b2 !important; }
-.text-emerald-600 { color: #059669 !important; }
-.text-amber-600   { color: #d97706 !important; }
-.text-violet-600  { color: #7c3aed !important; }
-.text-teal-700    { color: #0f766e !important; }
-.text-orange-700  { color: #c2410c !important; }
-.text-yellow-700  { color: #a16207 !important; }
-.text-pink-700    { color: #be185d !important; }
-.dark .text-cyan-400    { color: #22d3ee !important; }
-.dark .text-emerald-400 { color: #34d399 !important; }
-.dark .text-amber-400   { color: #fbbf24 !important; }
-.dark .text-violet-400  { color: #a78bfa !important; }
-.dark .text-teal-300    { color: #5eead4 !important; }
-.dark .text-orange-300  { color: #fdba74 !important; }
-.dark .text-yellow-300  { color: #fde047 !important; }
-.dark .text-pink-300    { color: #f9a8d4 !important; }
-
-/* Colorblind mode icon colors */
-.text-blue-950    { color: #172554 !important; }
-.text-slate-900   { color: #0f172a !important; }
-.text-yellow-950  { color: #422006 !important; }
-.dark .text-blue-100     { color: #dbeafe !important; }
-.dark .text-white        { color: #ffffff !important; }
-.dark .text-yellow-100   { color: #fef9c3 !important; }
-
-/* Dividend stats amber section */
-.bg-amber-50\/50   { background-color: rgba(255, 251, 235, 0.5) !important; }
-.dark .bg-amber-900\/20 { background-color: rgba(120, 53, 15, 0.2) !important; }
-.text-amber-700    { color: #b45309 !important; }
-.dark .text-amber-400   { color: #fbbf24 !important; }
-.border-amber-100  { border-color: #fde68a !important; }
-.dark .border-amber-900\/40 { border-color: rgba(120,53,15,0.4) !important; }
-.divide-amber-100  { border-color: #fde68a !important; }
-.dark .divide-amber-900\/30 { border-color: rgba(120,53,15,0.3) !important; }
-.text-amber-700    { color: #b45309 !important; }
-.dark .text-amber-300   { color: #fcd34d !important; }
-
-/* High-risk payout ratio highlight */
-.bg-red-50\/50 { background-color: rgba(254,242,242,0.5) !important; }
-.dark .bg-red-900\/10 { background-color: rgba(127,29,29,0.1) !important; }
-.text-red-600  { color: #dc2626 !important; }
-.dark .text-red-400 { color: #f87171 !important; }

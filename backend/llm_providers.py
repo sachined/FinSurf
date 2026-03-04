@@ -50,22 +50,30 @@ def call_gemini(
     ))
 
     try:
-        return res["candidates"][0]["content"]["parts"][0]["text"]
+        parts = res["candidates"][0]["content"]["parts"]
+        return "".join(part.get("text", "") for part in parts)
     except (KeyError, IndexError):
         raise Exception(f"No candidates in Gemini response: {json.dumps(res)}")
 
-def call_openai(
+def call_groq(
     prompt: str,
     system_instruction: Optional[str] = None,
-    model: str = "gpt-4o-mini",
-    max_tokens: int = 1024,
+    model: str = None,
+    max_tokens: int = 2048,
     agent: str = "unknown",
 ) -> str:
-    """Makes a call to the OpenAI Chat Completion API."""
-    if not is_provider_allowed("openai"):
-        raise Exception("OpenAI provider disabled by policy")
-    key = validate_key("OpenAI", os.environ.get("OPENAI_API_KEY"))
-    url = "https://api.openai.com/v1/chat/completions"
+    """Makes a call to the Groq cloud API (OpenAI-compatible).
+
+    Reads GROQ_API_KEY from the environment. Reads GROQ_MODEL (default:
+    llama-3.3-70b-versatile) so the model can be swapped without code changes.
+    Raises on failure so callers can fall back to Gemini.
+    """
+    if not is_provider_allowed("groq"):
+        raise Exception("Groq provider disabled by policy")
+    key = validate_key("Groq", os.environ.get("GROQ_API_KEY"))
+    if model is None:
+        model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    url = "https://api.groq.com/openai/v1/chat/completions"
 
     messages = []
     if system_instruction:
@@ -76,12 +84,12 @@ def call_openai(
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
 
     t0 = time.time()
-    res = http_post(url, data, headers)
+    res = http_post(url, data, headers, timeout=60, max_retries=2)
     latency_ms = (time.time() - t0) * 1000
 
     usage = res.get("usage", {})
     record_usage(TokenUsage(
-        provider="openai",
+        provider="groq",
         agent=agent,
         model=model,
         input_tokens=usage.get("prompt_tokens", 0),
@@ -91,49 +99,50 @@ def call_openai(
 
     return res["choices"][0]["message"]["content"]
 
-def call_anthropic(
+
+def call_ollama(
     prompt: str,
     system_instruction: Optional[str] = None,
-    model: str = "claude-3-haiku-20240307",
-    max_tokens: int = 1024,
+    model: str = None,
+    max_tokens: int = 2048,
     agent: str = "unknown",
 ) -> str:
-    """Makes a call to the Anthropic Messages API."""
-    if not is_provider_allowed("anthropic"):
-        raise Exception("Anthropic provider disabled by policy")
-    key = validate_key("Anthropic", os.environ.get("ANTHROPIC_API_KEY"))
-    url = "https://api.anthropic.com/v1/messages"
+    """Makes a call to a local Ollama instance via its OpenAI-compatible API.
 
-    data = {
-        "model": model,
-        "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1
-    }
+    Reads OLLAMA_BASE_URL (default: http://localhost:11434) and OLLAMA_MODEL
+    (default: qwen2.5:7b) from the environment so both can be overridden per
+    deployment without code changes.
+    Raises on connection failure so callers can fall back to Gemini.
+    """
+    base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+    if model is None:
+        model = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+    url = f"{base_url}/v1/chat/completions"
+
+    messages = []
     if system_instruction:
-        data["system"] = system_instruction
+        messages.append({"role": "system", "content": system_instruction})
+    messages.append({"role": "user", "content": prompt})
 
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01"
-    }
+    data = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1}
+    headers = {"Content-Type": "application/json"}
 
     t0 = time.time()
-    res = http_post(url, data, headers)
+    res = http_post(url, data, headers, timeout=120, max_retries=1)
     latency_ms = (time.time() - t0) * 1000
 
     usage = res.get("usage", {})
     record_usage(TokenUsage(
-        provider="anthropic",
+        provider="ollama",
         agent=agent,
         model=model,
-        input_tokens=usage.get("input_tokens", 0),
-        output_tokens=usage.get("output_tokens", 0),
+        input_tokens=usage.get("prompt_tokens", 0),
+        output_tokens=usage.get("completion_tokens", 0),
         latency_ms=latency_ms,
     ))
 
-    return res["content"][0]["text"]
+    return res["choices"][0]["message"]["content"]
+
 
 def call_perplexity(
     prompt: str,

@@ -1,4 +1,4 @@
-﻿# FinSurf 🏄‍♂️
+﻿# FinSurf 🏄‍♂️ https://finsurf.net/
 ![FinSurf_run](https://github.com/user-attachments/assets/ea6af548-1cb0-4cfa-9bf9-170c31d59558)
 *AI-Powered Stock Analysis Platform*
 

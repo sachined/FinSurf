@@ -19,6 +19,32 @@ MOCK_RESEARCH_DATA = {
     "pe_forward": "24.10x",
     "revenue_growth_yoy": "8.3%",
     "institutional_ownership": "62.1%",
+    "current_price": "$182.50",
+    "week_52_high": "$199.62",
+    "week_52_low": "$143.90",
+    "market_cap": "$2.81T",
+    "beta": "1.24x",
+    "analyst_target_mean": "$210.00",
+    "analyst_target_high": "$240.00",
+    "analyst_target_low": "$180.00",
+    "analyst_count": "38",
+    "recommendation": "Buy",
+    "earnings_growth": "11.2%",
+    "price_history": [
+        {"date": "2024-03-01", "close": 170.12},
+        {"date": "2024-06-01", "close": 180.45},
+        {"date": "2024-09-01", "close": 175.30},
+        {"date": "2025-03-01", "close": 182.50},
+    ],
+}
+
+MOCK_SENTIMENT_DATA = {
+    "news": [
+        {"title": "AAPL hits record high", "publisher": "Reuters", "link": "https://reuters.com/1"},
+        {"title": "Apple Vision Pro sales disappoint", "publisher": "Bloomberg", "link": "https://bloomberg.com/1"},
+        {"title": "Warren Buffett trims Apple stake", "publisher": "CNBC", "link": "https://cnbc.com/1"},
+    ],
+    "recommendations": {"strongBuy": 12, "buy": 18, "hold": 8, "sell": 2, "strongSell": 0},
 }
 
 MOCK_DIVIDEND_DATA = {
@@ -160,42 +186,45 @@ class TestBlockedResponseFormat(unittest.TestCase):
 
 
 class TestResearchAgent(unittest.TestCase):
-    def test_returns_json_with_content_and_citations_on_success(self):
+    def test_returns_json_with_content_citations_and_price_history(self):
+        """research_agent must return {content, citations, price_history} envelope
+        with yfinance price_history forwarded when data is available."""
         from backend.financial_agents import research_agent
-        mock_response = json.dumps({"content": "Stock looks great.", "citations": ["https://example.com"]})
         with patch(f"{PROVIDERS_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
-            with patch(f"{PROVIDERS_MODULE}.call_perplexity", return_value=mock_response):
+            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Stock looks great."):
                 result = research_agent("AAPL", skip_guardrail=True)
                 data = json.loads(result)
                 self.assertEqual(data["content"], "Stock looks great.")
-                self.assertEqual(data["citations"], ["https://example.com"])
+                self.assertEqual(data["citations"], [])
+                self.assertEqual(data["price_history"], MOCK_RESEARCH_DATA["price_history"])
 
-    def test_falls_back_to_gemini_when_perplexity_fails(self):
+    def test_price_history_empty_when_yfinance_unavailable(self):
+        """When fetch_research_data returns None, price_history must be an
+        empty list so the frontend chart renders nothing gracefully."""
         from backend.financial_agents import research_agent
-        with patch(f"{PROVIDERS_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
-            with patch(f"{PROVIDERS_MODULE}.call_perplexity", side_effect=Exception("unavailable")):
-                with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Gemini content"):
-                    result = research_agent("AAPL", skip_guardrail=True)
-                    data = json.loads(result)
-                    self.assertEqual(data["content"], "Gemini content")
-                    self.assertEqual(data["citations"], [])
-
-    def test_uses_full_prompt_when_yfinance_unavailable(self):
-        """When fetch_research_data returns None the agent falls back to the
-        original full-lookup prompt and still returns a valid JSON envelope."""
-        from backend.financial_agents import research_agent
-        mock_response = json.dumps({"content": "Fallback content.", "citations": []})
         with patch(f"{PROVIDERS_MODULE}.fetch_research_data", return_value=None):
-            with patch(f"{PROVIDERS_MODULE}.call_perplexity", return_value=mock_response):
+            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Fallback content."):
                 result = research_agent("AAPL", skip_guardrail=True)
                 data = json.loads(result)
                 self.assertEqual(data["content"], "Fallback content.")
+                self.assertEqual(data["price_history"], [])
+
+    def test_uses_gemini_not_perplexity_for_research(self):
+        """research_agent now uses Gemini directly — Perplexity must never be
+        called for research regardless of yfinance availability."""
+        from backend.financial_agents import research_agent
+        with patch(f"{PROVIDERS_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
+            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Gemini content.") as mock_gemini:
+                with patch(f"{PROVIDERS_MODULE}.call_perplexity") as mock_perplexity:
+                    research_agent("AAPL", skip_guardrail=True)
+                    mock_gemini.assert_called_once()
+                    mock_perplexity.assert_not_called()
 
 
 class TestTaxAgent(unittest.TestCase):
     def test_returns_json_envelope_on_success(self):
         from backend.financial_agents import tax_agent
-        with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Tax explanation here."):
+        with patch(f"{PROVIDERS_MODULE}.call_groq", return_value="Tax explanation here."):
             result = tax_agent("AAPL", "2022-01-01", "2023-06-01", skip_guardrail=True)
             data = json.loads(result)
             self.assertIn("content", data)
@@ -203,32 +232,86 @@ class TestTaxAgent(unittest.TestCase):
             self.assertEqual(data["content"], "Tax explanation here.")
             self.assertEqual(data["citations"], [])
 
-    def test_falls_back_to_anthropic_when_gemini_fails(self):
+    def test_returns_graceful_error_when_all_providers_fail(self):
         from backend.financial_agents import tax_agent
-        with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini down")):
-            with patch(f"{PROVIDERS_MODULE}.call_anthropic", return_value="Anthropic tax explanation."):
+        with patch(f"{PROVIDERS_MODULE}.call_groq", side_effect=Exception("Groq down")):
+            with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini down")):
                 result = tax_agent("AAPL", "2022-01-01", "2023-06-01", skip_guardrail=True)
                 data = json.loads(result)
-                self.assertEqual(data["content"], "Anthropic tax explanation.")
+                self.assertIn("content", data)
+                self.assertIn("citations", data)
+                self.assertIn("unavailable", data["content"].lower())
 
 
 class TestSentimentAgent(unittest.TestCase):
-    def test_returns_json_with_citations_on_success(self):
+    def test_uses_gemini_directly_when_yfinance_data_is_sufficient(self):
+        """When yfinance returns >=3 headlines AND analyst recs, the agent must
+        use Gemini directly and skip the Perplexity call entirely."""
         from backend.financial_agents import social_sentiment_agent
-        mock_response = json.dumps({"content": "Bullish sentiment.", "citations": ["https://reddit.com"]})
-        with patch(f"{PROVIDERS_MODULE}.call_perplexity", return_value=mock_response):
-            result = social_sentiment_agent("TSLA", skip_guardrail=True)
-            data = json.loads(result)
-            self.assertEqual(data["content"], "Bullish sentiment.")
+        with patch(f"{PROVIDERS_MODULE}.fetch_sentiment_data", return_value=MOCK_SENTIMENT_DATA):
+            with patch(f"{PROVIDERS_MODULE}.fetch_stocktwits_sentiment", return_value=None):
+                with patch(f"{PROVIDERS_MODULE}.fetch_reddit_sentiment", return_value=None):
+                    with patch(f"{PROVIDERS_MODULE}.fetch_twitter_sentiment", return_value=None):
+                        with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Bullish.") as mock_gemini:
+                            with patch(f"{PROVIDERS_MODULE}.call_perplexity") as mock_perplexity:
+                                result = social_sentiment_agent("AAPL", skip_guardrail=True)
+                                data = json.loads(result)
+                                self.assertEqual(data["content"], "Bullish.")
+                                mock_gemini.assert_called_once()
+                                mock_perplexity.assert_not_called()
 
-    def test_falls_back_to_gemini_on_perplexity_failure(self):
+    def test_calls_perplexity_when_news_is_thin(self):
+        """When yfinance returns fewer than 3 headlines, Perplexity must be
+        called to supplement with live web search data."""
         from backend.financial_agents import social_sentiment_agent
-        with patch(f"{PROVIDERS_MODULE}.call_perplexity", side_effect=Exception("down")):
-            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Gemini sentiment"):
-                result = social_sentiment_agent("TSLA", skip_guardrail=True)
-                data = json.loads(result)
-                self.assertEqual(data["content"], "Gemini sentiment")
-                self.assertEqual(data["citations"], [])
+        thin_data = {"news": [{"title": "One headline", "publisher": "X", "link": ""}], "recommendations": {"buy": 5}}
+        perplexity_response = json.dumps({"content": "Perplexity sentiment.", "citations": ["https://reddit.com"]})
+        with patch(f"{PROVIDERS_MODULE}.fetch_sentiment_data", return_value=thin_data):
+            with patch(f"{PROVIDERS_MODULE}.fetch_stocktwits_sentiment", return_value=None):
+                with patch(f"{PROVIDERS_MODULE}.fetch_reddit_sentiment", return_value=None):
+                    with patch(f"{PROVIDERS_MODULE}.fetch_twitter_sentiment", return_value=None):
+                        with patch(f"{PROVIDERS_MODULE}.call_perplexity", return_value=perplexity_response) as mock_perplexity:
+                            result = social_sentiment_agent("TSLA", skip_guardrail=True)
+                            data = json.loads(result)
+                            self.assertEqual(data["content"], "Perplexity sentiment.")
+                            mock_perplexity.assert_called_once()
+
+    def test_calls_perplexity_when_no_analyst_recs(self):
+        """When yfinance has enough headlines but no analyst recommendations,
+        Perplexity must still be called to fill the gap."""
+        from backend.financial_agents import social_sentiment_agent
+        no_recs_data = {
+            "news": [
+                {"title": "H1", "publisher": "A", "link": ""},
+                {"title": "H2", "publisher": "B", "link": ""},
+                {"title": "H3", "publisher": "C", "link": ""},
+            ],
+            "recommendations": {},
+        }
+        perplexity_response = json.dumps({"content": "Perplexity fill.", "citations": []})
+        with patch(f"{PROVIDERS_MODULE}.fetch_sentiment_data", return_value=no_recs_data):
+            with patch(f"{PROVIDERS_MODULE}.fetch_stocktwits_sentiment", return_value=None):
+                with patch(f"{PROVIDERS_MODULE}.fetch_reddit_sentiment", return_value=None):
+                    with patch(f"{PROVIDERS_MODULE}.fetch_twitter_sentiment", return_value=None):
+                        with patch(f"{PROVIDERS_MODULE}.call_perplexity", return_value=perplexity_response) as mock_perplexity:
+                            result = social_sentiment_agent("TSLA", skip_guardrail=True)
+                            mock_perplexity.assert_called_once()
+
+    def test_falls_back_to_gemini_when_perplexity_fails(self):
+        """When data is thin and Perplexity raises, Gemini must be used as the
+        final fallback and the result must still be a valid JSON envelope."""
+        from backend.financial_agents import social_sentiment_agent
+        thin_data = {"news": [], "recommendations": {}}
+        with patch(f"{PROVIDERS_MODULE}.fetch_sentiment_data", return_value=thin_data):
+            with patch(f"{PROVIDERS_MODULE}.fetch_stocktwits_sentiment", return_value=None):
+                with patch(f"{PROVIDERS_MODULE}.fetch_reddit_sentiment", return_value=None):
+                    with patch(f"{PROVIDERS_MODULE}.fetch_twitter_sentiment", return_value=None):
+                        with patch(f"{PROVIDERS_MODULE}.call_perplexity", side_effect=Exception("down")):
+                            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value="Gemini fallback."):
+                                result = social_sentiment_agent("TSLA", skip_guardrail=True)
+                                data = json.loads(result)
+                                self.assertEqual(data["content"], "Gemini fallback.")
+                                self.assertEqual(data["citations"], [])
 
 
 class TestDividendAgent(unittest.TestCase):
@@ -241,7 +324,7 @@ class TestDividendAgent(unittest.TestCase):
             "stats": {"currentYield": "3.5%"}
         })
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=MOCK_DIVIDEND_DATA):
-            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value=mock_json):
+            with patch(f"{PROVIDERS_MODULE}.call_groq", return_value=mock_json):
                 result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)
                 self.assertTrue(result["isDividendStock"])
                 self.assertIn("analysis", result)
@@ -250,13 +333,13 @@ class TestDividendAgent(unittest.TestCase):
                 self.assertEqual(result["stats"]["paymentFrequency"], MOCK_DIVIDEND_DATA["payment_frequency"])
 
     def test_returns_yfinance_fallback_when_all_providers_fail(self):
-        """When both Gemini and OpenAI fail but yfinance data is available,
-        the agent must return a valid factual response from yfinance rather
-        than an error dict — so the user always sees real numbers."""
+        """When Groq AND Gemini both fail but yfinance data is available, the
+        agent must return a valid factual response from yfinance rather than an
+        error dict — so the user always sees real numbers."""
         from backend.financial_agents import dividend_agent
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=MOCK_DIVIDEND_DATA):
-            with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
-                with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+            with patch(f"{PROVIDERS_MODULE}.call_groq", side_effect=Exception("Groq error")):
+                with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
                     result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)
                     # isDividendStock must reflect the real yfinance value, not a hardcoded False
                     self.assertEqual(result["isDividendStock"], MOCK_DIVIDEND_DATA["is_dividend_stock"])
@@ -268,12 +351,12 @@ class TestDividendAgent(unittest.TestCase):
                     self.assertEqual(result["stats"]["currentYield"], MOCK_DIVIDEND_DATA["current_yield"])
 
     def test_returns_error_dict_when_all_providers_and_yfinance_fail(self):
-        """When both LLM providers AND yfinance all fail, the error dict is the
+        """When Groq, Gemini AND yfinance all fail, the error dict is the
         correct last-resort response."""
         from backend.financial_agents import dividend_agent
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=None):
-            with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
-                with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
+            with patch(f"{PROVIDERS_MODULE}.call_groq", side_effect=Exception("Groq error")):
+                with patch(f"{PROVIDERS_MODULE}.call_gemini", side_effect=Exception("Gemini error")):
                     result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)
                     self.assertFalse(result["isDividendStock"])
                     self.assertIn("Unavailable", result["analysis"])
@@ -288,10 +371,28 @@ class TestDividendAgent(unittest.TestCase):
             "analysis": "No dividend data available."
         })
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=None):
-            with patch(f"{PROVIDERS_MODULE}.call_gemini", return_value=mock_json):
+            with patch(f"{PROVIDERS_MODULE}.call_groq", return_value=mock_json):
                 result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True)
                 self.assertIn("isDividendStock", result)
                 self.assertIn("analysis", result)
+
+    def test_prefetched_data_bypasses_fetch_dividend_data(self):
+        """When prefetched_data is provided, fetch_dividend_data must never be
+        called — the pre-fetched dict from research_node is used directly."""
+        from backend.financial_agents import dividend_agent
+        mock_json = json.dumps({
+            "isDividendStock": True,
+            "hasDividendHistory": True,
+            "analysis": "Solid dividend payer.",
+            "stats": {"currentYield": "3.5%"}
+        })
+        with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data") as mock_fetch:
+            with patch(f"{PROVIDERS_MODULE}.call_groq", return_value=mock_json):
+                result = dividend_agent("MSFT", 50.0, 3, skip_guardrail=True,
+                                        prefetched_data=MOCK_DIVIDEND_DATA)
+                mock_fetch.assert_not_called()
+                self.assertTrue(result["isDividendStock"])
+                self.assertEqual(result["stats"]["currentYield"], MOCK_DIVIDEND_DATA["current_yield"])
 
 
 class TestPerplexityGeminiFallback(unittest.TestCase):

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { researchAgent, taxAgent, dividendAgent, sentimentAgent } from '../services/apiService';
-import { AgentKey, AgentResponse, DividendResponse, FinancialAgentsState, LoadingState } from '../types';
+import { AgentKey, AgentResponse, DividendResponse, FinancialAgentsState, LoadingState, UserApiKeys } from '../types';
 
 export function useFinancialAgents() {
   const [loading, setLoading] = useState<LoadingState>({
@@ -40,17 +40,17 @@ export function useFinancialAgents() {
     }
   }
 
-  const runResearch = (ticker: string, onError: (msg: string) => void) => {
+  const runResearch = (ticker: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     if (!ticker) return Promise.resolve();
-    return withLoading('research', () => researchAgent(ticker), onError, 'Research failed. Please check the ticker or try again.');
+    return withLoading('research', () => researchAgent(ticker, userKeys), onError, 'Research failed. Please check the ticker or try again.');
   };
 
-  const runTax = (ticker: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
+  const runTax = (ticker: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     if (!ticker || !purchaseDate || !sellDate) return Promise.resolve();
-    return withLoading('tax', () => taxAgent(ticker, purchaseDate, sellDate), onError, 'Tax analysis failed.');
+    return withLoading('tax', () => taxAgent(ticker, purchaseDate, sellDate, userKeys), onError, 'Tax analysis failed.');
   };
 
-  const runDividend = (ticker: string, shares: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void) => {
+  const runDividend = (ticker: string, shares: string, purchaseDate: string, sellDate: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     if (!ticker || !shares) return Promise.resolve();
     // Guard against invalid / missing dates before calling parseISO
     let years = 3;
@@ -63,18 +63,18 @@ export function useFinancialAgents() {
     }
     return withLoading<DividendResponse>(
       'dividend',
-      () => dividendAgent(ticker, parseFloat(shares), years),
+      () => dividendAgent(ticker, parseFloat(shares), years, userKeys),
       onError,
       'Dividend analysis failed.'
     );
   };
 
-  const runSentiment = (ticker: string, onError: (msg: string) => void) => {
+  const runSentiment = (ticker: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     if (!ticker) return Promise.resolve();
-    return withLoading('sentiment', () => sentimentAgent(ticker), onError, 'Sentiment analysis failed.');
+    return withLoading('sentiment', () => sentimentAgent(ticker, userKeys), onError, 'Sentiment analysis failed.');
   };
 
-  const runAll = async (ticker: string, purchaseDate: string, sellDate: string, shares: string, onError: (msg: string) => void) => {
+  const runAll = async (ticker: string, purchaseDate: string, sellDate: string, shares: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     // Reset responses for new search
     setResponses({ research: null, tax: null, dividend: null, sentiment: null });
 
@@ -82,10 +82,10 @@ export function useFinancialAgents() {
     const collectError = (msg: string) => errors.push(msg);
 
     await Promise.allSettled([
-      runResearch(ticker, collectError),
-      runTax(ticker, purchaseDate, sellDate, collectError),
-      runDividend(ticker, shares, purchaseDate, sellDate, collectError),
-      runSentiment(ticker, collectError)
+      runResearch(ticker, collectError, userKeys),
+      runTax(ticker, purchaseDate, sellDate, collectError, userKeys),
+      runDividend(ticker, shares, purchaseDate, sellDate, collectError, userKeys),
+      runSentiment(ticker, collectError, userKeys)
     ]);
 
     if (errors.length > 2) {

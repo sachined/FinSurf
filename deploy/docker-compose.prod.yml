@@ -1,0 +1,111 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.prod.yml — Internet-facing deployment with automatic HTTPS
+#
+# Prerequisites:
+#   1. DOMAIN set in ../.env.nonsecret (e.g. DOMAIN=finsurf.net)
+#   2. DNS A record for that domain pointing to this server's public IP.
+#   3. Ports 80 and 443 open in your firewall / security group.
+#   4. secrets/*.txt files present on the server (populated via CI/CD or manually).
+#
+# First deploy (from the deploy/ directory):
+#   export APP_SECRET=$(cat ../secrets/app_secret.txt)
+#   docker compose -f docker-compose.prod.yml build --build-arg VITE_APP_SECRET=$APP_SECRET
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Subsequent deploys: re-run the three commands above, or use the GitHub Actions
+# workflow which handles this automatically on every push to main.
+#
+# Caddy automatically renews the TLS certificate before expiry — no cron needed.
+# NOTE: Docker Swarm mode is NOT required. File-based secrets work with plain
+#       docker compose — no 'docker swarm init' or 'docker secret create' needed.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  finsurf:
+    # image: is set by the CI workflow via FINSURF_IMAGE env var so that the
+    # pre-built image from Docker Hub is used directly (--no-build).
+    # Falls back to "finsurf-local" for manual local builds.
+    image: ${FINSURF_IMAGE:-finsurf-local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VITE_APP_SECRET: ${APP_SECRET:-}
+    # Do NOT expose port 3000 to the host — only Caddy can reach it internally.
+    expose:
+      - "3000"
+    env_file: ../.env.nonsecret
+    environment:
+      NODE_ENV: production
+      TELEMETRY_DB: /app/data/finsurf_telemetry.db
+      # Lock CORS to the production domain so other origins are rejected.
+      CORS_ORIGIN: https://${DOMAIN}
+      # Secrets are mounted as files in /run/secrets/ inside the container
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
+      PERPLEXITY_API_KEY_FILE: /run/secrets/perplexity_api_key
+      GROQ_API_KEY_FILE: /run/secrets/groq_api_key
+      APP_SECRET_FILE: /run/secrets/app_secret
+      # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
+      # No GPU needed. Falls back to Gemini if key is missing or invalid.
+      GROQ_MODEL: llama-3.3-70b-versatile
+      # Ollama — disabled in production (insufficient RAM on 1 GB droplet).
+      OLLAMA_BASE_URL: ""
+    secrets:
+      - gemini_api_key
+      - perplexity_api_key
+      - groq_api_key
+      - app_secret
+    volumes:
+      - finsurf_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # Stores TLS certificates (persists across restarts)
+      - caddy_config:/config
+    depends_on:
+      finsurf:
+        condition: service_healthy
+
+  # ollama:
+  #   Disabled — requires minimum 4 GB RAM. This server has 1 GB.
+  #   When OLLAMA_BASE_URL is empty, agents fall back to Gemini silently.
+  #   To enable on a larger server: uncomment this block and set
+  #   OLLAMA_BASE_URL: http://ollama:11434 in the finsurf environment above.
+  #   image: ollama/ollama
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  #   restart: unless-stopped
+
+volumes:
+  finsurf_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets are read directly from files — no Docker Swarm required.
+# Populate secrets/*.txt on the server before running docker compose up.
+# ─────────────────────────────────────────────────────────────────────────────
+secrets:
+  gemini_api_key:
+    file: ../secrets/gemini_api_key.txt
+  perplexity_api_key:
+    file: ../secrets/perplexity_api_key.txt
+  groq_api_key:
+    file: ../secrets/groq_api_key.txt
+  app_secret:
+    file: ../secrets/app_secret.txt

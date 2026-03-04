@@ -13,7 +13,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
-import { type AgentResponse, type DividendResponse, type AccessMode, type DividendStats } from '../../types';
+import { type AgentResponse, type DividendResponse, type ResearchResponse, type AccessMode, type DividendStats } from '../../types';
+import { PriceChart } from '../charts/PriceChart';
 
 interface AgentCardProps {
   title: string;
@@ -217,6 +218,13 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                 <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
               </div>
               
+              {!!(response as ResearchResponse)?.priceHistory?.length && (
+                <PriceChart
+                  data={(response as ResearchResponse).priceHistory}
+                  accessMode={accessMode}
+                />
+              )}
+
               {response?.sources && response.sources.length > 0 && (
                 <div className="pdf-sources mt-8 pt-6 border-t border-cyan-50 dark:border-cyan-900/30">
                   <h4 className="text-[10px] font-black text-cyan-300 dark:text-cyan-700 uppercase tracking-widest mb-4">Sources</h4>
