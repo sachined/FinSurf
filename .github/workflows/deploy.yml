@@ -85,6 +85,7 @@ jobs:
             # ── Pull latest config files (.env.nonsecret, deploy/, Caddyfile) ─
             cd /opt/finsurf
             git remote set-url origin https://github.com/${{ github.repository }}
+            git checkout -- .
             git pull origin main
 
             # ── Write API keys as plain files — no Docker Swarm required ─────
