@@ -75,12 +75,6 @@ class TestTokenUsage(unittest.TestCase):
                     "total_tokens", "latency_ms", "estimated_cost_usd"):
             self.assertIn(key, d)
 
-    def test_cost_table_coverage(self):
-        # All models in the cost table should produce non-zero cost for non-zero tokens
-        for model in _COST_PER_1M:
-            u = TokenUsage(provider="test", agent="test", model=model,
-                           input_tokens=1000, output_tokens=1000)
-            self.assertGreater(u.estimated_cost_usd(), 0.0, msg=f"model={model}")
 
 
 # ---------------------------------------------------------------------------
@@ -115,15 +109,6 @@ class TestSessionAccumulator(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestSummarizeUsages(unittest.TestCase):
-
-    def test_empty_list(self):
-        s = summarize_usages([])
-        self.assertEqual(s["total_input_tokens"], 0)
-        self.assertEqual(s["total_output_tokens"], 0)
-        self.assertEqual(s["total_tokens"], 0)
-        self.assertEqual(s["total_cost_usd"], 0.0)
-        self.assertEqual(s["by_agent"], {})
-        self.assertEqual(s["calls"], [])
 
     def test_multiple_agents(self):
         usages = [

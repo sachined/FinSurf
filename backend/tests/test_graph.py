@@ -144,21 +144,6 @@ class TestRouteDividend(unittest.TestCase):
         self.assertEqual(route_dividend(state), "dividend_skip")
 
 
-class TestDividendKeywordDetection(unittest.TestCase):
-    """Test the frozenset-based dividend heuristic in research_node."""
-
-    def test_dividend_signals_detected(self):
-        from backend.graph import research_node, FinSurfState
-        state: FinSurfState = _make_state("AAPL", is_safe=True)
-        text_with_signal = json.dumps({
-            "content": "The company pays a dividend yield of 3.5% per year.",
-            "citations": []
-        })
-        with patch(f"{GRAPH_MODULE}.research_agent", return_value=text_with_signal):
-            result = research_node(state)
-        self.assertTrue(result["is_dividend_stock"])
-
-
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------

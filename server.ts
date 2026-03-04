@@ -66,6 +66,9 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
 
 async function startServer() {
   const app = express();
+  // Trust the reverse proxy (Caddy) so express-rate-limit reads the real
+  // client IP from X-Forwarded-For instead of the internal container IP.
+  app.set("trust proxy", 1);
   const PORT = parseInt(process.env.PORT || "3000", 10);
   const isProd = process.env.NODE_ENV === "production";
 
