@@ -59,8 +59,6 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
-          build-args: |
-            VITE_APP_SECRET=${{ secrets.APP_SECRET }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -95,7 +93,6 @@ jobs:
             printf '%s' "${{ secrets.GEMINI_API_KEY }}"     > secrets/gemini_api_key.txt
             printf '%s' "${{ secrets.PERPLEXITY_API_KEY }}" > secrets/perplexity_api_key.txt
             printf '%s' "${{ secrets.GROQ_API_KEY }}"        > secrets/groq_api_key.txt
-            printf '%s' "${{ secrets.APP_SECRET }}"          > secrets/app_secret.txt
             chmod 644 secrets/*.txt
             echo "✅ Secret files written"
 

@@ -28,8 +28,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-      args:
-        VITE_APP_SECRET: ${APP_SECRET:-}
+      args: {}
     # Do NOT expose port 3000 to the host — only Caddy can reach it internally.
     expose:
       - "3000"
@@ -43,7 +42,6 @@ services:
       GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
       PERPLEXITY_API_KEY_FILE: /run/secrets/perplexity_api_key
       GROQ_API_KEY_FILE: /run/secrets/groq_api_key
-      APP_SECRET_FILE: /run/secrets/app_secret
       # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
       # No GPU needed. Falls back to Gemini if key is missing or invalid.
       GROQ_MODEL: llama-3.3-70b-versatile
@@ -53,7 +51,6 @@ services:
       - gemini_api_key
       - perplexity_api_key
       - groq_api_key
-      - app_secret
     volumes:
       - finsurf_data:/app/data
     restart: unless-stopped
@@ -109,5 +106,3 @@ secrets:
     file: ../secrets/perplexity_api_key.txt
   groq_api_key:
     file: ../secrets/groq_api_key.txt
-  app_secret:
-    file: ../secrets/app_secret.txt

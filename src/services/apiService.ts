@@ -1,10 +1,5 @@
 import { AgentResponse, DividendResponse, PnLSummary, ResearchResponse, UserApiKeys } from '../types';
 
-// VITE_APP_SECRET is baked into the bundle at build time (via Docker build-arg).
-// When set, it is sent as a Bearer token so the Express auth middleware can
-// reject requests that did not originate from this frontend.
-const APP_SECRET = import.meta.env.VITE_APP_SECRET as string | undefined;
-
 /** Shared POST helper — DRY wrapper for all API calls. */
 async function apiPost<T>(
   endpoint: string,
@@ -12,9 +7,6 @@ async function apiPost<T>(
   userKeys?: UserApiKeys,
 ): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (APP_SECRET) {
-    headers["Authorization"] = `Bearer ${APP_SECRET}`;
-  }
   // Forward user-supplied keys so the server can use them instead of server keys.
   if (userKeys?.geminiKey)    headers["X-User-Gemini-Key"]     = userKeys.geminiKey;
   if (userKeys?.perplexityKey) headers["X-User-Perplexity-Key"] = userKeys.perplexityKey;

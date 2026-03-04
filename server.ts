@@ -76,7 +76,6 @@ async function startServer() {
   const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
-  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
 
   // Make secrets available to child processes (Python agents)
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
@@ -138,19 +137,8 @@ async function startServer() {
     res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
   });
 
-  // ── Bearer-token authentication (optional — active when APP_SECRET is set) ─
-  // Protects all /api/ routes from unauthorised use on a public server.
-  // Set APP_SECRET to a long random string (e.g. `openssl rand -hex 32`).
-  if (APP_SECRET) {
-    app.use("/api/", (req: Request, res: Response, next: NextFunction) => {
-      const auth = req.headers.authorization;
-      if (!auth || auth !== `Bearer ${APP_SECRET}`) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-      }
-      next();
-    });
-  }
+  // Bearer-token auth removed — CORS (locked to https://${DOMAIN}) and
+  // rate limiting already protect the API sufficiently.
 
   // Rate limiting to prevent abuse
   const limiter = rateLimit({
