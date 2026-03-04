@@ -3,11 +3,102 @@ data_fetcher.py — Structured market data via yfinance.
 
 Both public functions return None on any failure so callers can degrade
 gracefully to a pure-LLM fallback without crashing.
+
+Also exposes the shared Tax Calculator tool: ``calculate_pnl``.
 """
+import datetime
 import sys
 from typing import Optional, Dict, Any
 
 import yfinance as yf
+
+
+# ---------------------------------------------------------------------------
+# Shared P&L data structure
+# ---------------------------------------------------------------------------
+
+class PnLSummary(Dict[str, Any]):
+    """
+    Carries realized/unrealized gains and total dividends through LangGraph state.
+
+    Fields (all Optional unless noted):
+      buy_price            – purchase price per share (float)
+      sell_price           – sale price per share (float)
+      current_price        – latest market price per share (float)
+      shares               – number of shares (float, required)
+      realized_gain        – (sell - buy) × shares  [when sell_price available]
+      realized_gain_pct    – % return on realized position
+      unrealized_gain      – (current - buy) × shares  [when no sell_price]
+      unrealized_gain_pct  – % return on unrealized position
+      holding_days         – calendar days from purchase_date to sell_date (int)
+      is_long_term         – True when holding_days > 365
+      total_dividends      – estimated dividend income over projection period
+                             (written by dividend_node after dividend_agent runs)
+    """
+
+
+def calculate_pnl(
+    buy_price: Optional[float],
+    sell_price: Optional[float],
+    current_price: Optional[float],
+    shares: float,
+    purchase_date: str = "",
+    sell_date: str = "",
+) -> Dict[str, Any]:
+    """
+    Shared Tax Calculator tool — pure calculation, no network calls.
+
+    Computes realized gain (when sell_price is available) OR unrealized gain
+    (when only current_price is known) and determines the holding period.
+    Both Tax and Dividend agents call this instead of duplicating arithmetic.
+
+    Returns a PnLSummary-shaped dict that is stored in FinSurfState.pnl_summary
+    and forwarded to the frontend via the /api/research response envelope.
+    """
+    result: Dict[str, Any] = {
+        "buy_price": buy_price,
+        "sell_price": sell_price,
+        "current_price": current_price,
+        "shares": shares,
+        "realized_gain": None,
+        "realized_gain_pct": None,
+        "unrealized_gain": None,
+        "unrealized_gain_pct": None,
+        "holding_days": None,
+        "is_long_term": None,
+        "total_dividends": None,
+    }
+
+    # Realized gain — both buy and sell prices known
+    if buy_price is not None and sell_price is not None and shares > 0:
+        realized = (sell_price - buy_price) * shares
+        result["realized_gain"] = round(realized, 2)
+        result["realized_gain_pct"] = (
+            round((sell_price - buy_price) / buy_price * 100, 4)
+            if buy_price != 0 else None
+        )
+
+    # Unrealized gain — no sell price yet
+    if buy_price is not None and current_price is not None and sell_price is None and shares > 0:
+        unrealized = (current_price - buy_price) * shares
+        result["unrealized_gain"] = round(unrealized, 2)
+        result["unrealized_gain_pct"] = (
+            round((current_price - buy_price) / buy_price * 100, 4)
+            if buy_price != 0 else None
+        )
+
+    # Holding period
+    if purchase_date and sell_date:
+        try:
+            d0 = datetime.date.fromisoformat(purchase_date)
+            d1 = datetime.date.fromisoformat(sell_date)
+            holding_days = (d1 - d0).days
+            result["holding_days"] = holding_days
+            result["is_long_term"] = holding_days > 365
+        except ValueError:
+            pass
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +183,47 @@ def _consecutive_dividend_years(dividends) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
+    """
+    Return the closing price for *ticker* on or just before *date_str* (YYYY-MM-DD).
+
+    Uses a ±10-day window around the target date so weekends, market holidays,
+    and any date in history are handled correctly — not limited to the 1-year
+    price_history window used for chart rendering.
+
+    Returns None on any failure so callers can show N/A gracefully.
+    """
+    if not date_str:
+        return None
+    try:
+        import datetime
+        target = datetime.date.fromisoformat(date_str)
+        start  = target - datetime.timedelta(days=10)
+        end    = target + datetime.timedelta(days=1)   # yfinance end is exclusive
+        hist = yf.download(
+            ticker,
+            start=str(start),
+            end=str(end),
+            progress=False,
+            auto_adjust=True,
+        )
+        if hist is None or hist.empty:
+            return None
+        # Normalise index to plain date objects for comparison
+        hist.index = [ts.date() if hasattr(ts, "date") else ts for ts in hist.index]
+        past = hist[hist.index <= target]
+        if past.empty:
+            return None
+        close = past["Close"].iloc[-1]
+        # yfinance sometimes returns a MultiIndex column (ticker, "Close")
+        if hasattr(close, "iloc"):
+            close = close.iloc[0]
+        return round(float(close), 4)
+    except Exception as exc:
+        print(f"data_fetcher: fetch_price_on_date({ticker}, {date_str}) failed: {exc}", file=sys.stderr)
+        return None
+
 
 def fetch_dividend_data(ticker: str) -> Optional[Dict[str, Any]]:
     """

@@ -2,6 +2,12 @@
    The browser's print renderer handles all CSS natively (including oklch,
    color-mix, custom properties) so no JS colour conversion is needed. */
 
+/* ── Page setup: A4 landscape, tight margins ────────────────────────────── */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 @media print {
   /* ── Force light colour scheme regardless of OS/app theme ─────────────── */
   html, body, * {
@@ -13,6 +19,22 @@
   html, body {
     background: #ffffff !important;
     color: #1e293b !important;
+    /* slightly smaller base font so all 4 cards fit on one landscape page */
+    font-size: 11px !important;
+  }
+
+  /* ── Strip root wrapper padding and background ─────────────────────────── */
+  body > div {
+    background: #ffffff !important;
+    padding: 0 !important;
+    min-height: unset !important;
+  }
+
+  /* ── Remove max-width constraint so cards fill the full print width ─────── */
+  .max-w-7xl {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   /* ── Hide structural chrome ────────────────────────────────────────────── */
@@ -23,17 +45,20 @@
     display: none !important;
   }
 
-  /* ── Show the PDF-only report header (hidden in screen mode) ───────────── */
-  [data-pdf-chunk="pdf-header"] {
-    display: flex !important;
-    margin-bottom: 2rem;
-  }
-
   /* ── Report container layout ───────────────────────────────────────────── */
   #report-container {
     width: 100% !important;
     max-width: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ── Force 2-column grid regardless of viewport width ──────────────────── */
+  #agents-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    margin: 0 !important;
   }
 
   /* ── Page break control ────────────────────────────────────────────────── */
@@ -52,11 +77,18 @@
     background-color: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     box-shadow: none !important;
+    border-radius: 8px !important;
   }
 
   [data-pdf-chunk="card"] > div:first-child {
     background-color: #ffffff !important;
     border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  /* ── Tighten internal card padding so content fits ──────────────────────── */
+  [data-pdf-chunk="card"] .p-6,
+  [data-pdf-chunk="card"] .p-8 {
+    padding: 10px !important;
   }
 
   /* ── Markdown tables ───────────────────────────────────────────────────── */
@@ -113,6 +145,17 @@
     background-color: #fef2f2 !important;
     border: 1px solid #fee2e2 !important;
     color: #991b1b !important;
+  }
+
+  /* ── Price chart: match bleed to reduced print card padding (10px) ─────── */
+  [data-pdf-chunk="card"] .-mx-6 {
+    margin-left: -10px !important;
+    margin-right: -10px !important;
+  }
+
+  [data-pdf-chunk="card"] .-mx-6 .recharts-responsive-container,
+  [data-pdf-chunk="card"] .-mx-6 > .recharts-responsive-container {
+    height: 120px !important;
   }
 
   /* ── Utilities ─────────────────────────────────────────────────────────── */

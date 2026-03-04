@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Receipt, Coins, MessageSquare } from 'lucide-react';
+import { Search, Receipt, Coins, MessageSquare, Sparkles } from 'lucide-react';
 import { AgentCard } from '../cards/AgentCard';
 import { FinancialAgentsState, LoadingState, AccessMode } from '../../types';
 import { cn } from '../../utils/cn';
@@ -16,8 +16,8 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
   const isDone = hasResponses && !isAnyLoading;
 
   return (
-    <div 
-      id="agents-grid" 
+    <div
+      id="agents-grid"
       className={cn(
         "grid grid-cols-1 md:grid-cols-2 relative z-20 transition-all duration-700",
         isDone ? "gap-0 mb-0" : "gap-8 mb-12"
@@ -64,6 +64,20 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         accessMode={accessMode}
         isCompact={isDone}
       />
+
+      {/* Executive Summary — full-width accumulator card, rendered after all four specialists */}
+      <div className="col-span-1 md:col-span-2">
+        <AgentCard
+          title="Executive Summary"
+          icon={<Sparkles size={20} />}
+          loading={loading.summary}
+          response={responses.summary}
+          color="cyan"
+          emptyDescription="A cohesive narrative synthesising all specialist findings into one plain-English investment brief."
+          accessMode={accessMode}
+          isCompact={isDone}
+        />
+      </div>
     </div>
   );
 }

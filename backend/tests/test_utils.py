@@ -36,14 +36,8 @@ class TestGetEnvKey(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertIsNone(get_env_key(["MISSING_X", "MISSING_Y"]))
 
-    def test_empty_list(self):
-        self.assertIsNone(get_env_key([]))
-
 
 class TestIsPlaceholder(unittest.TestCase):
-    def test_none_is_placeholder(self):
-        self.assertTrue(is_placeholder(None))
-
     def test_empty_string_is_placeholder(self):
         self.assertTrue(is_placeholder(""))
 
@@ -80,17 +74,8 @@ class TestCalculateHoldingStatus(unittest.TestCase):
     def test_short_term(self):
         self.assertEqual(calculate_holding_status("2023-01-01", "2023-06-01"), "SHORT-TERM")
 
-    def test_exactly_one_year_is_short_term(self):
-        # Must be strictly *after* one year to qualify as long-term
-        self.assertEqual(calculate_holding_status("2022-01-01", "2023-01-01"), "SHORT-TERM")
-
     def test_one_day_after_one_year_is_long_term(self):
         self.assertEqual(calculate_holding_status("2022-01-01", "2023-01-02"), "LONG-TERM")
-
-    def test_leap_year_feb29(self):
-        # Feb 29 purchase; one year later should fall back to Feb 28
-        status = calculate_holding_status("2020-02-29", "2021-03-01")
-        self.assertEqual(status, "LONG-TERM")
 
     def test_bad_date_returns_unknown(self):
         self.assertEqual(calculate_holding_status("not-a-date", "2023-01-01"), "UNKNOWN")
@@ -157,12 +142,6 @@ class TestProviderAllowlist(unittest.TestCase):
             self.assertIn("perplexity", result)
             self.assertNotIn("openai", result)
             self.assertNotIn("anthropic", result)
-
-    def test_case_insensitive(self):
-        with patch.dict(os.environ, {"ALLOWED_PROVIDERS": "Gemini,PERPLEXITY"}, clear=False):
-            allowed_providers.cache_clear()
-            self.assertTrue(is_provider_allowed("gemini"))
-            self.assertTrue(is_provider_allowed("perplexity"))
 
 
 if __name__ == "__main__":

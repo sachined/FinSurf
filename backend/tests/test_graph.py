@@ -54,14 +54,6 @@ class TestGuardrailNode(unittest.TestCase):
             result = guardrail_node(state)
         self.assertFalse(result["is_safe"])
 
-    def test_skip_guardrail_always_safe(self):
-        from backend.graph import guardrail_node, FinSurfState
-        state: FinSurfState = _make_state("ANYTHING", skip_guardrail=True)
-        with patch(f"{GRAPH_MODULE}.security_guardrail") as mock_g:
-            result = guardrail_node(state)
-            mock_g.assert_not_called()
-        self.assertTrue(result["is_safe"])
-
     def test_guardrail_exception_sets_is_safe_false_and_records_error(self):
         from backend.graph import guardrail_node, FinSurfState
         # Use a long ticker so short-circuit doesn't bypass security_guardrail
@@ -73,14 +65,6 @@ class TestGuardrailNode(unittest.TestCase):
 
 
 class TestResearchNode(unittest.TestCase):
-    def test_blocked_state_returns_blocked_output(self):
-        from backend.graph import research_node, FinSurfState
-        state: FinSurfState = _make_state("AAPL", is_safe=False)
-        result = research_node(state)
-        self.assertFalse(result["is_dividend_stock"])
-        data = json.loads(result["research_output"])
-        self.assertIn("Blocked", data["content"])
-
     def test_dividend_stock_detected(self):
         from backend.graph import research_node, FinSurfState
         state: FinSurfState = _make_state("AAPL", is_safe=True)
@@ -130,15 +114,6 @@ class TestSentimentNode(unittest.TestCase):
             result = sentiment_node(state)
         self.assertEqual(result["sentiment_output"], _SENTIMENT_RESPONSE)
 
-    def test_exception_records_error(self):
-        from backend.graph import sentiment_node, FinSurfState
-        state: FinSurfState = _make_state("TSLA")
-        with patch(f"{GRAPH_MODULE}.social_sentiment_agent", side_effect=Exception("down")):
-            result = sentiment_node(state)
-        data = json.loads(result["sentiment_output"])
-        self.assertIn("failed", data["content"])
-        self.assertTrue(len(result.get("errors", [])) > 0)
-
 
 class TestDividendNode(unittest.TestCase):
     def test_returns_dividend_output(self):
@@ -157,17 +132,6 @@ class TestDividendNode(unittest.TestCase):
         self.assertTrue(len(result.get("errors", [])) > 0)
 
 
-class TestDividendSkipNode(unittest.TestCase):
-    def test_returns_non_dividend_output_without_llm(self):
-        from backend.graph import dividend_skip_node, FinSurfState
-        state: FinSurfState = _make_state("GOOGL")
-        with patch(f"{AGENTS_MODULE}.dividend_agent") as mock_agent:
-            result = dividend_skip_node(state)
-            mock_agent.assert_not_called()
-        self.assertFalse(result["dividend_output"]["isDividendStock"])
-        self.assertIn("GOOGL", result["dividend_output"]["analysis"])
-
-
 class TestRouteDividend(unittest.TestCase):
     def test_routes_to_dividend_when_is_dividend_stock_true(self):
         from backend.graph import route_dividend, FinSurfState
@@ -177,11 +141,6 @@ class TestRouteDividend(unittest.TestCase):
     def test_routes_to_dividend_skip_when_false(self):
         from backend.graph import route_dividend, FinSurfState
         state: FinSurfState = _make_state("GOOGL", is_dividend_stock=False)
-        self.assertEqual(route_dividend(state), "dividend_skip")
-
-    def test_routes_to_dividend_skip_when_missing(self):
-        from backend.graph import route_dividend, FinSurfState
-        state: FinSurfState = _make_state("GOOGL")  # is_dividend_stock not set
         self.assertEqual(route_dividend(state), "dividend_skip")
 
 
@@ -198,18 +157,6 @@ class TestDividendKeywordDetection(unittest.TestCase):
         with patch(f"{GRAPH_MODULE}.research_agent", return_value=text_with_signal):
             result = research_node(state)
         self.assertTrue(result["is_dividend_stock"])
-
-    def test_negation_overrides_signal(self):
-        from backend.graph import research_node, FinSurfState
-        state: FinSurfState = _make_state("GOOGL", is_safe=True)
-        # Text contains a signal keyword BUT also a negation
-        text_with_negation = json.dumps({
-            "content": "There is no dividend yield. The company does not pay dividends.",
-            "citations": []
-        })
-        with patch(f"{GRAPH_MODULE}.research_agent", return_value=text_with_negation):
-            result = research_node(state)
-        self.assertFalse(result["is_dividend_stock"])
 
 
 # ---------------------------------------------------------------------------

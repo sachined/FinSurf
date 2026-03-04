@@ -13,6 +13,7 @@ def call_gemini(
     model: str = "gemini-flash-latest",
     max_tokens: int = 1024,
     agent: str = "unknown",
+    max_retries: int = 3,
 ) -> str:
     """Makes a call to the Google Gemini API."""
     if not is_provider_allowed("gemini"):
@@ -36,7 +37,7 @@ def call_gemini(
         data["generation_config"]["response_schema"] = response_schema
 
     t0 = time.time()
-    res = http_post(url, data, {"Content-Type": "application/json"})
+    res = http_post(url, data, {"Content-Type": "application/json"}, timeout=60, max_retries=max_retries)
     latency_ms = (time.time() - t0) * 1000
 
     usage_meta = res.get("usageMetadata", {})
@@ -81,7 +82,11 @@ def call_groq(
     messages.append({"role": "user", "content": prompt})
 
     data = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1}
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {key}",
+        "User-Agent": "groq-python/0.13.0",
+    }
 
     t0 = time.time()
     res = http_post(url, data, headers, timeout=60, max_retries=2)

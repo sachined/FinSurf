@@ -1,4 +1,4 @@
-import { AgentResponse, DividendResponse, ResearchResponse, UserApiKeys } from '../types';
+import { AgentResponse, DividendResponse, PnLSummary, ResearchResponse, UserApiKeys } from '../types';
 
 // VITE_APP_SECRET is baked into the bundle at build time (via Docker build-arg).
 // When set, it is sent as a Bearer token so the Express auth middleware can
@@ -32,14 +32,32 @@ async function apiPost<T>(
   return response.json();
 }
 
-export const researchAgent = (ticker: string, userKeys?: UserApiKeys): Promise<ResearchResponse> =>
-  apiPost<ResearchResponse>("/api/research", { ticker }, userKeys);
+export const researchAgent = (ticker: string, purchaseDate: string, sellDate: string, shares: number, userKeys?: UserApiKeys): Promise<ResearchResponse> =>
+  apiPost<ResearchResponse>("/api/research", { ticker, purchaseDate, sellDate, shares }, userKeys);
 
-export const taxAgent = (ticker: string, purchaseDate: string, sellDate: string, userKeys?: UserApiKeys): Promise<AgentResponse> =>
-  apiPost<AgentResponse>("/api/tax", { ticker, purchaseDate, sellDate }, userKeys);
+export const taxAgent = (ticker: string, purchaseDate: string, sellDate: string, shares: number, userKeys?: UserApiKeys): Promise<AgentResponse> =>
+  apiPost<AgentResponse>("/api/tax", { ticker, purchaseDate, sellDate, shares }, userKeys);
 
-export const dividendAgent = (ticker: string, shares: number, years: number, userKeys?: UserApiKeys): Promise<DividendResponse> =>
-  apiPost<DividendResponse>("/api/dividend", { ticker, shares, years }, userKeys);
+export const dividendAgent = (ticker: string, shares: number, years: number, purchaseDate?: string, sellDate?: string, userKeys?: UserApiKeys): Promise<DividendResponse> =>
+  apiPost<DividendResponse>("/api/dividend", { ticker, shares, years, purchaseDate, sellDate }, userKeys);
 
 export const sentimentAgent = (ticker: string, userKeys?: UserApiKeys): Promise<AgentResponse> =>
   apiPost<AgentResponse>("/api/sentiment", { ticker }, userKeys);
+
+export const summaryAgent = (
+  ticker: string,
+  researchContent: string | null,
+  taxContent: string | null,
+  dividendContent: string | null,
+  sentimentContent: string | null,
+  pnlSummary: PnLSummary | null,
+  userKeys?: UserApiKeys,
+): Promise<AgentResponse> =>
+  apiPost<AgentResponse>("/api/summary", {
+    ticker,
+    researchContent,
+    taxContent,
+    dividendContent,
+    sentimentContent,
+    pnlSummary,
+  }, userKeys);

@@ -2,10 +2,12 @@ import json
 import sys
 import re
 from typing import Dict, Any, Optional
-from .llm_providers import call_gemini, call_groq, call_ollama, call_perplexity
+from .llm_providers import call_gemini, call_groq, call_perplexity
 from .utils import calculate_holding_status, extract_json
 from .data_fetcher import (
+    calculate_pnl,
     fetch_dividend_data,
+    fetch_price_on_date,
     fetch_research_data,
     fetch_sentiment_data,
     fetch_stocktwits_sentiment,
@@ -117,13 +119,17 @@ def security_guardrail(user_input: str) -> bool:
 # Agents
 # ---------------------------------------------------------------------------
 
-def research_agent(ticker: str, skip_guardrail: bool = False) -> str:
+def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", skip_guardrail: bool = False, shares: float = 0.0) -> str:
     """Agent that performs general equity research using Gemini, grounded by yfinance data.
 
     Pre-fetches price, P/E ratios, revenue growth, market cap, beta, institutional
     ownership, and 1-year price history from yfinance so the LLM only needs to
     explain pre-verified numbers — reducing token usage and improving factual accuracy.
-    Returns a JSON string: {content, citations, price_history}.
+    Also fetches point-in-time closing prices for purchase_date and sell_date (any
+    historical date, not limited to the 1-year chart window) and computes the shared
+    pnl_summary via the calculate_pnl Tax Calculator tool so both Tax and Dividend
+    agents can consume it from FinSurfState without re-fetching or duplicating arithmetic.
+    Returns a JSON string: {content, citations, price_history, buy_price, sell_price, current_price, pnl_summary}.
     """
     if not skip_guardrail and not security_guardrail(ticker):
         return _blocked_json()
@@ -131,6 +137,17 @@ def research_agent(ticker: str, skip_guardrail: bool = False) -> str:
     fetched = fetch_research_data(ticker)
     price_history = fetched.get("price_history", []) if fetched else []
     dividend_data = fetched.get("dividend_data") if fetched else None
+
+    # Point-in-time prices for profit/loss calculation — any historical date supported
+    buy_price  = fetch_price_on_date(ticker, purchase_date) if purchase_date else None
+    sell_price = fetch_price_on_date(ticker, sell_date)     if sell_date     else None
+    current_price_raw: Optional[float] = None
+    if fetched:
+        try:
+            raw = fetched.get("current_price", "N/A")
+            current_price_raw = float(str(raw).replace("$", "").replace(",", "")) if raw != "N/A" else None
+        except (ValueError, TypeError):
+            pass
 
     if fetched:
         data_block = f"""Here is current data for {ticker} retrieved from market data (do not re-fetch or guess — use only these numbers):
@@ -184,24 +201,72 @@ If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
               "You must answer every numbered point in the prompt — do not skip any. "
               "Each answer is one sentence only. Use plain English, no jargon, no filler phrases.")
 
+    # Compute shared P&L summary here so graph_node and CLI callers both get it
+    pnl = calculate_pnl(buy_price, sell_price, current_price_raw, shares, purchase_date, sell_date)
+
     try:
         content = call_gemini(prompt, system, max_tokens=max_tokens, agent="research")
-        return json.dumps({"content": content, "citations": [], "price_history": price_history, "dividend_data": dividend_data})
+        return json.dumps({"content": content, "citations": [], "price_history": price_history, "dividend_data": dividend_data, "buy_price": buy_price, "sell_price": sell_price, "current_price": current_price_raw, "pnl_summary": pnl})
     except Exception as e:
         print(f"Gemini research failed: {e}", file=sys.stderr)
         # Final fallback — return empty content rather than crash
-        return json.dumps({"content": f"Research data unavailable: {e}", "citations": [], "price_history": price_history, "dividend_data": dividend_data})
+        return json.dumps({"content": f"Research data unavailable: {e}", "citations": [], "price_history": price_history, "dividend_data": dividend_data, "buy_price": buy_price, "sell_price": sell_price, "current_price": current_price_raw, "pnl_summary": pnl})
 
 
-def tax_agent(ticker: str, purchase_date: str, sell_date: str, skip_guardrail: bool = False) -> str:
-    """Agent that provides tax implications analysis using Gemini.
-    Returns a JSON string with {content, citations} for consistency with other agents."""
+def tax_agent(
+    ticker: str,
+    purchase_date: str,
+    sell_date: str,
+    skip_guardrail: bool = False,
+    shares: float = 0.0,
+    pnl_summary: Optional[Dict[str, Any]] = None,
+    # Legacy params kept for backward-compat with direct CLI calls
+    buy_price: Optional[float] = None,
+    sell_price: Optional[float] = None,
+) -> str:
+    """Agent that provides tax implications analysis using Groq/Gemini.
+
+    Accepts a pre-computed pnl_summary from FinSurfState (graph path) or
+    falls back to fetching prices via yfinance when called standalone (CLI).
+    Uses the shared calculate_pnl Tax Calculator tool — no duplicate arithmetic.
+    Returns a JSON string with {content, citations}.
+    """
     if not skip_guardrail and not security_guardrail(ticker):
         return _blocked_json()
 
-    status = calculate_holding_status(purchase_date, sell_date)
-    prompt = f"""Summarise the US capital gains tax situation for selling {ticker} after a {status} holding period.
+    # Resolve P&L: prefer pre-computed summary; fall back to individual prices or yfinance fetch
+    if pnl_summary is None:
+        if buy_price is None and purchase_date:
+            buy_price = fetch_price_on_date(ticker, purchase_date)
+        if sell_price is None and sell_date:
+            sell_price = fetch_price_on_date(ticker, sell_date)
+        pnl_summary = calculate_pnl(buy_price, sell_price, None, shares, purchase_date, sell_date)
 
+    buy_price = pnl_summary.get("buy_price")
+    sell_price = pnl_summary.get("sell_price")
+    realized_gain = pnl_summary.get("realized_gain")
+    realized_gain_pct = pnl_summary.get("realized_gain_pct")
+
+    # Build P&L block for prompt injection
+    pnl_block = ""
+    if realized_gain is not None and buy_price is not None and sell_price is not None:
+        direction = "gain" if realized_gain >= 0 else "loss"
+        eff_shares = pnl_summary.get("shares") or shares
+        if eff_shares and eff_shares > 0:
+            pnl_block = (
+                f"\n**Realised P&L** ({eff_shares} share{'s' if eff_shares != 1 else ''}): "
+                f"Buy @ ${buy_price:,.4f} → Sell @ ${sell_price:,.4f} = "
+                f"${abs(realized_gain):,.2f} {direction} ({realized_gain_pct:+.2f}%)\n"
+            )
+        else:
+            pnl_block = (
+                f"\n**Realised P&L** (per share): "
+                f"Buy @ ${buy_price:,.4f} → Sell @ ${sell_price:,.4f} = "
+                f"${abs(realized_gain):,.4f} {direction} ({realized_gain_pct:+.2f}%)\n"
+            )
+
+    status = calculate_holding_status(purchase_date, sell_date)
+    prompt = f"""Summarise the US capital gains tax situation for selling {ticker} after a {status} holding period.{pnl_block}
 Output exactly this structure — no extra prose:
 
 **Tax Summary**
@@ -211,6 +276,7 @@ Output exactly this structure — no extra prose:
 | Applicable tax | Ordinary income rates (short-term) OR preferential LTCG rates (long-term) |
 | Rate range | State the relevant IRS bracket range (e.g. 0% / 15% / 20%) |
 | Key rule | One sentence on the most important rule the investor should know |
+| Estimated gain/loss | Dollar amount and % return (use the Realised P&L above if provided, otherwise N/A) |
 
 **Takeaway**
 One sentence: what does this mean in plain English for this investor?
@@ -253,7 +319,7 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False) -> str:
     recommendations = yf_data.get("recommendations", {}) if yf_data else {}
 
     # --- Step 2: decide whether structured data is sufficient ---
-    has_enough_news = len(news_items) >= 2
+    has_enough_news = len(news_items) >= 3
     has_analyst_recs = bool(recommendations)
     needs_llm = not has_enough_news or not has_analyst_recs
 
@@ -340,7 +406,7 @@ Rules:
             return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200, agent="sentiment")
 
 
-def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool = False, prefetched_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool = False, prefetched_data: Optional[Dict[str, Any]] = None, pnl_summary: Optional[Dict[str, Any]] = None, buy_price: Optional[float] = None, sell_price: Optional[float] = None) -> Dict[str, Any]:
     """Agent that analyzes dividend history and projects future payouts.
 
     Attempts to pre-fetch all dividend stats from yfinance so the LLM only
@@ -349,6 +415,10 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
 
     If prefetched_data is provided (passed from FinSurfState.dividend_data),
     the yfinance fetch is skipped entirely — no second network call is made.
+
+    Accepts a pre-computed pnl_summary from FinSurfState; falls back to
+    legacy buy_price/sell_price params for backward-compat CLI calls.
+    Uses the shared calculate_pnl Tax Calculator tool — no duplicate arithmetic.
     """
     if not skip_guardrail and not security_guardrail(ticker):
         return {
@@ -360,7 +430,27 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
     # Use pre-fetched data from research_node if available; otherwise fetch independently
     fetched = prefetched_data if prefetched_data is not None else fetch_dividend_data(ticker)
 
+    # Resolve P&L via shared tool; fall back to legacy params for direct CLI calls
+    if pnl_summary is None and (buy_price is not None or sell_price is not None):
+        pnl_summary = calculate_pnl(buy_price, sell_price, None, shares)
+
     if fetched:
+        # Build optional P&L context block from the shared pnl_summary
+        pnl_block = ""
+        if pnl_summary is not None:
+            rg = pnl_summary.get("realized_gain")
+            rg_pct = pnl_summary.get("realized_gain_pct")
+            bp = pnl_summary.get("buy_price")
+            sp = pnl_summary.get("sell_price")
+            if rg is not None and bp is not None and sp is not None:
+                gain = rg
+                pnl_pct = rg_pct or 0.0
+                direction = "gain" if gain >= 0 else "loss"
+                pnl_block = (
+                    f"\n**Realised P&L**: Buy @ ${bp:,.4f} → Sell @ ${sp:,.4f} "
+                    f"= ${abs(gain):,.2f} {direction} ({pnl_pct:+.2f}%) on {shares} share(s).\n"
+                )
+
         data_block = f"""Here is current dividend data for {ticker} retrieved from market data (use only these numbers — do not re-fetch or guess):
 - Pays dividends: {"Yes" if fetched["is_dividend_stock"] else "No"}
 - Annual dividend per share: {fetched["annual_dividend_per_share"]}
@@ -370,7 +460,7 @@ def dividend_agent(ticker: str, shares: float, years: int, skip_guardrail: bool 
 - Ex-dividend date: {fetched["ex_dividend_date"]}
 - Payment frequency: {fetched["payment_frequency"]}
 - Consecutive years paying dividends: {fetched["consecutive_years"]}
-
+{pnl_block}
 The investor holds {shares} shares and is thinking about the next {years} year(s).
 """
         prompt = f"""{data_block}
@@ -380,10 +470,10 @@ Using only the data above, explain the dividend picture to a retail investor in 
    - Conservative: 3% annual dividend growth
    - Optimistic: 7% annual dividend growth
 3. Note the ex-dividend date and explain what it means for the investor.
-
+{f"4. P&L context: the investor's realised {direction} on this position is ${abs(gain):,.2f} ({pnl_pct:+.2f}%). Mention how the total dividends accumulated over the projection period compare to this P&L figure — does the income offset the loss, or add to the gain?" if pnl_block else ""}
 End with a 1 sentence summary of the dividend picture. Show indicators of dividend safety and growth.
 If any value is N/A, acknowledge it rather than guessing."""
-        max_tokens = 600
+        max_tokens = 2048
     else:
         # yfinance unavailable — ask the LLM to both look up and explain
         prompt = f"""Help a retail investor understand the dividend picture for {ticker}. They own {shares} shares and are thinking about the next {years} year(s).
@@ -496,3 +586,91 @@ If any value is N/A, acknowledge it rather than guessing."""
             "hasDividendHistory": False,
             "analysis": f"### Analysis Unavailable\n\nIssue processing dividend data for **{ticker}**.\n\n**Reason:** {str(e)}"
         }
+
+
+# ---------------------------------------------------------------------------
+# Executive Summary Agent — Accumulator node
+# Reads all specialist findings from LangGraph state and weaves them into
+# one cohesive plain-English narrative for the retail investor.
+# ---------------------------------------------------------------------------
+
+def executive_summary_agent(
+    ticker: str,
+    research_output: Optional[str] = None,
+    tax_output: Optional[str] = None,
+    sentiment_output: Optional[str] = None,
+    dividend_output: Optional[Any] = None,
+    pnl_summary: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Accumulator: synthesise all agent findings into one cohesive investor brief."""
+
+    def _extract(raw: Optional[str]) -> str:
+        if not raw:
+            return "No data available."
+        try:
+            return json.loads(raw).get("content") or raw
+        except Exception:
+            return raw
+
+    research_text  = _extract(research_output)
+    tax_text       = _extract(tax_output)
+    sentiment_text = _extract(sentiment_output)
+
+    dividend_text = "No dividend data available."
+    if dividend_output:
+        if isinstance(dividend_output, dict):
+            dividend_text = dividend_output.get("analysis") or str(dividend_output)
+        else:
+            dividend_text = _extract(str(dividend_output))
+
+    pnl_block = ""
+    if pnl_summary:
+        rg  = pnl_summary.get("realized_gain")
+        rp  = pnl_summary.get("realized_gain_pct")
+        lt  = pnl_summary.get("is_long_term")
+        td  = pnl_summary.get("total_dividends")
+        if rg is not None and rp is not None:
+            term = "long-term" if lt else "short-term"
+            pnl_block += f"\nRealised P&L: ${rg:,.2f} ({rp:+.2f}%) — {term} position."
+        if td is not None:
+            pnl_block += f"\nEstimated total dividends over projection period: ${td:,.2f}."
+
+    system = (
+        "You are the Chief Investment Officer of FinSurf, synthesising specialist agent "
+        "findings into a clear, actionable brief for a retail investor. Be direct, balanced, "
+        "and concise. Explain any jargon. Never recommend buying or selling outright."
+    )
+
+    prompt = f"""Ticker: {ticker}{pnl_block}
+
+RESEARCH ANALYST:
+{research_text}
+
+TAX STRATEGIST:
+{tax_text}
+
+SENTIMENT ANALYST:
+{sentiment_text}
+
+DIVIDEND SPECIALIST:
+{dividend_text}
+
+Write a 5–7 sentence Executive Summary for a retail investor that weaves the above into one cohesive narrative. Cover:
+1. What kind of company/stock this is (fundamentals snapshot).
+2. The investor's P&L position and its tax implications.
+3. What the market mood signals about near-term momentum.
+4. Dividend income potential (skip if non-dividend stock).
+5. A plain-English verdict — the single biggest opportunity and the single biggest risk.
+Do not repeat every raw number; synthesise and interpret. No bullet points — write in flowing prose."""
+
+    # Groq (llama-3.3-70b) is the primary: free, fast, and reliably available.
+    # Gemini is the fallback for when Groq is unavailable or its key is missing.
+    try:
+        content = call_groq(prompt, system, max_tokens=1024, agent="executive_summary")
+    except Exception:
+        try:
+            content = call_gemini(prompt, system, max_tokens=1024, agent="executive_summary", max_retries=1)
+        except Exception as exc:
+            content = f"Executive summary temporarily unavailable: {exc}"
+
+    return json.dumps({"content": content, "citations": []})

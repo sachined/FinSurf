@@ -10,6 +10,8 @@ import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
+import { AboutPage } from './pages/AboutPage';
+import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
@@ -72,6 +74,7 @@ export default function App() {
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
 
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -157,12 +160,18 @@ export default function App() {
           theme={theme} 
           toggleTheme={toggleTheme} 
           accessMode={accessMode} 
-          setAccessMode={setAccessMode} 
+          setAccessMode={setAccessMode}
+          onAbout={() => setCurrentPage(p => p === 'about' ? 'home' : 'about')}
         />
 
-        <main id="report-container">
+        {currentPage === 'about' && (
+          <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
+        )}
+
+        <main id="report-container" style={{ display: currentPage === 'about' ? 'none' : undefined }}>
           {/* PDF-only Header (Hidden in UI) */}
           <div 
+            data-no-print=""
             data-pdf-chunk="pdf-header" 
             className="hidden flex-col items-center justify-center text-center p-12 mb-12 bg-white dark:bg-slate-900 rounded-[3rem] border-4 border-cyan-500 shadow-2xl"
           >
@@ -226,7 +235,21 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <ResultsGrid 
+          <div>
+          {responses.research && !isAnyLoading && (
+            <TickerSummaryBar
+              ticker={ticker}
+              currentPrice={responses.research.currentPrice}
+              pnlSummary={responses.research.pnlSummary ?? null}
+              shares={parseFloat(shares) || 0}
+              purchaseDate={purchaseDate}
+              sellDate={sellDate}
+              accessMode={accessMode}
+            />
+          )}
+          </div>
+
+          <ResultsGrid
             responses={responses} 
             loading={loading} 
             accessMode={accessMode} 

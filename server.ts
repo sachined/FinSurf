@@ -204,16 +204,29 @@ async function startServer() {
       res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
+    // purchaseDate, sellDate, and shares are optional — used by calculate_pnl (shared Tax Calculator tool)
+    const purchaseDate: string = typeof req.body.purchaseDate === "string" ? req.body.purchaseDate : "";
+    const sellDate: string     = typeof req.body.sellDate     === "string" ? req.body.sellDate     : "";
+    const resShares: number    = parseFloat(req.body.shares) > 0 ? parseFloat(req.body.shares) : 0;
     console.log(`Researching: ${ticker}`);
     const userEnv = getUserKeyEnv(req);
     try {
       const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("research", [ticker], isSafe, userEnv);
+      const stdout = await runPythonAgent("research", [ticker, purchaseDate, sellDate, resShares], isSafe, userEnv);
       try {
         const data = JSON.parse(stdout);
-        res.json({ content: data.content, agentName: "Research Analyst", sources: parseCitations(data.citations), priceHistory: data.price_history || [] });
+        res.json({
+          content:      data.content,
+          agentName:    "Research Analyst",
+          sources:      parseCitations(data.citations),
+          priceHistory: data.price_history  || [],
+          buyPrice:     data.buy_price      ?? null,
+          sellPrice:    data.sell_price     ?? null,
+          currentPrice: data.current_price  ?? null,
+          pnlSummary:   data.pnl_summary    ?? null,
+        });
       } catch (e) {
-        res.json({ content: stdout.trim(), agentName: "Research Analyst", priceHistory: [] });
+        res.json({ content: stdout.trim(), agentName: "Research Analyst", priceHistory: [], buyPrice: null, sellPrice: null, currentPrice: null, pnlSummary: null });
       }
     } catch (error) {
       console.error("Research agent error:", error);
@@ -227,16 +240,18 @@ async function startServer() {
       res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    const { purchaseDate, sellDate } = req.body;
+    const { purchaseDate, sellDate, shares: taxShares } = req.body;
     if (!validateDate(purchaseDate) || !validateDate(sellDate)) {
       res.status(400).json({ error: "purchaseDate and sellDate are required in YYYY-MM-DD format." });
       return;
     }
+    const taxSharesNum = parseFloat(taxShares);
+    const taxSharesArg = (!isNaN(taxSharesNum) && taxSharesNum > 0) ? taxSharesNum : 0;
     console.log(`Tax analysis: ${ticker}`);
     const userEnv = getUserKeyEnv(req);
     try {
       const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate], isSafe, userEnv);
+      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate, taxSharesArg], isSafe, userEnv);
       try {
         const data = JSON.parse(stdout);
         res.json({ content: data.content, agentName: "Tax Strategist", sources: parseCitations(data.citations) });
@@ -255,7 +270,7 @@ async function startServer() {
       res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    const { shares, years } = req.body;
+    const { shares, years, purchaseDate, sellDate } = req.body;
     const sharesNum = parseFloat(shares);
     const yearsNum = parseInt(years, 10);
     if (isNaN(sharesNum) || sharesNum <= 0 || sharesNum > 1_000_000) {
@@ -270,7 +285,9 @@ async function startServer() {
     const userEnv = getUserKeyEnv(req);
     try {
       const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum], isSafe, userEnv);
+      const pd = typeof purchaseDate === "string" && purchaseDate ? purchaseDate : "";
+      const sd = typeof sellDate === "string" && sellDate ? sellDate : "";
+      const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum, pd, sd], isSafe, userEnv);
       if (!stdout.trim()) throw new Error("Empty response from dividend agent");
       const data = JSON.parse(stdout);
       res.json({ 
@@ -306,6 +323,37 @@ async function startServer() {
     } catch (error) {
       console.error("Sentiment agent error:", error);
       res.status(500).json({ error: "Sentiment analysis failed. Please try again." });
+    }
+  });
+
+  app.post("/api/summary", async (req, res) => {
+    const ticker = validateTicker(req.body.ticker);
+    if (!ticker) {
+      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
+      return;
+    }
+    const { researchContent, taxContent, dividendContent, sentimentContent, pnlSummary } = req.body;
+    const userEnv = getUserKeyEnv(req);
+    // Wrap plain content strings back into the JSON envelope shapes each agent produces
+    const payload = JSON.stringify({
+      research_output:  researchContent  ? JSON.stringify({ content: researchContent })  : null,
+      tax_output:       taxContent       ? JSON.stringify({ content: taxContent })       : null,
+      sentiment_output: sentimentContent ? JSON.stringify({ content: sentimentContent }) : null,
+      dividend_output:  dividendContent  ? { analysis: dividendContent }                : null,
+      pnl_summary:      pnlSummary       || null,
+    });
+    console.log(`Executive summary: ${ticker}`);
+    try {
+      const stdout = await runPythonAgent("summary", [ticker, payload], true, userEnv);
+      try {
+        const data = JSON.parse(stdout);
+        res.json({ content: data.content, agentName: "Executive Summary", sources: [] });
+      } catch {
+        res.json({ content: stdout.trim(), agentName: "Executive Summary", sources: [] });
+      }
+    } catch (error) {
+      console.error("Summary agent error:", error);
+      res.status(500).json({ error: "Executive summary failed. Please try again." });
     }
   });
 
