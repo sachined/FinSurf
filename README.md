@@ -1,5 +1,6 @@
 ﻿# FinSurf 🏄‍♂️ https://finsurf.net/
-![FinSurf_run](https://github.com/user-attachments/assets/ea6af548-1cb0-4cfa-9bf9-170c31d59558)
+![FinSurf_run](https://github.com/user-attachments/assets/535a0a48-c39c-4f8b-b4db-9e4bd15eaf49)
+
 *AI-Powered Stock Analysis Platform*
 
 **FinSurf** is an AI-driven stock analysis platform that deploys a collaborative network of specialized autonomous agents to transform raw market data into professional-grade investment reports in seconds — covering fundamentals, tax implications, dividends, and market sentiment.
