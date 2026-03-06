@@ -62,6 +62,7 @@ def call_groq(
     model: str = None,
     max_tokens: int = 2048,
     agent: str = "unknown",
+    response_format: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Makes a call to the Groq cloud API (OpenAI-compatible).
 
@@ -81,7 +82,9 @@ def call_groq(
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": prompt})
 
-    data = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1}
+    data: Dict[str, Any] = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1}
+    if response_format:
+        data["response_format"] = response_format
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {key}",

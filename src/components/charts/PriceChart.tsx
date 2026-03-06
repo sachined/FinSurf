@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -38,16 +38,25 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 export function PriceChart({ data, accessMode }: PriceChartProps) {
+  const [period, setPeriod] = useState<'1y' | '2y'>('2y');
+
   if (!data || data.length === 0) return null;
+
+  // Filter data to the selected period
+  const filtered = useMemo(() => {
+    if (period === '2y') return data;
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    return data.filter(p => new Date(p.date) >= cutoff);
+  }, [data, period]);
 
   // Thin the series to ~52 weekly points for performance while keeping shape
   const thinned = useMemo(() => {
-    if (data.length <= 52) return data;
-    const step = Math.floor(data.length / 52);
-    return data.filter((_, i) => i % step === 0 || i === data.length - 1);
-  }, [data]);
+    if (filtered.length <= 52) return filtered;
+    const step = Math.floor(filtered.length / 52);
+    return filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1);
+  }, [filtered]);
 
-  // Colour tokens per access mode
   const strokeColor =
     accessMode === 'colorblind' ? '#1d4ed8'
     : accessMode === 'tropical' ? '#0d9488'
@@ -55,7 +64,6 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
 
   const fillId = 'priceAreaGradient';
 
-  // Format x-axis tick: show month abbreviation for ~monthly samples
   const formatTick = (val: string) => {
     try {
       const d = new Date(val);
@@ -65,12 +73,22 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
     }
   };
 
+  const btnBase = "px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors";
+  const btnActive = "bg-cyan-600 text-white";
+  const btnInactive = "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300";
+
   return (
     <div className="mt-4 -mx-6 not-prose">
-      <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-6">
-        1-Year Price History
-      </p>
-      <ResponsiveContainer width="105%" height={`100%`}>
+      <div className="flex items-center justify-between px-6 mb-2">
+        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          Price History
+        </p>
+        <div className="flex gap-1">
+          <button className={`${btnBase} ${period === '1y' ? btnActive : btnInactive}`} onClick={() => setPeriod('1y')}>1Y</button>
+          <button className={`${btnBase} ${period === '2y' ? btnActive : btnInactive}`} onClick={() => setPeriod('2y')}>2Y</button>
+        </div>
+      </div>
+      <ResponsiveContainer width="90%" height={160}>
         <AreaChart data={thinned} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">

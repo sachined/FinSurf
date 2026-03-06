@@ -136,13 +136,10 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
         purchase_date = state.get("purchase_date", "")
         sell_date = state.get("sell_date", "")
         raw = research_agent(ticker, purchase_date=purchase_date, sell_date=sell_date, skip_guardrail=True)
-        # Heuristic: research_agent already ran its own prompt, parse the text
-        # to detect dividend signals so we can route the graph conditionally.
         lower = raw.lower()
         pays_dividend = any(kw in lower for kw in _DIVIDEND_SIGNALS)
         no_dividend = any(kw in lower for kw in _DIVIDEND_NEGATIONS)
         is_dividend = pays_dividend and not no_dividend
-        # Extract price_history, buy/sell/current prices from the research envelope
         price_history: Optional[List] = None
         div_data: Optional[Dict[str, Any]] = None
         buy_price: Optional[float] = None
@@ -157,8 +154,6 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
             current_price = parsed.get("current_price")
         except Exception:
             pass
-        # Prefer pnl_summary from the research envelope (already computed by research_agent);
-        # fall back to calculate_pnl only when the envelope predates this field.
         pnl = parsed.get("pnl_summary") or calculate_pnl(
             buy_price, sell_price, current_price,
             state.get("shares", 0.0) or 0.0,
@@ -217,8 +212,8 @@ def dividend_node(state: FinSurfState) -> Dict[str, Any]:
     ticker = state["ticker"]
     shares = state.get("shares", 1.0)
     years = state.get("years", 3)
-    prefetched = state.get("dividend_data")  # pre-fetched by research_node — no second yfinance call
-    pnl = state.get("pnl_summary")           # shared P&L object from research_node
+    prefetched = state.get("dividend_data")
+    pnl = state.get("pnl_summary")
     try:
         result = dividend_agent(
             ticker, shares, years, skip_guardrail=True, prefetched_data=prefetched,
@@ -320,13 +315,8 @@ def build_graph() -> Any:
 
     builder.set_entry_point("guardrail")
 
-    # guardrail → research (always — direct edge; no conditional logic needed)
     builder.add_edge("guardrail", "research")
-
-    # research → tax + sentiment (parallel fan-out via Send)
     builder.add_conditional_edges("research", fan_out_after_research, ["tax", "sentiment"])
-
-    # tax → dividend routing
     builder.add_conditional_edges("tax", route_dividend, {"dividend": "dividend", "dividend_skip": "dividend_skip"})
 
     # all specialist paths converge on the executive_summary accumulator node
@@ -354,7 +344,6 @@ def run_graph(
     years: int = 3,
     skip_guardrail: bool = False,
 ) -> FinSurfState:
-    # Reset the session token accumulator before each run
     clear_session_usages()
 
     initial: FinSurfState = {
@@ -386,7 +375,6 @@ def run_graph(
         for err in final["errors"]:
             print(f"GRAPH WARNING: {err}", file=sys.stderr)
 
-    # Collect and summarize all token usage recorded during this run
     run_id = str(uuid.uuid4())
     usages = get_session_usages()
     summary = summarize_usages(usages)
