@@ -340,7 +340,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         # 1-year daily price history for chart rendering
         price_history: list = []
         try:
-            hist = t.history(period="1y")
+            hist = t.history(period="2y")
             if hist is not None and not hist.empty:
                 price_history = [
                     {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
