@@ -197,15 +197,14 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
     if not date_str:
         return None
     try:
-        import datetime
         target = datetime.date.fromisoformat(date_str)
         start  = target - datetime.timedelta(days=10)
         end    = target + datetime.timedelta(days=1)   # yfinance end is exclusive
-        hist = yf.download(
-            ticker,
+
+        t = yf.Ticker(ticker)
+        hist = t.history(
             start=str(start),
             end=str(end),
-            progress=False,
             auto_adjust=True,
         )
         if hist is None or hist.empty:

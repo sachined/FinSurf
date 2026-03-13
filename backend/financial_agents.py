@@ -382,10 +382,8 @@ Rules:
 - [one sentence]
 - [one sentence]
 """
-    system = ("You are a friendly market sentiment reporter helping everyday retail investors quickly understand how the crowd "
-              "feels about a stock. Use any provided structured data as ground truth, then supplement with web search where needed. "
-              "Report in plain, jargon-free language. If data is unavailable for a platform, say so honestly. Never cover cryptocurrency "
-              "— focus only on the stock in question.")
+    system = ("You are a market sentiment analyst. Use provided structured data as ground truth; supplement with web search where needed. "
+              "Plain language only. If data is unavailable for a platform, say so. Never cover cryptocurrency — focus only on the stock.")
 
     if needs_llm:
         return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200, agent="sentiment")
@@ -421,16 +419,15 @@ def _narrate_dividend(
             f"whether the company has any buyback programme or historical dividend context worth knowing."
         )
         narration_system = (
-            "You are a dividend education assistant for retail investors. "
-            "Write in friendly, plain English. Do not output JSON."
+            "You are a dividend education assistant. "
+            "Write in plain English. No JSON output."
         )
         try:
             return call_groq(no_div_prompt, narration_system, max_tokens=256, agent="dividend_narration")
         except Exception:
             return call_gemini(no_div_prompt, narration_system, max_tokens=256, agent="dividend_narration")
 
-    narration_prompt = f"""You are explaining the dividend picture for {ticker} to a retail investor who holds {shares} share(s) and is thinking about the next {years} year(s).
-
+    narration_prompt = f"""Dividend picture for {ticker} — investor holds {shares} share(s), horizon: {years} year(s).
 Use only these verified dividend stats:
 - Annual dividend per share: {stats.get('annualDividendPerShare', 'N/A')}
 - Current yield: {stats.get('currentYield', 'N/A')}
@@ -449,9 +446,8 @@ Write a plain-English narrative covering:
 {"4. How the projected dividend income compares to the investor's P&L figure above." if pnl_context else ""}
 End with one summary sentence. Acknowledge any N/A values rather than guessing."""
     narration_system = (
-        "You are a dividend education assistant for retail investors. Write in friendly, plain English — "
-        "as if helping a friend understand whether a stock will pay them regular income. "
-        "Translate numbers into what they mean for the investor. Do not output JSON."
+        "You are a dividend education assistant. Write in plain English. "
+        "Translate numbers into investor-friendly meaning. No JSON output."
     )
     try:
         return call_groq(narration_prompt, narration_system, max_tokens=1024, agent="dividend_narration")
@@ -523,26 +519,25 @@ Do not include any narrative analysis."""
         max_tokens = 512
     else:
         # yfinance unavailable — ask the LLM to both look up and explain
-        prompt = f"""Help a retail investor understand the dividend picture for {ticker}. They own {shares} shares and are thinking about the next {years} year(s).
+        prompt = f"""Dividend analysis for {ticker}. Investor holds {shares} shares, horizon: {years} year(s).
 
-    Answer these questions in plain English, using real data where available:
-    - Does this company pay dividends? If yes, how much per share per year, and how often (monthly, quarterly, annually)?
-    - What is the dividend yield? (This is the annual dividend divided by the stock price — a higher yield means more income per dollar invested.)
-    - Is the dividend safe? Look at the payout ratio — if it is above 90%, flag this as a potential risk that the company may cut its dividend in the future.
-    - Has the dividend been growing? Share the 5-year dividend growth rate if available.
-    - When is the next ex-dividend date? (Investors must own the stock before this date to receive the next payment.)
-    - How many years in a row has this company paid or grown its dividend?
+Answer using real data:
+- Pays dividends? If yes: amount per share per year and frequency.
+- Current dividend yield?
+- Is the dividend safe? Flag payout ratio above 90%.
+- 5-year dividend growth rate?
+- Next ex-dividend date?
+- Consecutive years paying/growing dividend?
 
-    Then give a simple 3-year income projection for someone holding {shares} shares:
-    - Conservative scenario (assumes 3% annual dividend growth)
-    - Optimistic scenario (assumes 7% annual dividend growth)
-    Show the estimated total dividend income in both scenarios.
+3-year income projection for {shares} shares:
+- Conservative: 3% annual dividend growth
+- Optimistic: 7% annual dividend growth
 
-    If this company does not pay dividends, say so clearly and share any relevant historical context (e.g., did it used to pay dividends? Are there any buyback programs instead?).
-    Use 'N/A' for any data that is not available.
-    """
+If no dividends: say so clearly and note any buyback context.
+Use 'N/A' for unavailable data.
+"""
         max_tokens = 2000
-    system = "You are a dividend education assistant for retail investors. Explain dividend data in simple, relatable terms — as if helping a friend understand whether a stock will pay them regular income. Be accurate and data-driven, but always translate the numbers into what they mean for the investor. Use 'N/A' for unavailable fields."
+    system = "You are a dividend education assistant. Explain dividend data in simple terms. Be data-driven and translate numbers into investor-friendly meaning. Use 'N/A' for unavailable fields."
     schema = {
         "type": "OBJECT",
         "properties": {
@@ -697,9 +692,8 @@ def executive_summary_agent(
             pnl_block += f"\nEstimated total dividends over projection period: ${td:,.2f}."
 
     system = (
-        "You are the Chief Investment Officer of FinSurf, synthesising specialist agent "
-        "findings into a clear, actionable brief for a retail investor. Be direct, balanced, "
-        "and concise. Explain any jargon. Never recommend buying or selling outright."
+        "You are a financial analyst synthesising specialist findings into a clear, actionable brief. "
+        "Be direct and concise. Never recommend buying or selling outright."
     )
 
     prompt = f"""Ticker: {ticker}{pnl_block}
