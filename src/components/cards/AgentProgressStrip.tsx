@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, Receipt, Coins, MessageSquare, CheckCircle2, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import {AnimatePresence, motion} from 'motion/react';
 import { cn } from '../../utils/cn';
 import { type LoadingState, type FinancialAgentsState, type AccessMode } from '../../types';
 
@@ -19,14 +19,17 @@ const AGENT_META = [
 
 export function AgentProgressStrip({ loading, responses, accessMode }: AgentProgressStripProps) {
   const isAnyActive = Object.values(loading).some(v => v) || Object.values(responses).some(r => r !== null);
-  if (!isAnyActive) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-wrap gap-2 mb-6"
-    >
+      <div className="min-h-[44px] mb-6 flex items-center">
+        <AnimatePresence>
+          {isAnyActive && (
+              <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-wrap gap-2 w-full"
+              >
       {AGENT_META.map(({ key, label, icon }) => {
         const isLoading = loading[key];
         const isDone = !isLoading && responses[key] !== null;
@@ -65,5 +68,8 @@ export function AgentProgressStrip({ loading, responses, accessMode }: AgentProg
         );
       })}
     </motion.div>
+)}
+</AnimatePresence>
+</div>
   );
 }

@@ -104,12 +104,12 @@ export default function App() {
     await executeSearch(userKeys);
   };
 
-  const handleApiKeysSubmit = useCallback((keys: UserApiKeys) => {
+  const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
     localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
     setUserKeys(keys);
     setShowApiKeyModal(false);
     // Run the search immediately with the newly provided keys.
-    executeSearch(keys);
+    await executeSearch(keys);
   }, [executeSearch]);
 
   const handleDownloadPDF = () => {
@@ -235,8 +235,8 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <div>
-          {responses.research && !isAnyLoading && (
+          <div className="min-h-[104px] mb-6">
+          {responses.research && !isAnyLoading ? (
             <TickerSummaryBar
               ticker={ticker}
               currentPrice={responses.research.currentPrice}
@@ -246,7 +246,9 @@ export default function App() {
               sellDate={sellDate}
               accessMode={accessMode}
             />
-          )}
+          ) : isAnyLoading ? (
+              <div className="w-full h-[88px] animate-pulse bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800" />
+          ) : null }
           </div>
 
           <ResultsGrid

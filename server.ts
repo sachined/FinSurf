@@ -385,4 +385,7 @@ async function startServer() {
   process.on("SIGINT",  () => shutdown("SIGINT"));
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("Critical: Server startup failed:", err);
+  process.exit(1);
+});

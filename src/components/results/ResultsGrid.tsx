@@ -13,15 +13,12 @@ interface ResultsGridProps {
 export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps) {
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
-  const isDone = hasResponses && !isAnyLoading;
+  const isDone = !Object.values(loading).some(v => v) && Object.values(responses).some(r => r !== null);
 
   return (
     <div
       id="agents-grid"
-      className={cn(
-        "grid grid-cols-1 md:grid-cols-2 relative z-20 transition-all duration-700",
-        isDone ? "gap-0 mb-0" : "gap-8 mb-12"
-      )}
+      className="grid grid-cols-1 md:grid-cols-2 relative z-20 transition-all duration-700 gap-8 mb-12"
     >
       <AgentCard
         title="Research Analyst"

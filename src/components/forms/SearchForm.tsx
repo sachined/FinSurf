@@ -43,12 +43,13 @@ export function SearchForm({
   };
 
   return (
-    <div className={cn(
-      "grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-20 transition-all duration-700",
-      isCompact ? "mb-0" : "mb-12"
-    )}>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-20 transition-all duration-700 mb-12">
+
       {!isCompact && (
-        <div className="lg:col-span-12 flex flex-wrap items-center gap-2">
+        <div className={cn(
+            "lg:col-span-12 flex flex-wrap items-center gap-2 transition-opacity duration-300",
+            isCompact ? "opacity-0 pointer-events-none" : "opacity-100"
+)}>
           <span className={cn(
             "text-[10px] font-black uppercase tracking-widest",
             accessMode === 'tropical' ? "text-orange-500" : accessMode === 'colorblind' ? "text-blue-700 dark:text-blue-400" : "text-cyan-600 dark:text-cyan-400"
