@@ -8,6 +8,7 @@ on:
 
 env:
   IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/finsurf-trial-run-app
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Required GitHub Secrets (Settings → Secrets → Actions):
@@ -51,7 +52,7 @@ jobs:
       # ── 4. Build image on CI runner (avoids OOM on 1 GB server) and push ─────
       #       VITE_APP_SECRET is baked into the Vite bundle here, not on the server.
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/Dockerfile
@@ -66,7 +67,7 @@ jobs:
 
       # ── 5. Deploy to production server via SSH ────────────────────────────────
       - name: Deploy to production server
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOYMENT_HOST }}
           username: ${{ secrets.DEPLOYMENT_USER }}
