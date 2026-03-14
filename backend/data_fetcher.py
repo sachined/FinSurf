@@ -8,6 +8,8 @@ Also exposes the shared Tax Calculator tool: ``calculate_pnl``.
 """
 import datetime
 import sys
+
+import pandas as pd
 from typing import Optional, Dict, Any
 
 import yfinance as yf
@@ -202,6 +204,8 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
         end    = target + datetime.timedelta(days=1)   # yfinance end is exclusive
 
         t = yf.Ticker(ticker)
+        info = t.info or {}
+
         hist = t.history(
             start=str(start),
             end=str(end),
@@ -214,15 +218,58 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
         past = hist[hist.index <= target]
         if past.empty:
             return None
-        close = past["Close"].iloc[-1]
         # yfinance sometimes returns a MultiIndex column (ticker, "Close")
-        if hasattr(close, "iloc"):
-            close = close.iloc[0]
+        if isinstance(past.columns, pd.MultiIndex):
+            close_series = past.xs("Close", axis=1, level=1 if "Close" in past.columns.levels[1] else 0)
+        else:
+            close_series = past["Close"]
+        close = close_series.iloc[-1]
         return round(float(close), 4)
-    except Exception as exc:
-        print(f"data_fetcher: fetch_price_on_date({ticker}, {date_str}) failed: {exc}", file=sys.stderr)
+    except (KeyError, IndexError):
         return None
 
+def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Helper to extract and format dividend data from a yf.Ticker object and its info.
+    Shared by fetch_dividend_data and fetch_research_data.
+    """
+    annual_div = info.get("dividendRate") or info.get("trailingAnnualDividendRate")
+    is_dividend_stock = bool(annual_div and float(annual_div) > 0)
+
+    try:
+        dividends = t.dividends
+    except Exception:
+        dividends = None
+    has_history = dividends is not None and len(dividends) > 0
+
+    ex_date_raw = info.get("exDividendDate")
+    if ex_date_raw:
+        try:
+            ex_date = datetime.datetime.utcfromtimestamp(int(ex_date_raw)).strftime("%Y-%m-%d")
+        except Exception:
+            ex_date = "N/A"
+    else:
+        ex_date = "N/A"
+
+    return {
+        "is_dividend_stock": is_dividend_stock,
+        "has_history": has_history,
+        "annual_dividend_per_share": _fmt_usd(annual_div, 2),
+        "current_yield": (
+            f"{info['dividendYield']:.2f}%"
+            if info.get("dividendYield") is not None
+            else "N/A"
+        ),
+        "payout_ratio": _fmt_pct(info.get("payoutRatio")),
+        "five_year_avg_yield": (
+            f"{info['fiveYearAvgDividendYield']:.2f}%"
+            if info.get("fiveYearAvgDividendYield")
+            else "N/A"
+        ),
+        "ex_dividend_date": ex_date,
+        "payment_frequency": _infer_payment_frequency(dividends),
+        "consecutive_years": _consecutive_dividend_years(dividends),
+    }
 
 def fetch_dividend_data(ticker: str) -> Optional[Dict[str, Any]]:
     """
@@ -233,56 +280,15 @@ def fetch_dividend_data(ticker: str) -> Optional[Dict[str, Any]]:
     """
     try:
         t = yf.Ticker(ticker)
-        info = t.info
+        info = t.info or {}
 
         # An empty or minimal info dict means the ticker was not found.
         if not info or info.get("quoteType") is None:
             return None
-
-        annual_div: Optional[float] = info.get("dividendRate") or info.get(
-            "trailingAnnualDividendRate"
-        )
-        is_dividend_stock = bool(annual_div and float(annual_div) > 0)
-
-        dividends = t.dividends
-        has_history = dividends is not None and len(dividends) > 0
-
-        # exDividendDate arrives as a Unix timestamp integer from yfinance
-        ex_date_raw = info.get("exDividendDate")
-        if ex_date_raw:
-            try:
-                import datetime
-                ex_date = datetime.datetime.utcfromtimestamp(int(ex_date_raw)).strftime(
-                    "%Y-%m-%d"
-                )
-            except Exception:
-                ex_date = "N/A"
-        else:
-            ex_date = "N/A"
-
-        return {
-            "is_dividend_stock": is_dividend_stock,
-            "has_history": has_history,
-            "annual_dividend_per_share": _fmt_usd(annual_div, 2),
-            "current_yield": (
-                f"{info['dividendYield']:.2f}%"
-                if info.get("dividendYield") is not None
-                else "N/A"
-            ),
-            "payout_ratio": _fmt_pct(info.get("payoutRatio")),
-            "five_year_avg_yield": (
-                f"{info['fiveYearAvgDividendYield']:.2f}%"
-                if info.get("fiveYearAvgDividendYield")
-                else "N/A"
-            ),
-            "ex_dividend_date": ex_date,
-            "payment_frequency": _infer_payment_frequency(dividends),
-            "consecutive_years": _consecutive_dividend_years(dividends),
-        }
+        return _extract_dividend_data(t, info)
     except Exception as exc:
         print(f"data_fetcher: fetch_dividend_data({ticker}) failed: {exc}", file=sys.stderr)
         return None
-
 
 def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
     """
@@ -293,11 +299,44 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
     """
     try:
         t = yf.Ticker(ticker)
-        info = t.info
+        info = t.info or {}
 
-        if not info or info.get("quoteType") is None:
-            return None
+        current_price_raw = info.get("currentPrice") or info.get("regularMarketPrice")
 
+        price_history: list = []
+        try:
+            hist = t.history(period="2y")
+            if hist is not None and not hist.empty:
+                if isinstance(hist.columns, pd.MultiIndex):
+                    level = 1 if "Close" in hist.columns.levels[1] else 0
+                    hist.columns = hist.columns.get_level_values(level)
+
+                price_history = [
+                    {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
+                    for idx, row in hist.iterrows()
+                ]
+        except Exception:
+            pass
+
+        # Plan B: Current Price Fallback
+        if current_price_raw is None:
+            try:
+                # Fallback to history if info is blocked/empty
+                latest_hist = t.history(period="1d")
+                if not latest_hist.empty:
+                    # Apply robust column access to fallback
+                    if isinstance(latest_hist.columns, pd.MultiIndex):
+                        c_level = 1 if "Close" in latest_hist.columns.levels[1] else 0
+                        close_series = latest_hist.xs("Close", axis=1, level=c_level)
+                    else:
+                        close_series = latest_hist["Close"]
+                    current_price_raw = close_series.iloc[-1]
+            except Exception:
+                pass
+
+            if not info and not current_price_raw:
+                return None
+        if not info or info.get("quoteType") is None: info = {}
         # Revenue growth: compare most recent two annual revenue figures
         revenue_growth = "N/A"
         try:
@@ -336,18 +375,6 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         else:
             market_cap = "N/A"
 
-        # 1-year daily price history for chart rendering
-        price_history: list = []
-        try:
-            hist = t.history(period="2y")
-            if hist is not None and not hist.empty:
-                price_history = [
-                    {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
-                    for idx, row in hist.iterrows()
-                ]
-        except Exception:
-            pass
-
         # Analyst price targets
         analyst_target_mean = _fmt_usd(info.get("targetMeanPrice"), decimals=2)
         analyst_target_high = _fmt_usd(info.get("targetHighPrice"), decimals=2)
@@ -363,49 +390,16 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         # in fetch_dividend_data when the dividend node runs later.
         dividend_data: Optional[Dict[str, Any]] = None
         try:
-            annual_div = info.get("dividendRate") or info.get("trailingAnnualDividendRate")
-            is_div_stock = bool(annual_div and float(annual_div) > 0)
-            dividends = t.dividends
-            has_history = dividends is not None and len(dividends) > 0
-
-            ex_date_raw = info.get("exDividendDate")
-            if ex_date_raw:
-                try:
-                    import datetime
-                    ex_date = datetime.datetime.utcfromtimestamp(int(ex_date_raw)).strftime("%Y-%m-%d")
-                except Exception:
-                    ex_date = "N/A"
-            else:
-                ex_date = "N/A"
-
-            dividend_data = {
-                "is_dividend_stock": is_div_stock,
-                "has_history": has_history,
-                "annual_dividend_per_share": _fmt_usd(annual_div, 2),
-                "current_yield": (
-                    f"{info['dividendYield']:.2f}%"
-                    if info.get("dividendYield") is not None
-                    else "N/A"
-                ),
-                "payout_ratio": _fmt_pct(info.get("payoutRatio")),
-                "five_year_avg_yield": (
-                    f"{info['fiveYearAvgDividendYield']:.2f}%"
-                    if info.get("fiveYearAvgDividendYield")
-                    else "N/A"
-                ),
-                "ex_dividend_date": ex_date,
-                "payment_frequency": _infer_payment_frequency(dividends),
-                "consecutive_years": _consecutive_dividend_years(dividends),
-            }
-        except Exception as div_exc:
-            print(f"data_fetcher: dividend sub-fetch for {ticker} failed: {div_exc}", file=sys.stderr)
+            dividend_data = _extract_dividend_data(t, info)
+        except Exception:
+            pass
 
         return {
             "pe_trailing": _fmt_ratio(info.get("trailingPE")),
             "pe_forward": _fmt_ratio(info.get("forwardPE")),
             "revenue_growth_yoy": revenue_growth,
             "institutional_ownership": _fmt_pct(inst_pct, decimals=1),
-            "current_price": _fmt_usd(info.get("currentPrice") or info.get("regularMarketPrice"), decimals=2),
+            "current_price": _fmt_usd(current_price_raw, decimals=2),
             "week_52_high": _fmt_usd(info.get("fiftyTwoWeekHigh"), decimals=2),
             "week_52_low": _fmt_usd(info.get("fiftyTwoWeekLow"), decimals=2),
             "market_cap": market_cap,
@@ -434,7 +428,7 @@ def fetch_sentiment_data(ticker: str) -> Optional[Dict[str, Any]]:
     try:
         import pandas as pd
         t = yf.Ticker(ticker)
-        info = t.info
+        info = t.info or {}
 
         if not info or info.get("quoteType") is None:
             return None
@@ -468,6 +462,11 @@ def fetch_sentiment_data(ticker: str) -> Optional[Dict[str, Any]]:
         try:
             rec = t.recommendations
             if rec is not None and not rec.empty:
+                #Robust MultiIndex check
+                if isinstance(rec.columns, pd.MultiIndex):
+                    level = 1 if any(c in rec.columns.levels[1] for c in ["buy", "hold", "sell"]) else 0
+                    rec.columns = rec.columns.get_level_values(level)
+
                 three_months_ago = pd.Timestamp.now(tz="UTC") - pd.DateOffset(months=3)
                 # recommendations index may or may not be tz-aware
                 try:

@@ -12,7 +12,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Build the Vite frontend
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — Runtime image (Node.js + Python on Alpine)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 WORKDIR /app
 
@@ -74,7 +74,7 @@ COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
 # ── Use existing node user from Alpine base image ──────────────────────────────
-# node:20-alpine already includes a 'node' user (uid 1000)
+# node:24-alpine already includes a 'node' user (uid 1000)
 # Just set ownership and switch to it
 RUN chown -R node:node /app
 
