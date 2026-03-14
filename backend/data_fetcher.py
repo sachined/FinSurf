@@ -204,7 +204,6 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
         end    = target + datetime.timedelta(days=1)   # yfinance end is exclusive
 
         t = yf.Ticker(ticker)
-        info = t.info or {}
 
         hist = t.history(
             start=str(start),
@@ -220,12 +219,14 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
             return None
         # yfinance sometimes returns a MultiIndex column (ticker, "Close")
         if isinstance(past.columns, pd.MultiIndex):
-            close_series = past.xs("Close", axis=1, level=1 if "Close" in past.columns.levels[1] else 0)
+            level = 1 if "Close" in past.columns.levels[1] else 0
+            close_series = past.xs("Close", axis=1, level=level)
         else:
             close_series = past["Close"]
+
         close = close_series.iloc[-1]
         return round(float(close), 4)
-    except (KeyError, IndexError):
+    except Exception:
         return None
 
 def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]:
