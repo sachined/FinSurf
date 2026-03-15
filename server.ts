@@ -266,9 +266,15 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (_req, res) => {
+
+    app.get("*", (req, res) => {
+      if (req.path.match(/\.(html|css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2)$/)) {
+        return res.status(404).send('Not found');
+      }
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
+      // If the request looks like an asset (ends in .css, .js, .png, etc.), don't send index.html
   }
 
   const server = app.listen(PORT, "0.0.0.0", () => {
