@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mail, LinkedIn, GitHub, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
+import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
 import { resumeData } from '../data/resumeData';
 import { AccessMode } from '../types';
 import { cn } from '../utils/cn';
@@ -10,7 +10,7 @@ interface AboutPageProps {
   onBack: () => void;
 }
 
-// Accent colour helper — mirrors the existing Header pattern
+// Accent color helper — mirrors the existing Header pattern
 function accent(mode: AccessMode) {
   if (mode === 'tropical') return 'text-orange-500';
   if (mode === 'colorblind') return 'text-blue-700 dark:text-blue-400';
@@ -113,12 +113,12 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
             )}
             {d.contact.linkedin && (
               <a href={d.contact.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                <LinkedIn size={13} /> LinkedIn
+                <Linkedin size={13} /> LinkedIn
               </a>
             )}
             {d.contact.github && (
               <a href={d.contact.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                <GitHub size={13} /> GitHub
+                <Github size={13} /> GitHub
               </a>
             )}
             {d.contact.website && (

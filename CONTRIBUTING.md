@@ -52,15 +52,15 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment Variables Reference
 
-| Variable             | Required    | Description                                                   |
-|----------------------|-------------|---------------------------------------------------------------|
-| `GEMINI_API_KEY`     | âœ…           | Primary LLM provider                                          |
-| `PERPLEXITY_API_KEY` | Optional    | Real-time web search for Research & Sentiment agents          |
-| `APP_SECRET`         | Recommended | Bearer token protecting all `/api/` routes                    |
-| `CORS_ORIGIN`        | Production  | Comma-separated allowed origins                               |
-| `DOMAIN`             | Production  | Domain for Caddy TLS certificate                              |
-| `DAILY_BUDGET_USD`   | Optional    | Hard daily spend cap (e.g. `0.50`)                            |
-| `TELEMETRY_DB`       | Optional    | SQLite path (default: `finsurf_telemetry.db`)                 |
+| Variable             | Required    | Description                                                        |
+|----------------------|-------------|--------------------------------------------------------------------|
+| `GEMINI_API_KEY`     | âœ…         | Primary LLM provider                                               |
+| `PERPLEXITY_API_KEY` | Optional    | Real-time web search for Research & Sentiment agents               |
+| `APP_SECRET`         | Recommended | Bearer token protecting all `/api/` routes                         |
+| `CORS_ORIGIN`        | Production  | Comma-separated allowed origins                                    |
+| `DOMAIN`             | Production  | Domain for Caddy TLS certificate                                   |
+| `DAILY_BUDGET_USD`   | Optional    | Hard daily spend cap (e.g. `0.50`)                                 |
+| `TELEMETRY_DB`       | Optional    | SQLite path (default: `finsurf_telemetry.db`)                      |
 | `ALLOWED_PROVIDERS`  | Optional    | Comma-separated provider allowlist (e.g. `gemini,perplexity,groq`) |
 
 ---
@@ -266,7 +266,7 @@ SQLite databases are stored in a named Docker volume (`finsurf_data`) mounted at
 
 | Provider                 | Est. Monthly Cost | Notes                                                 |
 |--------------------------|-------------------|-------------------------------------------------------|
-| **Fly.io**               | ~$5â€“10            | Best Docker-native PaaS; persistent volumes; auto TLS |
+| **Fly.io**               | ~$5â€“10          | Best Docker-native PaaS; persistent volumes; auto TLS |
 | **DigitalOcean Droplet** | ~$6               | Most control; run Docker Compose yourself             |
 | **Railway**              | ~$5               | Easiest setup; builds from Dockerfile                 |
 

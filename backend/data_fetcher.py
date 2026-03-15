@@ -142,7 +142,7 @@ def _infer_payment_frequency(dividends) -> str:
     try:
         if dividends is None or len(dividends) == 0:
             return "N/A"
-        import pandas as pd
+
         one_year_ago = pd.Timestamp.now(tz="UTC") - pd.DateOffset(years=1)
         recent = dividends[dividends.index >= one_year_ago]
         count = len(recent)
@@ -164,7 +164,7 @@ def _consecutive_dividend_years(dividends) -> str:
     try:
         if dividends is None or len(dividends) == 0:
             return "0"
-        import pandas as pd
+
         annual = dividends.resample("YE").sum()
         paying_years = sorted(
             [y.year for y, v in annual.items() if v > 0], reverse=True
@@ -218,13 +218,21 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
         if past.empty:
             return None
         # yfinance sometimes returns a MultiIndex column (ticker, "Close")
-        if isinstance(past.columns, pd.MultiIndex):
-            level = 1 if "Close" in past.columns.levels[1] else 0
+        if past.columns.nlevels > 1:
+            # Check which level has "Close" (usually level 1 in a Ticker/Price MultiIndex)
+            level = 1 if "Close" in past.columns.get_level_values(1) else 0
             close_series = past.xs("Close", axis=1, level=level)
         else:
             close_series = past["Close"]
+        
+        # Robustly extract the last scalar price
+        last_row = close_series.iloc[-1]
+        if hasattr(last_row, "iloc"):
+            # If still a Series (multiple matching columns), take the first one
+            close = last_row.iloc[0]
+        else:
+            close = last_row
 
-        close = close_series.iloc[-1]
         return round(float(close), 4)
     except ValueError:
         return None
@@ -252,7 +260,7 @@ def _extract_news_data(t: yf.Ticker) -> list:
                         "link": link,
                     })
     except TypeError:
-        return None
+        return news_items
     return news_items
 
 def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
@@ -261,10 +269,11 @@ def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
     try:
         rec = t.recommendations
         if rec is not None and not rec.empty:
-            import pandas as pd
+
             # Robust MultiIndex check
-            if isinstance(rec.columns, pd.MultiIndex):
-                level = 1 if any(c in rec.columns.levels[1] for c in ["buy", "hold", "sell"]) else 0
+            if rec.columns.nlevels > 1:
+                # Find which level contains our recommendation columns
+                level = 1 if any(c in rec.columns.get_level_values(1) for c in ["buy", "hold", "sell"]) else 0
                 rec.columns = rec.columns.get_level_values(level)
 
             three_months_ago = pd.Timestamp.now(tz="UTC") - pd.DateOffset(months=3)
@@ -278,7 +287,7 @@ def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
                     if col in recent_rec.columns:
                         recommendations[col] = int(recent_rec[col].sum())
     except TypeError:
-        return None
+        return recommendations
     return recommendations
 
 def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]:
@@ -358,8 +367,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         try:
             hist = t.history(period="2y")
             if hist is not None and not hist.empty:
-                if isinstance(hist.columns, pd.MultiIndex):
-                    level = 1 if "Close" in hist.columns.levels[1] else 0
+                if hist.columns.nlevels > 1:
+                    level = 1 if "Close" in hist.columns.get_level_values(1) else 0
                     hist.columns = hist.columns.get_level_values(level)
 
                 price_history = [
@@ -376,12 +385,18 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                 latest_hist = t.history(period="1d")
                 if not latest_hist.empty:
                     # Apply robust column access to fallback
-                    if isinstance(latest_hist.columns, pd.MultiIndex):
-                        c_level = 1 if "Close" in latest_hist.columns.levels[1] else 0
+                    if latest_hist.columns.nlevels > 1:
+                        c_level = 1 if "Close" in latest_hist.columns.get_level_values(1) else 0
                         close_series = latest_hist.xs("Close", axis=1, level=c_level)
                     else:
                         close_series = latest_hist["Close"]
-                    current_price_raw = close_series.iloc[-1]
+                
+                    # Robustly extract the last scalar price
+                    last_row = close_series.iloc[-1]
+                    if hasattr(last_row, "iloc"):
+                        current_price_raw = last_row.iloc[0]
+                    else:
+                        current_price_raw = last_row
             except ValueError:
                 return None
 
