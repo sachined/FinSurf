@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
@@ -30,11 +30,11 @@ function getSecret(envVar: string, fileEnvVar: string): string | undefined {
   return process.env[envVar];
 }
 
-// Simple in-memory cache for the security guardrail to minimize API calls
+// a Simple in-memory cache for the security guardrail to minimize API calls
 // MAX_CACHE_SIZE prevents unbounded memory growth during long-running sessions.
 const guardrailCache = new Map<string, { status: boolean; timestamp: number }>();
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour
-const MAX_CACHE_SIZE = 500; // evict oldest entry once this is exceeded
+const MAX_CACHE_SIZE = 500; // evict the oldest entry once this is exceeded
 
 /** Parse citation URLs from LLM output into {title, uri} objects, dropping malformed URLs. */
 function parseCitations(citations: unknown[]): { title: string; uri: string }[] {
@@ -88,7 +88,7 @@ async function startServer() {
   const useHttps = process.env.HTTPS === "true";
   app.use(helmet({
     // Disable HSTS when not behind HTTPS — otherwise the browser upgrades
-    // all asset requests to https:// and the page fails to load over plain HTTP.
+    // all asset requests to https://, and the page fails to load over plain HTTP.
     hsts: useHttps ? { maxAge: 31536000, includeSubDomains: true } : false,
     contentSecurityPolicy: isProd ? {
       directives: {
@@ -121,7 +121,6 @@ async function startServer() {
   // This matches the fast-path in the Python guardrail and prevents oversized
   // or space-containing strings from ever reaching the child process.
   const TICKER_RE = /^[A-Z0-9.\-]{1,10}$/;
-  const DATE_RE   = /^\d{4}-\d{2}-\d{2}$/;
 
   const validateTicker = (ticker: unknown): string | null => {
     if (!ticker || typeof ticker !== "string") return null;
@@ -129,10 +128,7 @@ async function startServer() {
     return TICKER_RE.test(t) ? t : null;
   };
 
-  const validateDate = (date: unknown): boolean =>
-    typeof date === "string" && DATE_RE.test(date.trim());
-
-  // ── Health check (no auth required — used by Docker HEALTHCHECK) ──────────
+  // ── Health check (no auth required — used by Docker health check) ──────────
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
   });
@@ -151,7 +147,7 @@ async function startServer() {
   app.use("/api/", limiter);
 
   // Extract user-supplied API keys from request headers (forwarded by the frontend).
-  // These override the server's keys so the user's own quota is consumed.
+  // These override the server's keys, so the user's own quota is consumed.
   function getUserKeyEnv(req: Request): Record<string, string> {
     const overrides: Record<string, string> = {};
     const gemini     = req.headers["x-user-gemini-key"];
@@ -189,162 +185,76 @@ async function startServer() {
   console.log("GEMINI_API_KEY present:", !!GEMINI_API_KEY);
 
   // API Routes
-  app.post("/api/research", async (req, res) => {
+  // ── Unified Graph API ──────────────────────────────────────────────────
+  app.post("/api/analyze", async (req, res) => {
     const ticker = validateTicker(req.body.ticker);
     if (!ticker) {
       res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
       return;
     }
-    // purchaseDate, sellDate, and shares are optional — used by calculate_pnl (shared Tax Calculator tool)
-    const purchaseDate: string = typeof req.body.purchaseDate === "string" ? req.body.purchaseDate : "";
-    const sellDate: string     = typeof req.body.sellDate     === "string" ? req.body.sellDate     : "";
-    const resShares: number    = parseFloat(req.body.shares) > 0 ? parseFloat(req.body.shares) : 0;
-    console.log(`Researching: ${ticker}`);
+    const { purchaseDate, sellDate, shares, years } = req.body;
+    const sharesNum = parseFloat(shares) || 1.0;
+    const yearsNum = parseInt(years, 10) || 3;
+    const pd = typeof purchaseDate === "string" && purchaseDate ? purchaseDate : "";
+    const sd = typeof sellDate === "string" && sellDate ? sellDate : "";
+
+    console.log(`Unified analysis: ${ticker} (shares=${sharesNum}, years=${yearsNum})`);
     const userEnv = getUserKeyEnv(req);
     try {
       const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("research", [ticker, purchaseDate, sellDate, resShares], isSafe, userEnv);
-      try {
-        const data = JSON.parse(stdout);
-        res.json({
-          content:      data.content,
-          agentName:    "Research Analyst",
-          sources:      parseCitations(data.citations),
-          priceHistory: data.price_history  || [],
-          buyPrice:     data.buy_price      ?? null,
-          sellPrice:    data.sell_price     ?? null,
-          currentPrice: data.current_price  ?? null,
-          pnlSummary:   data.pnl_summary    ?? null,
-        });
-      } catch (e) {
-        res.json({ content: stdout.trim(), agentName: "Research Analyst", priceHistory: [], buyPrice: null, sellPrice: null, currentPrice: null, pnlSummary: null });
-      }
-    } catch (error) {
-      console.error("Research agent error:", error);
-      res.status(500).json({ error: "Research analysis failed. Please try again." });
-    }
-  });
+      const stdout = await runPythonAgent("graph", [ticker, pd, sd, sharesNum, yearsNum], isSafe, userEnv);
+      const graphData = JSON.parse(stdout);
 
-  app.post("/api/tax", async (req, res) => {
-    const ticker = validateTicker(req.body.ticker);
-    if (!ticker) {
-      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
-      return;
-    }
-    const { purchaseDate, sellDate, shares: taxShares } = req.body;
-    if (!validateDate(purchaseDate) || !validateDate(sellDate)) {
-      res.status(400).json({ error: "purchaseDate and sellDate are required in YYYY-MM-DD format." });
-      return;
-    }
-    const taxSharesNum = parseFloat(taxShares);
-    const taxSharesArg = (!isNaN(taxSharesNum) && taxSharesNum > 0) ? taxSharesNum : 0;
-    console.log(`Tax analysis: ${ticker}`);
-    const userEnv = getUserKeyEnv(req);
-    try {
-      const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("tax", [ticker, purchaseDate, sellDate, taxSharesArg], isSafe, userEnv);
-      try {
-        const data = JSON.parse(stdout);
-        res.json({ content: data.content, agentName: "Tax Strategist", sources: parseCitations(data.citations) });
-      } catch {
-        res.json({ content: stdout.trim(), agentName: "Tax Strategist" });
-      }
-    } catch (error) {
-      console.error("Tax agent error:", error);
-      res.status(500).json({ error: "Tax analysis failed. Please try again." });
-    }
-  });
+      // Map the LangGraph state back to the frontend
+      const resRaw = graphData.research_output ? JSON.parse(graphData.research_output) : null;
+      const research = resRaw ? {
+        content:      resRaw.content,
+        agentName:    "Research Analyst",
+        sources:      parseCitations(resRaw.citations),
+        priceHistory: graphData.price_history || [],
+        currentPrice: graphData.current_price ?? null,
+        pnlSummary:   graphData.pnl_summary   ?? null,
+      } : null;
 
-  app.post("/api/dividend", async (req, res) => {
-    const ticker = validateTicker(req.body.ticker);
-    if (!ticker) {
-      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
-      return;
-    }
-    const { shares, years, purchaseDate, sellDate } = req.body;
-    const sharesNum = parseFloat(shares);
-    const yearsNum = parseInt(years, 10);
-    if (isNaN(sharesNum) || sharesNum <= 0 || sharesNum > 1_000_000) {
-      res.status(400).json({ error: "shares must be a positive number no greater than 1,000,000." });
-      return;
-    }
-    if (isNaN(yearsNum) || yearsNum <= 0 || yearsNum > 50) {
-      res.status(400).json({ error: "years must be a positive integer no greater than 50." });
-      return;
-    }
-    console.log(`Dividend analysis: ${ticker}`);
-    const userEnv = getUserKeyEnv(req);
-    try {
-      const isSafe = await checkGuardrail(ticker, userEnv);
-      const pd = typeof purchaseDate === "string" && purchaseDate ? purchaseDate : "";
-      const sd = typeof sellDate === "string" && sellDate ? sellDate : "";
-      const stdout = await runPythonAgent("dividend", [ticker, sharesNum, yearsNum, pd, sd], isSafe, userEnv);
-      if (!stdout.trim()) throw new Error("Empty response from dividend agent");
-      const data = JSON.parse(stdout);
-      res.json({ 
-        content: data.analysis, 
-        agentName: "Dividend Specialist",
-        isDividendStock: data.isDividendStock,
-        hasDividendHistory: data.hasDividendHistory,
-        stats: data.stats || null
-      });
-    } catch (e) {
-      console.error(`Parse error: ${e}`);
-      res.status(500).json({ error: "Failed to process dividend data" });
-    }
-  });
+      const taxRaw = graphData.tax_output ? JSON.parse(graphData.tax_output) : null;
+      const tax = taxRaw ? { 
+        agentName: "Tax Strategist", 
+        content: taxRaw.content, 
+        sources: parseCitations(taxRaw.citations) 
+      } : null;
 
-  app.post("/api/sentiment", async (req, res) => {
-    const ticker = validateTicker(req.body.ticker);
-    if (!ticker) {
-      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
-      return;
-    }
-    console.log(`Sentiment analysis: ${ticker}`);
-    const userEnv = getUserKeyEnv(req);
-    try {
-      const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("sentiment", [ticker], isSafe, userEnv);
-      try {
-        const data = JSON.parse(stdout);
-        res.json({ content: data.content, agentName: "Social Sentiment Analyst", sources: parseCitations(data.citations) });
-      } catch (e) {
-        res.json({ content: stdout.trim(), agentName: "Social Sentiment Analyst" });
-      }
-    } catch (error) {
-      console.error("Sentiment agent error:", error);
-      res.status(500).json({ error: "Sentiment analysis failed. Please try again." });
-    }
-  });
+      const sentRaw = graphData.sentiment_output ? JSON.parse(graphData.sentiment_output) : null;
+      const sentiment = sentRaw ? { 
+        agentName: "Social Sentiment Analyst", 
+        content: sentRaw.content, 
+        sources: parseCitations(sentRaw.citations) 
+      } : null;
 
-  app.post("/api/summary", async (req, res) => {
-    const ticker = validateTicker(req.body.ticker);
-    if (!ticker) {
-      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
-      return;
-    }
-    const { researchContent, taxContent, dividendContent, sentimentContent, pnlSummary } = req.body;
-    const userEnv = getUserKeyEnv(req);
-    // Wrap plain content strings back into the JSON envelope shapes each agent produces
-    const payload = JSON.stringify({
-      research_output:  researchContent  ? JSON.stringify({ content: researchContent })  : null,
-      tax_output:       taxContent       ? JSON.stringify({ content: taxContent })       : null,
-      sentiment_output: sentimentContent ? JSON.stringify({ content: sentimentContent }) : null,
-      dividend_output:  dividendContent  ? { analysis: dividendContent }                : null,
-      pnl_summary:      pnlSummary       || null,
-    });
-    console.log(`Executive summary: ${ticker}`);
-    try {
-      const stdout = await runPythonAgent("summary", [ticker, payload], true, userEnv);
-      try {
-        const data = JSON.parse(stdout);
-        res.json({ content: data.content, agentName: "Executive Summary", sources: [] });
-      } catch {
-        res.json({ content: stdout.trim(), agentName: "Executive Summary", sources: [] });
+      const sumRaw = graphData.executive_summary_output ? JSON.parse(graphData.executive_summary_output) : null;
+      const summary = sumRaw ? { 
+        agentName: "Executive Summary", 
+        content: sumRaw.content, 
+        sources: parseCitations(sumRaw.citations) 
+      } : null;
+
+      // Extract dividend data if present
+      let dividend = null;
+      if (graphData.dividend_output) {
+        const div = graphData.dividend_output;
+        dividend = {
+          agentName: "Dividend Specialist",
+          isDividendStock: div.isDividendStock,
+          hasDividendHistory: div.hasDividendHistory,
+          content: div.analysis || "Dividend analysis unavailable.",
+          stats: div.stats || null,
+          sources: parseCitations(div.citations),
+        };
       }
+
+      res.json({ research, tax, sentiment, dividend, summary });
     } catch (error) {
-      console.error("Summary agent error:", error);
-      res.status(500).json({ error: "Executive summary failed. Please try again." });
+      console.error("Unified graph error:", error);
+      res.status(500).json({ error: "Analysis failed. Please try again." });
     }
   });
 
@@ -357,7 +267,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }

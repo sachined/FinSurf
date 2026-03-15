@@ -17,8 +17,8 @@ Conditional routing:
 import json
 import sys
 import uuid
-from typing import Any, Dict, List, Optional, Union
-from typing_extensions import Annotated, TypedDict
+from typing import Any, Annotated, Dict, List, Optional, TypedDict, Union
+
 
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
@@ -61,57 +61,34 @@ def _overwrite(a: Any, b: Any) -> Any:
     """Last-writer-wins merge for optional string fields."""
     return b if b is not None else a
 
-def _extend_list(a: List[str], b: List[str]) -> List[str]:
+def _extend_list(a: list[str], b: list[str]) -> list[str]:
     """Concatenate string fields, favoring b."""
     return a + b
 
 
 class FinSurfState(TypedDict):
-    # --- inputs ---
     ticker: str
     purchase_date: str
     sell_date: str
     shares: float
     years: int
     skip_guardrail: bool
-
-    # --- control flags written by nodes ---
-    is_safe: bool                          # set by guardrail node
-    is_dividend_stock: bool                # set by research node
-    sentiment_data: Annotated[Optional[Dict[str, Any]], _overwrite]
-
-    # --- agent outputs (Annotated so parallel nodes can write independently) ---
-    research_output: Annotated[Optional[str], _overwrite]
-    tax_output: Annotated[Optional[str], _overwrite]
-    sentiment_output: Annotated[Optional[str], _overwrite]
-    dividend_output: Annotated[Optional[Dict[str, Any]], _overwrite]
-
-    # --- chart data written by research node ---
-    price_history: Annotated[Optional[List[Dict[str, Union[str, float]]]], _overwrite]
-
-    # --- point-in-time prices written by research node (used by frontend for P&L) ---
-    buy_price: Annotated[Optional[float], _overwrite]
-    sell_price: Annotated[Optional[float], _overwrite]
-    current_price: Annotated[Optional[float], _overwrite]
-
-    # --- dividend data pre-fetched by research node and consumed by dividend node ---
-    dividend_data: Annotated[Optional[Dict[str, Any]], _overwrite]
-
-    # --- shared P&L summary computed by research_node, enriched by dividend_node ---
-    pnl_summary: Annotated[Optional[Dict[str, Any]], _overwrite]
-
-    # --- executive summary: written by the final accumulator node ---
-    executive_summary_output: Annotated[Optional[str], _overwrite]
-
-    # --- error accumulation ---
-    errors: Annotated[List[str], _extend_list]
-
-    # --- telemetry (populated by run_graph after invoke, not by graph nodes) ---
-    token_summary: Annotated[Optional[Dict[str, Any]], _overwrite]
-
-# ---------------------------------------------------------------------------
-# Node implementations
-# ---------------------------------------------------------------------------
+    is_safe: bool
+    is_dividend_stock: bool
+    sentiment_data: Annotated[dict[str, Any] | None, _overwrite]
+    research_output: Annotated[str | None, _overwrite]
+    tax_output: Annotated[str | None, _overwrite]
+    sentiment_output: Annotated[str | None, _overwrite]
+    dividend_output: Annotated[dict[str, Any] | None, _overwrite]
+    price_history: Annotated[list[dict[str, str | float]] | None, _overwrite]
+    buy_price: Annotated[float | None, _overwrite]
+    sell_price: Annotated[float | None, _overwrite]
+    current_price: Annotated[float | None, _overwrite]
+    dividend_data: Annotated[dict[str, Any] | None, _overwrite]
+    pnl_summary: Annotated[dict[str, Any] | None, _overwrite]
+    executive_summary_output: Annotated[str | None, _overwrite]
+    errors: Annotated[list[str], _extend_list]
+    token_summary: Annotated[dict[str, Any] | None, _overwrite]
 
 def guardrail_node(state: FinSurfState) -> Dict[str, Any]:
     """Validate the ticker. Sets is_safe; downstream nodes check this flag."""
@@ -332,7 +309,7 @@ def route_dividend(state: FinSurfState):
 # ---------------------------------------------------------------------------
 
 def build_graph() -> Any:
-    builder = StateGraph[FinSurfState](FinSurfState)
+    builder = StateGraph(FinSurfState)
 
     builder.add_node("guardrail", guardrail_node)
     builder.add_node("research", research_node)

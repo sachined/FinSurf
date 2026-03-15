@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
-import { researchAgent, taxAgent, dividendAgent, sentimentAgent, summaryAgent, analyzeAgent } from '../services/apiService';
-import { AgentKey, AgentResponse, DividendResponse, FinancialAgentsState, LoadingState, ResearchResponse, UserApiKeys } from '../types';
+import { analyzeAgent } from '../services/apiService';
+import { AgentKey, AgentResponse, FinancialAgentsState, LoadingState, UserApiKeys } from '../types';
 
 export function useFinancialAgents() {
   const [loading, setLoading] = useState<LoadingState>({
@@ -19,11 +19,11 @@ export function useFinancialAgents() {
     summary: null,
   });
 
-  /**
+ /*
    * DRY helper: sets the named agent's loading flag, awaits the call,
    * stores the result, and clears loading — regardless of success or failure.
    * Returns the response (or null on error) so runAll can pass it to runSummary.
-   */
+
   async function withLoading<T extends AgentResponse>(
     key: AgentKey,
     call: () => Promise<T>,
@@ -104,6 +104,7 @@ export function useFinancialAgents() {
       'Executive summary failed.',
     );
   };
+  */
 
   const runAll = async (ticker: string, purchaseDate: string, sellDate: string, shares: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
     if (!ticker) return;
@@ -141,5 +142,5 @@ export function useFinancialAgents() {
     }
   };
 
-  return { loading, responses, runResearch, runTax, runDividend, runSentiment, runSummary, runAll };
+  return { loading, responses, runAll };
 }

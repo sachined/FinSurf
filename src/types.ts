@@ -35,8 +35,6 @@ export interface PnLSummary {
 
 export interface ResearchResponse extends AgentResponse {
   priceHistory: PricePoint[];
-  buyPrice:     number | null;
-  sellPrice:    number | null;
   currentPrice: number | null;
   pnlSummary:   PnLSummary | null;
 }
