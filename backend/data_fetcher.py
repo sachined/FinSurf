@@ -229,19 +229,73 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
     except Exception:
         return None
 
+def _extract_news_data(t: yf.Ticker) -> list:
+    """Extract recent news headlines from yf.Ticker object."""
+    news_items: list = []
+    try:
+        raw_news = t.news
+        if raw_news:
+            for item in raw_news[:10]:
+                title = item.get("content", {}).get("title") or item.get("title", "")
+                publisher = (
+                    item.get("content", {}).get("provider", {}).get("displayName")
+                    or item.get("publisher", "")
+                )
+                link = (
+                    item.get("content", {}).get("canonicalUrl", {}).get("url")
+                    or item.get("link", "")
+                )
+                if title:
+                    news_items.append({
+                        "title": title,
+                        "publisher": publisher,
+                        "link": link,
+                    })
+    except Exception:
+        pass
+    return news_items
+
+def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
+    """Extract analyst recommendations from yf.Ticker object."""
+    recommendations: Dict[str, int] = {}
+    try:
+        rec = t.recommendations
+        if rec is not None and not rec.empty:
+            import pandas as pd
+            # Robust MultiIndex check
+            if isinstance(rec.columns, pd.MultiIndex):
+                level = 1 if any(c in rec.columns.levels[1] for c in ["buy", "hold", "sell"]) else 0
+                rec.columns = rec.columns.get_level_values(level)
+
+            three_months_ago = pd.Timestamp.now(tz="UTC") - pd.DateOffset(months=3)
+            # recommendations index may or may not be tz-aware
+            try:
+                recent_rec = rec[rec.index >= three_months_ago]
+            except TypeError:
+                recent_rec = rec[rec.index >= three_months_ago.replace(tzinfo=None)]
+            if not recent_rec.empty:
+                for col in ["strongBuy", "buy", "hold", "sell", "strongSell"]:
+                    if col in recent_rec.columns:
+                        recommendations[col] = int(recent_rec[col].sum())
+    except Exception:
+        pass
+    return recommendations
+
 def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]:
     """
     Helper to extract and format dividend data from a yf.Ticker object and its info.
     Shared by fetch_dividend_data and fetch_research_data.
     """
     annual_div = info.get("dividendRate") or info.get("trailingAnnualDividendRate")
-    is_dividend_stock = bool(annual_div and float(annual_div) > 0)
 
     try:
         dividends = t.dividends
     except Exception:
         dividends = None
     has_history = dividends is not None and len(dividends) > 0
+
+    # Robust check: either the info explicitly says so, or we have actual payments in history
+    is_dividend_stock = bool(annual_div and float(annual_div) > 0) or has_history
 
     ex_date_raw = info.get("exDividendDate")
     if ex_date_raw:
@@ -395,6 +449,11 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         except Exception:
             pass
 
+        # Pre-fetch sentiment data (news/recommendations) to avoid redundant
+        # calls in the sentiment node.
+        news = _extract_news_data(t)
+        recommendations = _extract_recommendations_data(t)
+
         return {
             "pe_trailing": _fmt_ratio(info.get("trailingPE")),
             "pe_forward": _fmt_ratio(info.get("forwardPE")),
@@ -413,6 +472,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
             "earnings_growth": earnings_growth,
             "price_history": price_history,
             "dividend_data": dividend_data,
+            "news": news,
+            "recommendations": recommendations,
         }
     except Exception as exc:
         print(f"data_fetcher: fetch_research_data({ticker}) failed: {exc}", file=sys.stderr)
@@ -427,7 +488,6 @@ def fetch_sentiment_data(ticker: str) -> Optional[Dict[str, Any]]:
     Returns None on any failure so the sentiment agent can fall back gracefully.
     """
     try:
-        import pandas as pd
         t = yf.Ticker(ticker)
         info = t.info or {}
 
@@ -435,51 +495,10 @@ def fetch_sentiment_data(ticker: str) -> Optional[Dict[str, Any]]:
             return None
 
         # Recent news headlines (up to 10)
-        news_items: list = []
-        try:
-            raw_news = t.news
-            if raw_news:
-                for item in raw_news[:10]:
-                    title = item.get("content", {}).get("title") or item.get("title", "")
-                    publisher = (
-                        item.get("content", {}).get("provider", {}).get("displayName")
-                        or item.get("publisher", "")
-                    )
-                    link = (
-                        item.get("content", {}).get("canonicalUrl", {}).get("url")
-                        or item.get("link", "")
-                    )
-                    if title:
-                        news_items.append({
-                            "title": title,
-                            "publisher": publisher,
-                            "link": link,
-                        })
-        except Exception:
-            pass
+        news_items = _extract_news_data(t)
 
         # Analyst recommendations — aggregate buy/hold/sell from last 3 months
-        recommendations: Dict[str, int] = {}
-        try:
-            rec = t.recommendations
-            if rec is not None and not rec.empty:
-                #Robust MultiIndex check
-                if isinstance(rec.columns, pd.MultiIndex):
-                    level = 1 if any(c in rec.columns.levels[1] for c in ["buy", "hold", "sell"]) else 0
-                    rec.columns = rec.columns.get_level_values(level)
-
-                three_months_ago = pd.Timestamp.now(tz="UTC") - pd.DateOffset(months=3)
-                # recommendations index may or may not be tz-aware
-                try:
-                    recent_rec = rec[rec.index >= three_months_ago]
-                except TypeError:
-                    recent_rec = rec[rec.index >= three_months_ago.replace(tzinfo=None)]
-                if not recent_rec.empty:
-                    for col in ["strongBuy", "buy", "hold", "sell", "strongSell"]:
-                        if col in recent_rec.columns:
-                            recommendations[col] = int(recent_rec[col].sum())
-        except Exception:
-            pass
+        recommendations = _extract_recommendations_data(t)
 
         # Only return a result dict when at least some data was retrieved
         if not news_items and not recommendations:

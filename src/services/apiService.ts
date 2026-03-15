@@ -1,4 +1,4 @@
-import { AgentResponse, DividendResponse, PnLSummary, ResearchResponse, UserApiKeys } from '../types';
+import { AgentResponse, DividendResponse, PnLSummary, ResearchResponse, UserApiKeys, FinancialAgentsState } from '../types';
 
 /** Shared POST helper — DRY wrapper for all API calls. */
 async function apiPost<T>(
@@ -53,3 +53,13 @@ export const summaryAgent = (
     sentimentContent,
     pnlSummary,
   }, userKeys);
+
+export const analyzeAgent = (
+  ticker: string,
+  purchaseDate: string,
+  sellDate: string,
+  shares: number,
+  years: number,
+  userKeys?: UserApiKeys
+): Promise<FinancialAgentsState> =>
+  apiPost<FinancialAgentsState>("/api/analyze", { ticker, purchaseDate, sellDate, shares, years }, userKeys);

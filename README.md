@@ -11,18 +11,18 @@
 
 > Core analysis pipeline is fully functional end-to-end. Active development continues.
 
-| Feature | Status |
-|---|---|
-| Guardrail Agent | ✅ Production |
-| Research Agent | ✅ Production |
-| Tax Strategist Agent | ✅ Production |
-| Dividend Specialist Agent | ✅ Production |
-| Sentiment Agent | ✅ Production |
-| PDF Export (Standard + HD) | ✅ Production |
-| React + Vite Frontend | ✅ Production |
-| Tax Clock | 🔨 In Development |
-| Blind Spot Detector | 🔨 In Development |
-| Sector Health Monitor | 📋 Planned |
+| Feature                    | Status            |
+|----------------------------|-------------------|
+| Guardrail Agent            | ✅ Production      |
+| Research Agent             | ✅ Production      |
+| Tax Strategist Agent       | ✅ Production      |
+| Dividend Specialist Agent  | ✅ Production      |
+| Sentiment Agent            | ✅ Production      |
+| PDF Export (Standard + HD) | ✅ Production      |
+| React + Vite Frontend      | ✅ Production      |
+| Tax Clock                  | 🔨 In Development |
+| Blind Spot Detector        | 🔨 In Development |
+| Sector Health Monitor      | 📋 Planned        |
 
 ---
 
@@ -40,8 +40,8 @@ Results appear in an interactive dashboard. Click **Download PDF** for a profess
 
 > ⚠️ **Disclaimer:** FinSurf is an informational research tool, not financial advice. Verify all outputs independently before making any investment decision.
 
-| Landing Page | Agents Running |
-|:---:|:---:|
+|                  Landing Page                  |                  Agents Running                  |
+|:----------------------------------------------:|:------------------------------------------------:|
 | <img src="Images/InputScreen.png" width="450"> | <img src="Images/LoadingAgents.png" width="450"> |
 
 ---
@@ -90,7 +90,7 @@ graph TD
     subgraph UI["Output"]
         D --> K[ResultsGrid.tsx]
         K --> L[AgentCard.tsx]
-        L -->|Download| M[pdfGenerator.ts #rarr; PDF Report]
+        L -->|Download| M[pdfGenerator.ts #rarr PDF Report]
     end
 
     class A,B,C,D fe;
@@ -103,16 +103,16 @@ graph TD
 
 ## 🛠 Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 19, Vite 6, TypeScript, Tailwind CSS 4 |
-| **Backend** | Node.js, Express, Python 3 |
-| **AI Orchestration** | LangGraph, LangChain |
-| **LLM Providers** | Gemini, Perplexity, OpenAI, Anthropic (with fallback logic) |
-| **PDF Generation** | html2canvas, jsPDF (custom `oklch` color resolver for Tailwind CSS 4) |
-| **Telemetry** | SQLite — per-agent token usage, cost tracking, configurable daily budget cap |
-| **Testing** | Python `unittest` with fully mocked LLM calls |
-| **Deployment** | Docker, Caddy (automatic HTTPS via Let's Encrypt) |
+| Layer                | Technologies                                                                 |
+|----------------------|------------------------------------------------------------------------------|
+| **Frontend**         | React 19, Vite 6, TypeScript, Tailwind CSS 4                                 |
+| **Backend**          | Node.js, Express, Python 3                                                   |
+| **AI Orchestration** | LangGraph, LangChain                                                         |
+| **LLM Providers**    | Gemini, Perplexity, OpenAI, Anthropic (with fallback logic)                  |
+| **PDF Generation**   | html2canvas, jsPDF (custom `oklch` color resolver for Tailwind CSS 4)        |
+| **Telemetry**        | SQLite — per-agent token usage, cost tracking, configurable daily budget cap |
+| **Testing**          | Python `unittest` with fully mocked LLM calls                                |
+| **Deployment**       | Docker, Caddy (automatic HTTPS via Let's Encrypt)                            |
 
 ---
 
@@ -131,16 +131,16 @@ For workflows where one agent's output determines whether another agent runs at 
 
 ## 📸 Visuals
 
-| Light Mode | Night Mode |
-|:---:|:---:|
+|                 Light Mode                 |                 Night Mode                  |
+|:------------------------------------------:|:-------------------------------------------:|
 | <img src="Images/DayTime.png" width="450"> | <img src="Images/NighTime.png" width="450"> |
 
-| Accessibility Theme | Tropical Theme |
-|:---:|:---:|
+|                Accessibility Theme                 |                  Tropical Theme                  |
+|:--------------------------------------------------:|:------------------------------------------------:|
 | <img src="Images/AccessibleTheme.png" width="450"> | <img src="Images/TropicalTheme.png" width="450"> |
 
-| Results Dashboard | PDF Report |
-|:---:|:---:|
+|             Results Dashboard              |                      PDF Report                       |
+|:------------------------------------------:|:-----------------------------------------------------:|
 | <img src="Images/Result1.png" width="450"> | <img src="Images/Report_zoomedout25.png" width="450"> |
 
 ---
@@ -192,14 +192,14 @@ For internet-facing deployment with automatic HTTPS, see the [Docker section of 
 
 ## 🔮 Roadmap
 
-| Phase | Feature | Notes | Timeline |
-|---|---|---|---|
-| **Phase 1** | Historical Profit Analyzer | P&L, holding period, and cost-basis arithmetic in Python — no LLM guesses | Q2 2026 |
-| **Phase 2** | Multi-Ticker Batch Analysis (CSV upload) | Sequential processing with SSE progress stream; max 20 tickers per batch; per-request token budget enforced before processing starts | Q3–Q4 2026 |
-| **Phase 3a** | Analysis History Database | Persist `FinSurfState JSON` to SQLite; simple history list UI and re-open-report feature — no LLM involved | Early 2027 |
-| **Phase 3b** | AI Chat | Single-session "ask about this analysis" chat built on top of 3a using a conversational LangGraph node; cross-analysis RAG deferred | Mid–Late 2027 |
-| **Stretch** | Scenario Planner | "If price reaches $X, your gain is Y and your tax status is Z" — informational only, not prescriptive | TBD |
-| **Stretch** | Options Radar | Read-only display of top 5 contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins | TBD |
+| Phase        | Feature                                  | Notes                                                                                                                                                             | Timeline      |
+|--------------|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| **Phase 1**  | Historical Profit Analyzer               | P&L, holding period, and cost-basis arithmetic in Python — no LLM guesses                                                                                         | Q2 2026       |
+| **Phase 2**  | Multi-Ticker Batch Analysis (CSV upload) | Sequential processing with SSE progress stream; max 20 tickers per batch; per-request token budget enforced before processing starts                              | Q3–Q4 2026    |
+| **Phase 3a** | Analysis History Database                | Persist `FinSurfState JSON` to SQLite; simple history list UI and re-open-report feature — no LLM involved                                                        | Early 2027    |
+| **Phase 3b** | AI Chat                                  | Single-session "ask about this analysis" chat built on top of 3a using a conversational LangGraph node; cross-analysis RAG deferred                               | Mid–Late 2027 |
+| **Stretch**  | Scenario Planner                         | "If price reaches $X, your gain is Y and your tax status is Z" — informational only, not prescriptive                                                             | TBD           |
+| **Stretch**  | Options Radar                            | Read-only display of top 5 contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins | TBD           |
 
 ---
 

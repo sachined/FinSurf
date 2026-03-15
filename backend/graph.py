@@ -17,8 +17,8 @@ Conditional routing:
 import json
 import sys
 import uuid
-from typing import Any, Dict, List, Optional, Annotated, Union
-from typing_extensions import TypedDict
+from typing import Any, Dict, List, Optional, Union
+from typing_extensions import Annotated, TypedDict
 
 from langgraph.graph import StateGraph, END
 from langgraph.types import Send
@@ -37,7 +37,6 @@ from .financial_agents import (
     social_sentiment_agent,
     executive_summary_agent,
 )
-from .data_fetcher import calculate_pnl
 
 # ---------------------------------------------------------------------------
 # Pre-compiled keyword sets for dividend detection
@@ -58,9 +57,13 @@ _DIVIDEND_NEGATIONS: frozenset = frozenset({
 # Shared state schema
 # ---------------------------------------------------------------------------
 
-def _merge(a: Optional[str], b: Optional[str]) -> Optional[str]:
+def _overwrite(a: Any, b: Any) -> Any:
     """Last-writer-wins merge for optional string fields."""
     return b if b is not None else a
+
+def _extend_list(a: List[str], b: List[str]) -> List[str]:
+    """Concatenate string fields, favoring b."""
+    return a + b
 
 
 class FinSurfState(TypedDict):
@@ -75,36 +78,36 @@ class FinSurfState(TypedDict):
     # --- control flags written by nodes ---
     is_safe: bool                          # set by guardrail node
     is_dividend_stock: bool                # set by research node
+    sentiment_data: Annotated[Optional[Dict[str, Any]], _overwrite]
 
     # --- agent outputs (Annotated so parallel nodes can write independently) ---
-    research_output: Annotated[Optional[str], _merge]
-    tax_output: Annotated[Optional[str], _merge]
-    sentiment_output: Annotated[Optional[str], _merge]
-    dividend_output: Annotated[Optional[Dict[str, Any]], lambda a, b: b if b is not None else a]
+    research_output: Annotated[Optional[str], _overwrite]
+    tax_output: Annotated[Optional[str], _overwrite]
+    sentiment_output: Annotated[Optional[str], _overwrite]
+    dividend_output: Annotated[Optional[Dict[str, Any]], _overwrite]
 
     # --- chart data written by research node ---
-    price_history: Annotated[Optional[List[Dict[str, Union[str, float]]]], lambda a, b: b if b is not None else a]
+    price_history: Annotated[Optional[List[Dict[str, Union[str, float]]]], _overwrite]
 
     # --- point-in-time prices written by research node (used by frontend for P&L) ---
-    buy_price: Annotated[Optional[float], lambda a, b: b if b is not None else a]
-    sell_price: Annotated[Optional[float], lambda a, b: b if b is not None else a]
-    current_price: Annotated[Optional[float], lambda a, b: b if b is not None else a]
+    buy_price: Annotated[Optional[float], _overwrite]
+    sell_price: Annotated[Optional[float], _overwrite]
+    current_price: Annotated[Optional[float], _overwrite]
 
     # --- dividend data pre-fetched by research node and consumed by dividend node ---
-    dividend_data: Annotated[Optional[Dict[str, Any]], lambda a, b: b if b is not None else a]
+    dividend_data: Annotated[Optional[Dict[str, Any]], _overwrite]
 
     # --- shared P&L summary computed by research_node, enriched by dividend_node ---
-    pnl_summary: Annotated[Optional[Dict[str, Any]], lambda a, b: b if b is not None else a]
+    pnl_summary: Annotated[Optional[Dict[str, Any]], _overwrite]
 
     # --- executive summary: written by the final accumulator node ---
-    executive_summary_output: Annotated[Optional[str], _merge]
+    executive_summary_output: Annotated[Optional[str], _overwrite]
 
     # --- error accumulation ---
-    errors: Annotated[List[str], lambda a, b: a + b]
+    errors: Annotated[List[str], _extend_list]
 
     # --- telemetry (populated by run_graph after invoke, not by graph nodes) ---
-    token_summary: Optional[Dict[str, Any]]
-
+    token_summary: Annotated[Optional[Dict[str, Any]], _overwrite]
 
 # ---------------------------------------------------------------------------
 # Node implementations
@@ -123,48 +126,73 @@ def guardrail_node(state: FinSurfState) -> Dict[str, Any]:
 
 
 def research_node(state: FinSurfState) -> Dict[str, Any]:
-    """Run equity research; detect whether the ticker pays dividends."""
-    if not state.get("is_safe", False):
-        blocked = json.dumps({
-            "content": "### Blocked\n\nThis request was blocked by the security guardrail.",
-            "citations": []
-        })
-        return {"research_output": blocked, "is_dividend_stock": False}
-
     ticker = state["ticker"]
+    purchase_date = state.get("purchase_date", "")
+    sell_date = state.get("sell_date", "")
+
+    # 1. Initialize variables to prevent UnboundLocalError
+    is_dividend = False
+    div_data = None
+    price_history = []
+    buy_price = None
+    sell_price = None
+    current_price = None
+    pnl = None
+    sentiment_data = {"news": [], "recommendations": {}}
+
     try:
-        purchase_date = state.get("purchase_date", "")
-        sell_date = state.get("sell_date", "")
+        # 2. Check guardrail BEFORE the expensive agent call
+        if not state.get("is_safe", False):
+            blocked = json.dumps({"content": "Ticker Not Found", "citations": []})
+            return {"research_output": blocked, "is_dividend_stock": False}
+
         raw = research_agent(ticker, purchase_date=purchase_date, sell_date=sell_date, skip_guardrail=True)
-        lower = raw.lower()
-        pays_dividend = any(kw in lower for kw in _DIVIDEND_SIGNALS)
-        no_dividend = any(kw in lower for kw in _DIVIDEND_NEGATIONS)
-        is_dividend = pays_dividend and not no_dividend
-        price_history: Optional[List] = None
-        div_data: Optional[Dict[str, Any]] = None
-        buy_price: Optional[float] = None
-        sell_price: Optional[float] = None
-        current_price: Optional[float] = None
+
+        # 3. Parse JSON safely
         try:
             parsed = json.loads(raw)
-            price_history = parsed.get("price_history") or None
-            div_data = parsed.get("dividend_data") or None
+            price_history = parsed.get("price_history") or []
+            div_data = parsed.get("dividend_data")
             buy_price = parsed.get("buy_price")
             sell_price = parsed.get("sell_price")
             current_price = parsed.get("current_price")
+            pnl = parsed.get("pnl_summary")
+
+            # Pre-fetch sentiment data to share with the sentiment node
+            sentiment_data = {
+                "news": parsed.get("news", []),
+                "recommendations": parsed.get("recommendations", {}),
+            }
         except Exception:
-            pass
-        pnl = parsed.get("pnl_summary") or calculate_pnl(
-            buy_price, sell_price, current_price,
-            state.get("shares", 0.0) or 0.0,
-            purchase_date, sell_date,
-        )
-        return {"research_output": raw, "is_dividend_stock": is_dividend, "price_history": price_history, "dividend_data": div_data, "buy_price": buy_price, "sell_price": sell_price, "current_price": current_price, "pnl_summary": pnl}
-    except Exception as exc:
+            pass  # Keep defaults if JSON parsing fails
+
+        # 4. ROBUST DIVIDEND DETECTION
+        # Prioritize numerical flag from yfinance over AI narrative
+        if div_data and div_data.get("is_dividend_stock"):
+            is_dividend = True
+        else:
+            # Fallback to narrative search
+            lower = raw.lower()
+            is_dividend = any(kw in lower for kw in _DIVIDEND_SIGNALS) and \
+                          not any(kw in lower for kw in _DIVIDEND_NEGATIONS)
+
         return {
-            "research_output": json.dumps({"content": f"Research failed: {exc}", "citations": [], "price_history": []}),
+            "research_output": raw,
+            "is_dividend_stock": is_dividend,
+            "sentiment_data": sentiment_data,
+            "price_history": price_history,
+            "dividend_data": div_data,
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "current_price": current_price,
+            "pnl_summary": pnl,
+        }
+
+    except Exception as exc:
+        # Properly capture and return the error
+        return {
+            "research_output": json.dumps({"content": f"Research failed: {exc}", "citations": []}),
             "is_dividend_stock": False,
-            "price_history": None,
             "errors": [f"research error: {exc}"],
         }
 
@@ -194,11 +222,12 @@ def tax_node(state: FinSurfState) -> Dict[str, Any]:
         }
 
 
+
 def sentiment_node(state: FinSurfState) -> Dict[str, Any]:
-    """Run social sentiment analysis."""
     ticker = state["ticker"]
+    prefetched = state.get("sentiment_data") # Use pre-fetched data
     try:
-        result = social_sentiment_agent(ticker, skip_guardrail=True)
+        result = social_sentiment_agent(ticker, skip_guardrail=True, prefetched_data=prefetched)
         return {"sentiment_output": result}
     except Exception as exc:
         return {
@@ -303,7 +332,7 @@ def route_dividend(state: FinSurfState):
 # ---------------------------------------------------------------------------
 
 def build_graph() -> Any:
-    builder = StateGraph(FinSurfState)
+    builder = StateGraph[FinSurfState](FinSurfState)
 
     builder.add_node("guardrail", guardrail_node)
     builder.add_node("research", research_node)
@@ -359,6 +388,7 @@ def run_graph(
         "tax_output": None,
         "sentiment_output": None,
         "dividend_output": None,
+        "sentiment_data": None,
         "price_history": None,
         "buy_price": None,
         "sell_price": None,

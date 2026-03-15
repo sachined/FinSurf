@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
-import { researchAgent, taxAgent, dividendAgent, sentimentAgent, summaryAgent } from '../services/apiService';
+import { researchAgent, taxAgent, dividendAgent, sentimentAgent, summaryAgent, analyzeAgent } from '../services/apiService';
 import { AgentKey, AgentResponse, DividendResponse, FinancialAgentsState, LoadingState, ResearchResponse, UserApiKeys } from '../types';
 
 export function useFinancialAgents() {
@@ -106,39 +106,38 @@ export function useFinancialAgents() {
   };
 
   const runAll = async (ticker: string, purchaseDate: string, sellDate: string, shares: string, onError: (msg: string) => void, userKeys?: UserApiKeys) => {
-    // Reset all responses for the new search, including summary
+    if (!ticker) return;
+
+    // Reset all responses for the new search
     setResponses({ research: null, tax: null, dividend: null, sentiment: null, summary: null });
-    const errors: string[] = [];
-    const collectError = (msg: string) => errors.push(msg);
+    
+    // Set all relevant agents to loading
+    setLoading({
+      research: true,
+      tax: !!(purchaseDate && sellDate),
+      dividend: !!shares,
+      sentiment: true,
+      summary: true,
+    });
 
-    // Run the four specialist agents in parallel; capture results for the summary
-    const results = await Promise.allSettled([
-      runResearch(ticker, purchaseDate, sellDate, shares, collectError, userKeys),
-      runTax(ticker, purchaseDate, sellDate, shares, collectError, userKeys),
-      runDividend(ticker, shares, purchaseDate, sellDate, collectError, userKeys),
-      runSentiment(ticker, collectError, userKeys),
-    ]);
+    try {
+      const sharesNum = parseFloat(shares) || 0;
+      let years = 3;
+      if (purchaseDate && sellDate) {
+        const pDate = parseISO(purchaseDate);
+        const sDate = parseISO(sellDate);
+        if (!isNaN(pDate.getTime()) && !isNaN(sDate.getTime())) {
+          years = Math.max(1, Math.ceil(differenceInDays(sDate, pDate) / 365));
+        }
+      }
 
-    const [resR, taxR, divR, sentR] = results.map(r =>
-      r.status === 'fulfilled' ? r.value : null
-    );
-
-    // Accumulator: once all four specialist agents have written to state,
-    // run the Executive Summary node with their collected findings.
-    await runSummary(
-      ticker,
-      resR as ResearchResponse | null,
-      taxR as AgentResponse | null,
-      divR as DividendResponse | null,
-      sentR as AgentResponse | null,
-      collectError,
-      userKeys,
-    );
-
-    if (errors.length > 2) {
-      onError('Multiple analysis agents encountered issues. Some results may be incomplete.');
-    } else if (errors.length > 0) {
-      onError(errors[0]);
+      const state = await analyzeAgent(ticker, purchaseDate, sellDate, sharesNum, years, userKeys);
+      setResponses(state);
+    } catch (error) {
+      console.error('Unified analysis error:', error);
+      onError('Full analysis failed. Please try again.');
+    } finally {
+      setLoading({ research: false, tax: false, dividend: false, sentiment: false, summary: false });
     }
   };
 

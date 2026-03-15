@@ -199,8 +199,17 @@ If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
     # Compute shared P&L summary here so graph_node and CLI callers both get it
     pnl = calculate_pnl(buy_price, sell_price, current_price_raw, shares, purchase_date, sell_date)
 
-    envelope = {"citations": [], "price_history": price_history, "dividend_data": dividend_data,
-                "buy_price": buy_price, "sell_price": sell_price, "current_price": current_price_raw, "pnl_summary": pnl}
+    envelope = {
+        "citations": [],
+        "price_history": price_history,
+        "dividend_data": dividend_data,
+        "buy_price": buy_price,
+        "sell_price": sell_price,
+        "current_price": current_price_raw,
+        "pnl_summary": pnl,
+        "news": fetched.get("news", []) if fetched else [],
+        "recommendations": fetched.get("recommendations", {}) if fetched else {},
+    }
     try:
         try:
             content = call_groq(prompt, system, max_tokens=max_tokens, agent="research")
@@ -292,22 +301,23 @@ If {ticker} is not a recognised stock, state that clearly and stop.
         return json.dumps({"content": f"Tax analysis temporarily unavailable: {e}", "citations": []})
 
 
-def social_sentiment_agent(ticker: str, skip_guardrail: bool = False) -> str:
+def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched_data: Optional[Dict[str, Any]] = None) -> str:
     """Agent that analyzes market sentiment, grounded by yfinance data first.
 
     Data priority:
-      1. yfinance news headlines + analyst recommendations (free, no API key)
-      2. Social platform stubs: StockTwits, Reddit, X/Twitter (return None until wired)
-      3. Perplexity (live web search) — only called when yfinance data is thin
+      1. prefetched_data (provided by the graph node to save YF calls)
+      2. yfinance news headlines + analyst recommendations (free, no API key)
+      3. Social platform stubs: StockTwits, Reddit, X/Twitter (return None until wired)
+      4. Perplexity (live web search) — only called when yfinance data is thin
          (fewer than 3 headlines OR no analyst recommendations)
-      4. Gemini — fallback when Perplexity fails or is unavailable
+      5. Gemini — fallback when Perplexity fails or is unavailable
 
     Returns a JSON string: {content, citations}.
     """
     if not skip_guardrail and not security_guardrail(ticker):
         return _blocked_json()
 
-    yf_data = fetch_sentiment_data(ticker)
+    yf_data = prefetched_data if prefetched_data else fetch_sentiment_data(ticker)
     stocktwits = fetch_stocktwits_sentiment(ticker)
     reddit = fetch_reddit_sentiment(ticker)
     twitter = fetch_twitter_sentiment(ticker)
