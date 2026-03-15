@@ -1,4 +1,4 @@
-# Contributing to FinSurf 🏄‍♂️
+﻿# Contributing to FinSurf 🏄‍♂️
 
 Thank you for your interest in contributing! Whether you're fixing a bug, adding a new agent, improving tests, or enhancing the UI, all contributions are appreciated.
 
@@ -23,8 +23,8 @@ Thank you for your interest in contributing! Whether you're fixing a bug, adding
 
 ### Prerequisites
 
-- **Node.js** v18+
-- **Python** 3.9+
+- **Node.js** v24+
+- **Python** 3.13+
 - At minimum, a **Gemini API key** (free tier works for development)
 
 ### Local Setup
@@ -52,18 +52,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment Variables Reference
 
-| Variable | Required | Description |
-|---|---|---|
-| `GEMINI_API_KEY` | ✅ | Primary LLM provider |
-| `PERPLEXITY_API_KEY` | Optional | Real-time web search for Research & Sentiment agents |
-| `OPENAI_API_KEY` | Optional | Dividend agent fallback |
-| `ANTHROPIC_API_KEY` | Optional | Tax agent fallback |
-| `APP_SECRET` | Recommended | Bearer token protecting all `/api/` routes |
-| `CORS_ORIGIN` | Production | Comma-separated allowed origins |
-| `DOMAIN` | Production | Domain for Caddy TLS certificate |
-| `DAILY_BUDGET_USD` | Optional | Hard daily spend cap (e.g. `0.50`) |
-| `TELEMETRY_DB` | Optional | SQLite path (default: `finsurf_telemetry.db`) |
-| `ALLOWED_PROVIDERS` | Optional | Comma-separated provider allowlist (e.g. `gemini,perplexity`) |
+| Variable             | Required    | Description                                                   |
+|----------------------|-------------|---------------------------------------------------------------|
+| `GEMINI_API_KEY`     | âœ…           | Primary LLM provider                                          |
+| `PERPLEXITY_API_KEY` | Optional    | Real-time web search for Research & Sentiment agents          |
+| `APP_SECRET`         | Recommended | Bearer token protecting all `/api/` routes                    |
+| `CORS_ORIGIN`        | Production  | Comma-separated allowed origins                               |
+| `DOMAIN`             | Production  | Domain for Caddy TLS certificate                              |
+| `DAILY_BUDGET_USD`   | Optional    | Hard daily spend cap (e.g. `0.50`)                            |
+| `TELEMETRY_DB`       | Optional    | SQLite path (default: `finsurf_telemetry.db`)                 |
+| `ALLOWED_PROVIDERS`  | Optional    | Comma-separated provider allowlist (e.g. `gemini,perplexity,groq`) |
 
 ---
 
@@ -127,7 +125,7 @@ Tests cover four core modules: `financial_agents`, `graph`, `telemetry`, and `ut
 
 ### TypeScript / React (Frontend)
 - Follow the existing component structure under `src/components/`.
-- New UI features belong in a dedicated, focused component — avoid adding logic to `App.tsx` directly.
+- New UI features belong in a dedicated, focused component â€” avoid adding logic to `App.tsx` directly.
 - Custom hooks go in `src/hooks/`.
 - Keep PDF-related logic in `src/utils/pdfGenerator.ts`.
 
@@ -179,10 +177,10 @@ Control which providers are active via environment variables:
 export ALLOWED_PROVIDERS=gemini
 
 # Default: Gemini + Perplexity (recommended)
-export ALLOWED_PROVIDERS=gemini,perplexity
+export ALLOWED_PROVIDERS=gemini,perplexity,groq
 
 # Enable all providers
-export ALLOWED_PROVIDERS=gemini,perplexity,openai,anthropic
+export ALLOWED_PROVIDERS=gemini,perplexity,groq
 ```
 
 When adding a new agent, use the existing `llm_providers.py` abstraction — do not hardcode a provider directly.
@@ -266,11 +264,11 @@ SQLite databases are stored in a named Docker volume (`finsurf_data`) mounted at
 
 ### Recommended VPS Providers
 
-| Provider | Est. Monthly Cost | Notes |
-|---|---|---|
-| **Fly.io** | ~$5–10 | Best Docker-native PaaS; persistent volumes; auto TLS |
-| **DigitalOcean Droplet** | ~$6 | Most control; run Docker Compose yourself |
-| **Railway** | ~$5 | Easiest setup; builds from Dockerfile |
+| Provider                 | Est. Monthly Cost | Notes                                                 |
+|--------------------------|-------------------|-------------------------------------------------------|
+| **Fly.io**               | ~$5â€“10            | Best Docker-native PaaS; persistent volumes; auto TLS |
+| **DigitalOcean Droplet** | ~$6               | Most control; run Docker Compose yourself             |
+| **Railway**              | ~$5               | Easiest setup; builds from Dockerfile                 |
 
 ---
 

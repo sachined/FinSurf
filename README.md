@@ -76,9 +76,9 @@ graph TD
     subgraph AL["AI Layer"]
         G -->|guardrail| GA[Validation]
         GA -->|research| GB[Perplexity / Gemini]
-        GB -->|parallel| GC[Tax: Gemini / Anthropic]
+        GB -->|parallel| GC[Tax: Gemini / Groq]
         GB -->|parallel| GD[Sentiment: Perplexity / Gemini]
-        GB -->|conditional| GE[Dividend: Gemini / OpenAI]
+        GB -->|conditional| GE[Dividend: Gemini / Groq]
     end
 
     GC --> J[FinSurfState JSON]
@@ -108,7 +108,7 @@ graph TD
 | **Frontend**         | React 19, Vite 6, TypeScript, Tailwind CSS 4                                 |
 | **Backend**          | Node.js, Express, Python 3                                                   |
 | **AI Orchestration** | LangGraph, LangChain                                                         |
-| **LLM Providers**    | Gemini, Perplexity, OpenAI, Anthropic (with fallback logic)                  |
+| **LLM Providers**    | Gemini, Perplexity, Groq, Ollama (with fallback logic)                       |
 | **PDF Generation**   | html2canvas, jsPDF (custom `oklch` color resolver for Tailwind CSS 4)        |
 | **Telemetry**        | SQLite — per-agent token usage, cost tracking, configurable daily budget cap |
 | **Testing**          | Python `unittest` with fully mocked LLM calls                                |
@@ -148,8 +148,8 @@ For workflows where one agent's output determines whether another agent runs at 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js** v18+
-- **Python** 3.9+
+- **Node.js** v24+
+- **Python** 3.13+
 
 ### Installation
 
@@ -164,8 +164,7 @@ Create a `.env` file with your API keys:
 ```env
 GEMINI_API_KEY=your_key_here
 PERPLEXITY_API_KEY=your_key_here  # Optional but recommended
-OPENAI_API_KEY=your_key_here      # Optional
-ANTHROPIC_API_KEY=your_key_here   # Optional
+GROQ_API_KEY=your_key_here       # Optional
 PORT=3000
 ```
 
