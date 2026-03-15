@@ -19,7 +19,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-COPY .. .
+COPY . .
 
 # BUILD_ID changes every commit, busting the Docker layer cache so Vite
 # always produces a fresh, consistent bundle with no stale chunk references.
@@ -51,7 +51,7 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # ── Install Python dependencies ───────────────────────────────────────────────
-COPY ../requirements.txt ./
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Node.js production dependencies ──────────────────────────────────────────
@@ -59,9 +59,9 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ── Application source ────────────────────────────────────────────────────────
-COPY ../server.ts      ./
-COPY ../tsconfig.json  ./
-COPY ../backend       ./backend/
+COPY server.ts ./
+COPY tsconfig.json ./
+COPY backend ./backend/
 
 # ── Pre-built frontend from Stage 1 ──────────────────────────────────────────
 COPY --from=frontend-builder /app/dist ./dist
