@@ -93,7 +93,7 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "'sha256-oxQ1EoFDN3KqY0CGCVg2MoKi98m8iXgiT1ntlvDTVsc='"],
+        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
         imgSrc:               ["'self'", "data:", "https:"],
         connectSrc:           ["'self'", "https://cloudflareinsights.com"],
@@ -196,7 +196,7 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
       const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv);
       const graphData = JSON.parse(stdout);
 
-      // Update cache if we performed a fresh check
+      // Update the cache if we performed a fresh check
       if (!skipGuardrail) {
         guardrailCache.set(ticker.toUpperCase(), {
           status: !!graphData.is_safe,
