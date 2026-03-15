@@ -13,10 +13,6 @@
 }
 
 /* Markdown Styles */
-.markdown-body {
-  @apply text-slate-700 dark:text-slate-300 leading-relaxed;
-}
-
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
   @apply font-black text-cyan-900 dark:text-cyan-400 mt-6 mb-3 tracking-tight;
 }

@@ -8,15 +8,15 @@ interface HeaderProps {
   toggleTheme: () => void;
   accessMode: AccessMode;
   setAccessMode: (mode: AccessMode) => void;
-  onAbout: () => void;
+  onAboutClick: () => void;
 }
 
-export function Header({ theme, toggleTheme, accessMode, setAccessMode, onAbout }: HeaderProps) {
+export function Header({ theme, toggleTheme, accessMode, setAccessMode, onAboutClick }: HeaderProps) {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-20">
       <div className="flex items-center gap-4 group">
         <div className={cn(
-          "w-14 h-14 rounded-[2rem] flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12",
+          "w-14 h-14 rounded-4xl flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12",
           accessMode === 'tropical' 
             ? "bg-orange-500 dark:bg-orange-600 shadow-orange-500/30" 
             : accessMode === 'colorblind'
@@ -75,7 +75,7 @@ export function Header({ theme, toggleTheme, accessMode, setAccessMode, onAbout 
         </button>
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
         <button
-          onClick={onAbout}
+          onClick={onAboutClick}
           className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-[10px] font-black uppercase tracking-wide"
           title="About / Bio"
         >

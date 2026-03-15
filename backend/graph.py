@@ -97,10 +97,15 @@ def guardrail_node(state: FinSurfState) -> Dict[str, Any]:
     ticker = state["ticker"]
     try:
         safe = security_guardrail(ticker)
-        return {"is_safe": safe}
+        if not safe:
+            blocked = json.dumps({"content": f"Ticker '{ticker}' is blocked.", "citations": []})
+            return {"is_safe": False, "research_output": blocked}
+        return {"is_safe": True}
     except Exception as exc:
         return {"is_safe": False, "errors": [f"guardrail error: {exc}"]}
 
+def route_after_guardrail(state: FinSurfState):
+    return "research" if state.get("is_safe", False) else "executive_summary"
 
 def research_node(state: FinSurfState) -> Dict[str, Any]:
     ticker = state["ticker"]
@@ -140,7 +145,7 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
                 "news": parsed.get("news", []),
                 "recommendations": parsed.get("recommendations", {}),
             }
-        except Exception:
+        except ValueError:
             pass  # Keep defaults if JSON parsing fails
 
         # 4. ROBUST DIVIDEND DETECTION
@@ -266,6 +271,8 @@ def dividend_skip_node(state: FinSurfState) -> Dict[str, Any]:
 def executive_summary_node(state: FinSurfState) -> Dict[str, Any]:
     """Accumulator node — runs after all specialist agents have written to state.
     Weaves research, tax, sentiment, and dividend findings into one narrative."""
+    if not state.get("is_safe", False):
+        return {"executive_summary_output": state.get("research_output")}
     ticker = state["ticker"]
     try:
         result = executive_summary_agent(
@@ -321,9 +328,10 @@ def build_graph() -> Any:
 
     builder.set_entry_point("guardrail")
 
-    builder.add_edge("guardrail", "research")
+    builder.add_conditional_edges("guardrail", route_after_guardrail)
     builder.add_conditional_edges("research", fan_out_after_research, ["tax", "sentiment"])
     builder.add_conditional_edges("tax", route_dividend, {"dividend": "dividend", "dividend_skip": "dividend_skip"})
+
 
     # all specialist paths converge on the executive_summary accumulator node
     builder.add_edge("sentiment", "executive_summary")

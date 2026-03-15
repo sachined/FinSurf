@@ -159,27 +159,15 @@ async function startServer() {
     return overrides;
   }
 
-  // Helper to check guardrail with caching
-  const checkGuardrail = async (ticker: string, envOverrides?: Record<string, string>): Promise<boolean> => {
-    const key = ticker.toUpperCase().trim();
-    const cached = guardrailCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.status;
-    }
-
-    try {
-      const result = await runPythonAgent("guardrail", [ticker], false, envOverrides);
-      const status = result.trim() === "SAFE";
-      if (guardrailCache.size >= MAX_CACHE_SIZE) {
-        // Evict the oldest entry (Maps preserve insertion order)
-        guardrailCache.delete(guardrailCache.keys().next().value!);
-      }
-      guardrailCache.set(key, { status, timestamp: Date.now() });
-      return status;
-    } catch (e) {
-      return false; // Fail-safe
-    }
-  };
+  // Simplified cache check
+const getCachedGuardrailStatus = (ticker: string): boolean | null => {
+  const key = ticker.toUpperCase().trim();
+  const cached = guardrailCache.get(key);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.status;
+  }
+  return null;
+};
 
   // Log key presence on startup (without exposing the value)
   console.log("GEMINI_API_KEY present:", !!GEMINI_API_KEY);
@@ -188,22 +176,33 @@ async function startServer() {
   // ── Unified Graph API ──────────────────────────────────────────────────
   app.post("/api/analyze", async (req, res) => {
     const ticker = validateTicker(req.body.ticker);
-    if (!ticker) {
-      res.status(400).json({ error: "ticker is required and must be 1–10 uppercase alphanumeric characters." });
-      return;
-    }
-    const { purchaseDate, sellDate, shares, years } = req.body;
-    const sharesNum = parseFloat(shares) || 1.0;
-    const yearsNum = parseInt(years, 10) || 3;
-    const pd = typeof purchaseDate === "string" && purchaseDate ? purchaseDate : "";
-    const sd = typeof sellDate === "string" && sellDate ? sellDate : "";
+    if (!ticker) return res.status(400).json({ error: "Invalid ticker" });
 
-    console.log(`Unified analysis: ${ticker} (shares=${sharesNum}, years=${yearsNum})`);
+    const { purchaseDate, sellDate, shares, years } = req.body;
     const userEnv = getUserKeyEnv(req);
+
+    const cachedStatus = getCachedGuardrailStatus(ticker);
+    const skipGuardrail = cachedStatus === true;
+
     try {
-      const isSafe = await checkGuardrail(ticker, userEnv);
-      const stdout = await runPythonAgent("graph", [ticker, pd, sd, sharesNum, yearsNum], isSafe, userEnv);
+      const args= [
+        ticker,
+        purchaseDate || "",
+        sellDate || "",
+        shares || 1.0,
+        years || 3
+      ];
+
+      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv);
       const graphData = JSON.parse(stdout);
+
+      // Update cache if we performed a fresh check
+      if (!skipGuardrail) {
+        guardrailCache.set(ticker.toUpperCase(), {
+          status: !!graphData.is_safe,
+          timestamp: Date.now()
+        });
+      }
 
       // Map the LangGraph state back to the frontend
       const resRaw = graphData.research_output ? JSON.parse(graphData.research_output) : null;
@@ -254,7 +253,7 @@ async function startServer() {
       res.json({ research, tax, sentiment, dividend, summary });
     } catch (error) {
       console.error("Unified graph error:", error);
-      res.status(500).json({ error: "Analysis failed. Please try again." });
+      res.status(500).json({ error: "Analysis failed." });
     }
   });
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -10,12 +10,12 @@ import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
-import { AboutPage } from './pages/AboutPage';
 import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { UserApiKeys } from './types';
+const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
 
 // localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
@@ -92,7 +92,7 @@ export default function App() {
   const handleSearch = async () => {
     if (!validateAll()) return;
 
-    // In production: enforce free-try limit when no user keys are stored.
+    // In production: enforce the free-try limit when no user keys are stored.
     if (isProd && !userKeys) {
       const count = incrementSurfCount();
       if (count > FREE_TRIES) {
@@ -112,13 +112,17 @@ export default function App() {
     await executeSearch(keys);
   }, [executeSearch]);
 
-  const handleDownloadPDF = () => {
+  const handleAbout=useCallback(() => {
+    setCurrentPage(p => p === 'about' ? 'home' : 'about');
+  }, []);
+
+  const handleDownloadPDF = useCallback(() => {
     downloadPDF(ticker);
-  };
+  }, [ticker]);
 
   return (
     <div className={cn(
-      "min-h-screen transition-colors duration-500 font-sans selection:bg-cyan-500 selection:text-white p-4 md:p-8 lg:p-12 overflow-x-hidden relative",
+      "min-h-screen transition-colors duration-0 font-sans selection:bg-cyan-500 selection:text-white p-4 md:p-8 lg:p-12 overflow-x-hidden relative",
       accessMode === 'tropical' 
         ? "bg-orange-50/30 dark:bg-slate-950" 
         : accessMode === 'colorblind'
@@ -161,15 +165,16 @@ export default function App() {
           toggleTheme={toggleTheme} 
           accessMode={accessMode} 
           setAccessMode={setAccessMode}
-          onAbout={() => setCurrentPage(p => p === 'about' ? 'home' : 'about')}
+          onAboutClick={handleAbout}
         />
 
-        {currentPage === 'about' && (
-          <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
-        )}
-
-        <main id="report-container" style={{ display: currentPage === 'about' ? 'none' : undefined }}>
-          {/* PDF-only Header (Hidden in UI) */}
+        {currentPage === 'about' ? (
+          <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
+            <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
+          </Suspense>
+        ) : (
+            <main id="report-container">
+            {/* PDF-only Header (Hidden in UI) */}
           <div 
             data-no-print=""
             data-pdf-chunk="pdf-header" 
@@ -186,7 +191,7 @@ export default function App() {
                 </p>
               </div>
             </div>
-            <div className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
+            <div className="w-full h-1 bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
           </div>
 
           <div data-no-print="">
@@ -226,7 +231,7 @@ export default function App() {
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-[2rem] text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
+                  className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-4xl text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
                 >
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   {error}
@@ -235,7 +240,7 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <div className="min-h-[104px] mb-6">
+          <div className="min-h-26 mb-6">
           {responses.research && !isAnyLoading ? (
             <TickerSummaryBar
               ticker={ticker}
@@ -247,7 +252,7 @@ export default function App() {
               accessMode={accessMode}
             />
           ) : isAnyLoading ? (
-              <div className="w-full h-[88px] animate-pulse bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800" />
+              <div className="w-full h-22 animate-pulse bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800" />
           ) : null }
           </div>
 
@@ -257,14 +262,13 @@ export default function App() {
             accessMode={accessMode} 
           />
         </main>
-
+        )}
         <Footer
           onDownloadPDF={handleDownloadPDF}
           accessMode={accessMode}
           isDataAvailable={hasResponses && !isAnyLoading}
         />
       </div>
-
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
         <Mascot mode={accessMode} className="w-24 h-24" isThinking={isAnyLoading} />
