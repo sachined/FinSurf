@@ -11,44 +11,8 @@ interface FooterProps {
 
 export function Footer({ onDownloadPDF, accessMode, isDataAvailable }: FooterProps) {
   return (
-    <footer className="relative z-20 space-y-8">
-      <div className={cn(
-        "flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-[3rem] shadow-2xl text-white transition-all duration-500",
-        accessMode === 'tropical' 
-          ? "bg-gradient-to-r from-orange-600 to-pink-600 dark:from-orange-800 dark:to-pink-900" 
-          : accessMode === 'colorblind'
-          ? "bg-blue-900 dark:bg-blue-950 border-4 border-blue-600 dark:border-blue-400 shadow-blue-900/40"
-          : "bg-slate-900 dark:bg-slate-800"
-      )}>
-        <div className="flex items-center gap-6">
-          <div className="hidden sm:flex w-16 h-16 bg-white/10 rounded-[1.5rem] items-center justify-center">
-            <Download size={32} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black tracking-tight">Export Report</h3>
-            <p className="text-slate-400 text-sm font-medium">Download your financial surf report in PDF format</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-          <button
-            onClick={() => onDownloadPDF()}
-            disabled={!isDataAvailable}
-            className={cn(
-              "w-full sm:w-auto disabled:opacity-50 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3",
-              accessMode === 'tropical' 
-                ? "bg-yellow-400 hover:bg-yellow-300 text-orange-900 shadow-lg shadow-yellow-500/20" 
-                : accessMode === 'colorblind'
-                ? "bg-white text-blue-900 hover:bg-slate-100 shadow-lg shadow-blue-900/30 font-black"
-                : "bg-cyan-500 hover:bg-cyan-400 shadow-lg shadow-cyan-500/20"
-            )}
-          >
-            Download PDF
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-12">
+    <footer className="relative z-20 space-y-8 pb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className={cn(
           "backdrop-blur-md p-6 rounded-[2rem] border flex items-center gap-4 group transition-all duration-500",
           accessMode === 'tropical' 
@@ -117,6 +81,45 @@ export function Footer({ onDownloadPDF, accessMode, isDataAvailable }: FooterPro
             <p className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Tax Ready</p>
             <p className="text-slate-500 font-medium">Automated holding analysis</p>
           </div>
+        </div>
+      </div>
+
+      <div className={cn(
+        "flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-[3rem] shadow-2xl text-white transition-all duration-500",
+        accessMode === 'tropical' 
+          ? "bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/20"
+          : accessMode === 'colorblind'
+          ? "bg-blue-900 dark:bg-blue-950 border-4 border-blue-600 dark:border-blue-400 shadow-blue-900/40"
+          : "bg-slate-900 dark:bg-slate-800"
+      )}>
+        <div className="flex items-center gap-6">
+          <div className="hidden sm:flex w-16 h-16 bg-white/10 rounded-[1.5rem] items-center justify-center">
+            <Download size={32} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black tracking-tight">Export Report</h3>
+            <p className={cn(
+              "text-sm font-medium",
+              accessMode === 'tropical' ? "text-orange-100" : accessMode === 'colorblind' ? "text-blue-100" : "text-slate-300"
+            )}>Download your financial surf report in PDF format</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+          <button
+            onClick={() => onDownloadPDF()}
+            disabled={!isDataAvailable}
+            className={cn(
+              "w-full sm:w-auto disabled:opacity-50 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3",
+              accessMode === 'tropical' 
+                ? "bg-white hover:bg-orange-50 text-orange-600 shadow-lg shadow-white/20" 
+                : accessMode === 'colorblind'
+                ? "bg-white text-blue-900 hover:bg-slate-100 shadow-lg shadow-white/20 font-black"
+                : "bg-white hover:bg-cyan-50 text-cyan-600 shadow-lg shadow-white/20"
+            )}
+          >
+            Download PDF
+          </button>
         </div>
       </div>
     </footer>
