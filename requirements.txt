@@ -3,3 +3,5 @@ langgraph-checkpoint==4.0.0
 langchain-core==1.2.12
 python-dotenv==1.2.1
 yfinance==1.2.0
+pandas==3.0.1
+curl-cffi==0.13.0

@@ -17,7 +17,7 @@ Conditional routing:
 import json
 import sys
 import uuid
-from typing import Any, Annotated, Dict, List, Optional, TypedDict, Union
+from typing import Any, Annotated, Dict, Optional, TypedDict
 
 
 from langgraph.graph import StateGraph, END
@@ -108,7 +108,6 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
     sell_date = state.get("sell_date", "")
 
     # 1. Initialize variables to prevent UnboundLocalError
-    is_dividend = False
     div_data = None
     price_history = []
     buy_price = None

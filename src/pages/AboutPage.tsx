@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
+import { Mail, LinkedIn, GitHub, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
 import { resumeData } from '../data/resumeData';
 import { AccessMode } from '../types';
 import { cn } from '../utils/cn';
@@ -113,12 +113,12 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
             )}
             {d.contact.linkedin && (
               <a href={d.contact.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                <Linkedin size={13} /> LinkedIn
+                <LinkedIn size={13} /> LinkedIn
               </a>
             )}
             {d.contact.github && (
               <a href={d.contact.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                <Github size={13} /> GitHub
+                <GitHub size={13} /> GitHub
               </a>
             )}
             {d.contact.website && (

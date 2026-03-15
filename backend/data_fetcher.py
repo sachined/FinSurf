@@ -155,7 +155,7 @@ def _infer_payment_frequency(dividends) -> str:
         if count == 1:
             return "Annual"
         return "N/A"
-    except Exception:
+    except (TypeError, ValueError, KeyError, IndexError):
         return "N/A"
 
 
@@ -178,7 +178,7 @@ def _consecutive_dividend_years(dividends) -> str:
             else:
                 break
         return str(count)
-    except Exception:
+    except (ValueError, KeyError, IndexError, TypeError):
         return "N/A"
 
 
@@ -226,7 +226,7 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
 
         close = close_series.iloc[-1]
         return round(float(close), 4)
-    except Exception:
+    except ValueError:
         return None
 
 def _extract_news_data(t: yf.Ticker) -> list:
@@ -251,8 +251,8 @@ def _extract_news_data(t: yf.Ticker) -> list:
                         "publisher": publisher,
                         "link": link,
                     })
-    except Exception:
-        pass
+    except TypeError:
+        return None
     return news_items
 
 def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
@@ -277,8 +277,8 @@ def _extract_recommendations_data(t: yf.Ticker) -> Dict[str, int]:
                 for col in ["strongBuy", "buy", "hold", "sell", "strongSell"]:
                     if col in recent_rec.columns:
                         recommendations[col] = int(recent_rec[col].sum())
-    except Exception:
-        pass
+    except TypeError:
+        return None
     return recommendations
 
 def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]:
@@ -300,8 +300,8 @@ def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]
     ex_date_raw = info.get("exDividendDate")
     if ex_date_raw:
         try:
-            ex_date = datetime.datetime.utcfromtimestamp(int(ex_date_raw)).strftime("%Y-%m-%d")
-        except Exception:
+            ex_date = datetime.datetime.fromtimestamp(int(ex_date_raw), datetime.timezone.utc).strftime("%Y-%m-%d")
+        except ValueError:
             ex_date = "N/A"
     else:
         ex_date = "N/A"
@@ -310,15 +310,11 @@ def _extract_dividend_data(t: yf.Ticker, info: Dict[str, Any]) -> Dict[str, Any]
         "is_dividend_stock": is_dividend_stock,
         "has_history": has_history,
         "annual_dividend_per_share": _fmt_usd(annual_div, 2),
-        "current_yield": (
-            f"{info['dividendYield']:.2f}%"
-            if info.get("dividendYield") is not None
-            else "N/A"
-        ),
+        "current_yield": _fmt_pct(info.get("dividendYield")),
         "payout_ratio": _fmt_pct(info.get("payoutRatio")),
         "five_year_avg_yield": (
             f"{info['fiveYearAvgDividendYield']:.2f}%"
-            if info.get("fiveYearAvgDividendYield")
+            if info.get("fiveYearAvgDividendYield") is not None
             else "N/A"
         ),
         "ex_dividend_date": ex_date,
@@ -370,8 +366,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                     {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
                     for idx, row in hist.iterrows()
                 ]
-        except Exception:
-            pass
+        except ValueError:
+            return None
 
         # Plan B: Current Price Fallback
         if current_price_raw is None:
@@ -386,8 +382,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                     else:
                         close_series = latest_hist["Close"]
                     current_price_raw = close_series.iloc[-1]
-            except Exception:
-                pass
+            except ValueError:
+                return None
 
             if not info and not current_price_raw:
                 return None
@@ -407,8 +403,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                 if prior and prior != 0:
                     growth = (latest - prior) / abs(prior) * 100
                     revenue_growth = f"{growth:.1f}%"
-        except Exception:
-            pass
+        except ValueError:
+            return None
 
         inst_pct: Optional[float] = info.get("heldPercentInstitutions")
 
@@ -446,7 +442,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         dividend_data: Optional[Dict[str, Any]] = None
         try:
             dividend_data = _extract_dividend_data(t, info)
-        except Exception:
+        except (TypeError, ValueError):
             pass
 
         # Pre-fetch sentiment data (news/recommendations) to avoid redundant

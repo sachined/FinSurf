@@ -5,7 +5,6 @@ import os
 import sys
 import json
 import unittest
-from functools import lru_cache
 from unittest.mock import patch
 
 # Allow imports from the project root

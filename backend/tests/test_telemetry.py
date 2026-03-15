@@ -13,7 +13,6 @@ No real API calls are made. The TelemetryDB tests use an in-memory SQLite databa
 
 import os
 import tempfile
-import time
 import unittest
 
 # Force telemetry disabled so the singleton in the module doesn't touch disk
@@ -26,7 +25,6 @@ from backend.telemetry import (
     get_session_usages,
     record_usage,
     summarize_usages,
-    _COST_PER_1M,
 )
 
 
