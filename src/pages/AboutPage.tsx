@@ -38,7 +38,7 @@ function accentBadge(mode: AccessMode) {
 function SectionTitle({ icon: Icon, label, mode }: { icon: React.ElementType; label: string; mode: AccessMode }) {
   return (
     <div className="flex items-center gap-3 mb-6">
-      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0', accentBg(mode))}>
+      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0', accentBg(mode))}>
         <Icon size={16} className="text-white" />
       </div>
       <h2 className="text-lg font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-200">
@@ -82,11 +82,11 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           <img
             src={d.photo}
             alt={d.name}
-            className="w-20 h-20 rounded-[1.5rem] object-cover flex-shrink-0 shadow-lg"
+            className="w-20 h-20 rounded-3xl object-cover shrink-0 shadow-lg"
           />
         ) : (
           <div className={cn(
-            "w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-white text-2xl font-black flex-shrink-0 shadow-lg",
+            "w-20 h-20 rounded-3xl flex items-center justify-center text-white text-2xl font-black shrink-0 shadow-lg",
             accentBg(accessMode)
           )}>
             {d.avatarInitials}
@@ -197,14 +197,14 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
                     <span className="font-black text-slate-800 dark:text-white text-sm">{job.role}</span>
                     <span className="text-slate-400 dark:text-slate-500 text-sm"> · {job.company}</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex-shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 shrink-0">
                     {job.period}
                   </span>
                 </div>
                 <ul className="space-y-1">
                   {job.bullets.map((b, j) => (
                     <li key={j} className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed flex gap-2">
-                      <span className={cn("mt-1.5 w-1 h-1 rounded-full flex-shrink-0", accentBg(accessMode))} />
+                      <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", accentBg(accessMode))} />
                       {b}
                     </li>
                   ))}
