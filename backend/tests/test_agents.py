@@ -225,7 +225,7 @@ class TestTaxAgent(unittest.TestCase):
 
     def test_pnl_block_embedded_when_prices_provided(self):
         """When buy_price, sell_price, and shares are supplied, the prompt must
-        include the Realised P&L block and fetch_price_on_date must not be called."""
+        include the Realized P&L block and fetch_price_on_date must not be called."""
         from backend.financial_agents import tax_agent
         captured_prompts: list = []
         def capture_groq(prompt, system, **kwargs):
@@ -339,7 +339,7 @@ class TestDividendAgent(unittest.TestCase):
                     self.assertEqual(result["stats"]["currentYield"], MOCK_DIVIDEND_DATA["current_yield"])
 
     def test_returns_error_dict_when_all_providers_and_yfinance_fail(self):
-        """When Groq, Gemini AND yfinance all fail, the error dict is the
+        """When Groq, Gemini, AND yfinance all fail, the error dict is the
         correct last-resort response."""
         from backend.financial_agents import dividend_agent
         with patch(f"{PROVIDERS_MODULE}.fetch_dividend_data", return_value=None):

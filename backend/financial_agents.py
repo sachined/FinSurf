@@ -22,7 +22,7 @@ from .data_fetcher import (
 _BLOCKED_MSG = "### Blocked\n\nThis request is not allowed for security or policy reasons."
 
 def _blocked_json() -> str:
-    """Return the standard blocked response as a JSON string (content + citations)."""
+    """Return the standard blocked response as a JSON string (content plus citations)."""
     return json.dumps({"content": _BLOCKED_MSG, "citations": []})
 
 
@@ -196,7 +196,7 @@ If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
               "You must answer every numbered point in the prompt — do not skip any. "
               "Each answer is one sentence only. Use plain English, no jargon, no filler phrases.")
 
-    # Compute shared P&L summary here so graph_node and CLI callers both get it
+    # Compute the shared P&L summary here so graph_node and CLI callers both get it
     pnl = calculate_pnl(buy_price, sell_price, current_price_raw, shares, purchase_date, sell_date)
 
     envelope = {
@@ -305,8 +305,8 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched
     """Agent that analyzes market sentiment, grounded by yfinance data first.
 
     Data priority:
-      1. prefetched_data (provided by the graph node to save YF calls)
-      2. yfinance news headlines + analyst recommendations (free, no API key)
+      1. Prefetched_data (provided by the graph node to save YF calls)
+      2. Finance news headlines and analyst recommendations (free, no API key)
       3. Social platform stubs: StockTwits, Reddit, X/Twitter (return None until wired)
       4. Perplexity (live web search) — only called when yfinance data is thin
          (fewer than 3 headlines OR no analyst recommendations)

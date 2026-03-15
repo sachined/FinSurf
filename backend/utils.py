@@ -43,7 +43,7 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
         except urllib.error.HTTPError as e:
             if e.code in [429, 502, 503, 504] and attempt < max_retries:
                 if e.code == 429:
-                    # Honour Retry-After header (Gemini and most APIs send it).
+                    # Honor Retry-After header (Gemini and most APIs send it).
                     # Fall back to 60 s if absent — paid-tier 429s clear in ~60 s.
                     retry_after = None
                     try:
@@ -85,8 +85,8 @@ def extract_json(text: str) -> Any:
     """Attempt to parse JSON from a string, handling code fences and Python-literal responses.
 
     Fallback chain:
-      1. Direct json.loads (fastest path, handles well-formed JSON).
-      2. Strip markdown code fences (```json ... ``` or ``` ... ```) then retry.
+      1. Direct json.loads (the fastest path, handles well-formed JSON).
+      2. Strip formatting code fences (```json ... ``` or ``` ... ```) then retry.
       3. Replace Python boolean/None literals (True/False/None → true/false/null) then retry.
       4. ast.literal_eval — handles Python dict/list syntax with single-quoted keys or values.
       5. Regex brace extraction — pulls the first {...} block from mixed prose/JSON responses.
@@ -107,7 +107,7 @@ def extract_json(text: str) -> Any:
     except json.JSONDecodeError:
         pass
 
-    # Pass 2 — strip markdown code fences
+    # Pass 2 — strip formatting code fences
     stripped = text
     if "```json" in stripped:
         stripped = stripped.split("```json")[1].split("```")[0].strip()
@@ -139,7 +139,7 @@ def extract_json(text: str) -> Any:
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         candidate = match.group(0)
-        # Also apply Python-literal normalisation on this candidate
+        # Also apply Python-literal normalization on this candidate
         candidate = re.sub(r'\bTrue\b', 'true', candidate)
         candidate = re.sub(r'\bFalse\b', 'false', candidate)
         candidate = re.sub(r'\bNone\b', 'null', candidate)
@@ -179,5 +179,5 @@ def allowed_providers() -> tuple:
 
 
 def is_provider_allowed(name: str) -> bool:
-    """Check if a given provider is enabled by policy/env."""
+    """Check if a given provider enabled by policy/env."""
     return name.lower() in allowed_providers()

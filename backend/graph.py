@@ -106,6 +106,7 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
     ticker = state["ticker"]
     purchase_date = state.get("purchase_date", "")
     sell_date = state.get("sell_date", "")
+    shares = state.get("shares", 0.0)
 
     # 1. Initialize variables to prevent UnboundLocalError
     div_data = None
@@ -122,7 +123,7 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
             blocked = json.dumps({"content": "Ticker Not Found", "citations": []})
             return {"research_output": blocked, "is_dividend_stock": False}
 
-        raw = research_agent(ticker, purchase_date=purchase_date, sell_date=sell_date, skip_guardrail=True)
+        raw = research_agent(ticker, purchase_date=purchase_date, sell_date=sell_date, skip_guardrail=True, shares=shares)
 
         # 3. Parse JSON safely
         try:
