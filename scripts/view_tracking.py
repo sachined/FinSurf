@@ -2,15 +2,30 @@ import sqlite3
 import json
 from datetime import datetime
 import os
+import sys
 
-DB_PATH = "finsurf_telemetry.db"
+# Priority for database location:
+# 1. Environment variable TELEMETRY_DB
+# 2. Local finsurf_telemetry.db (for host-mode development)
+# 3. /app/data/finsurf_telemetry.db (standard production container path)
+DEFAULT_PATH = os.environ.get("TELEMETRY_DB") or "finsurf_telemetry.db"
+if not os.path.exists(DEFAULT_PATH) and os.path.exists("/app/data/finsurf_telemetry.db"):
+    DEFAULT_PATH = "/app/data/finsurf_telemetry.db"
+
+DB_PATH = DEFAULT_PATH
 
 def format_ts(ts):
     return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 def view_tracking():
+    # If DB_PATH points to a file that exists, we continue.
+    # Otherwise, if it was default, explain.
     if not os.path.exists(DB_PATH):
-        print(f"Error: {DB_PATH} not found.")
+        print("\n--- FinSurf Usage Tracking (VIP Access & IP/GPS) ---")
+        print("-" * 80)
+        print(f"No tracking data available yet (DB not found at {DB_PATH}).")
+        print("Note: In production, run this command INSIDE the Docker container:")
+        print("  docker exec -it <container_id> npm run view-tracking")
         return
 
     con = sqlite3.connect(DB_PATH)
