@@ -152,23 +152,26 @@ export default function App() {
   return (
     <div className={cn(
       "min-h-screen transition-colors duration-0 font-sans selection:bg-cyan-500 selection:text-white p-4 md:p-8 lg:p-12 overflow-x-hidden relative",
-      accessMode === 'tropical' 
-        ? "bg-orange-50/30 dark:bg-slate-950" 
+      accessMode === 'tropical'
+        ? "bg-orange-50/30 dark:bg-teal-950"
         : accessMode === 'colorblind'
-        ? "bg-blue-50 dark:bg-slate-950"
-        : "bg-slate-50 dark:bg-slate-950"
+        ? "bg-blue-50 dark:bg-[#050810]"
+        : "bg-transparent dark:bg-[#0c1310]"
     )}>
       {/* Background Decorations */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {accessMode === 'tropical' ? (
           <>
-            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-orange-300/20 dark:bg-orange-500/5 blur-[120px] rounded-full animate-pulse" />
-            <div className="absolute top-[20%] right-[-5%] w-[40%] h-[40%] bg-pink-400/15 dark:bg-pink-500/5 blur-[100px] rounded-full" />
-            <div className="absolute bottom-[-10%] left-[10%] w-[50%] h-[50%] bg-teal-300/20 dark:bg-teal-500/5 blur-[120px] rounded-full" />
-            <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] bg-yellow-300/20 dark:bg-yellow-500/5 blur-[120px] rounded-full animate-pulse" />
-            
-            {/* Wave Pattern */}
-            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" 
+            {/* Teal — tropical ocean */}
+            <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] bg-teal-400/25 dark:bg-teal-500/8 blur-[140px] rounded-full animate-pulse" />
+            {/* Rose/coral — hibiscus */}
+            <div className="absolute top-[10%] right-[-10%] w-[45%] h-[45%] bg-rose-400/20 dark:bg-rose-500/6 blur-[110px] rounded-full" />
+            {/* Fuchsia — bougainvillea */}
+            <div className="absolute bottom-[-5%] left-[5%] w-[40%] h-[40%] bg-fuchsia-400/15 dark:bg-fuchsia-500/5 blur-[130px] rounded-full" />
+            {/* Yellow — golden sunshine */}
+            <div className="absolute bottom-[15%] right-[-5%] w-[35%] h-[35%] bg-yellow-300/25 dark:bg-yellow-500/8 blur-[100px] rounded-full animate-pulse" />
+            {/* Dot pattern */}
+            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
                  style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '40px 40px' }} />
           </>
         ) : accessMode === 'colorblind' ? (
@@ -181,10 +184,7 @@ export default function App() {
                  style={{ backgroundImage: 'linear-gradient(#2563eb 1px, transparent 1px), linear-gradient(90deg, #2563eb 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
           </>
         ) : (
-          <>
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/10 dark:bg-cyan-500/5 blur-[120px] rounded-full" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 dark:bg-blue-500/5 blur-[120px] rounded-full" />
-          </>
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime-500/20 to-transparent" />
         )}
       </div>
 
@@ -252,6 +252,7 @@ export default function App() {
               accessMode={accessMode}
               isCompact={hasResponses && !isAnyLoading}
               isDataAvailable={hasResponses && !isAnyLoading}
+              onAboutClick={handleAbout}
             />
           </div>
 

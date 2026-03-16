@@ -11,11 +11,11 @@ interface AgentProgressStripProps {
 }
 
 const AGENT_META = [
-  { key: 'summary' as const, label: 'Summary', icon: <Sparkles size={14} /> },
-  { key: 'research' as const, label: 'Research', icon: <Search size={14} /> },
-  { key: 'tax' as const, label: 'Tax', icon: <Receipt size={14} /> },
-  { key: 'dividend' as const, label: 'Dividends', icon: <Coins size={14} /> },
-  { key: 'sentiment' as const, label: 'Sentiment', icon: <MessageSquare size={14} /> },
+  { key: 'summary' as const,   label: 'Summary',   icon: <Sparkles size={14} />,     cbDone: 'bg-slate-800 text-white border-2 border-slate-800 dark:bg-slate-700 dark:border-slate-600',     tropicalDone: 'bg-teal-500 text-white border-teal-600 dark:bg-teal-600 dark:border-teal-500' },
+  { key: 'research' as const,  label: 'Research',  icon: <Search size={14} />,        cbDone: 'bg-blue-700 text-white border-2 border-blue-700 dark:bg-blue-600 dark:border-blue-500',         tropicalDone: 'bg-teal-600 text-white border-teal-700 dark:bg-teal-500 dark:border-teal-400' },
+  { key: 'tax' as const,       label: 'Tax',       icon: <Receipt size={14} />,       cbDone: 'bg-orange-600 text-white border-2 border-orange-600 dark:bg-orange-500 dark:border-orange-400', tropicalDone: 'bg-rose-500 text-white border-rose-600 dark:bg-rose-600 dark:border-rose-500' },
+  { key: 'dividend' as const,  label: 'Dividends', icon: <Coins size={14} />,         cbDone: 'bg-amber-700 text-white border-2 border-amber-700 dark:bg-amber-600 dark:border-amber-500',     tropicalDone: 'bg-yellow-500 text-white border-yellow-600 dark:bg-yellow-600 dark:border-yellow-500' },
+  { key: 'sentiment' as const, label: 'Sentiment', icon: <MessageSquare size={14} />, cbDone: 'bg-rose-700 text-white border-2 border-rose-700 dark:bg-rose-600 dark:border-rose-500',         tropicalDone: 'bg-fuchsia-600 text-white border-fuchsia-700 dark:bg-fuchsia-500 dark:border-fuchsia-400' },
 ];
 
 export function AgentProgressStrip({ loading, responses, accessMode }: AgentProgressStripProps) {
@@ -31,7 +31,7 @@ export function AgentProgressStrip({ loading, responses, accessMode }: AgentProg
                   exit={{ opacity: 0 }}
                   className="flex flex-wrap gap-2 w-full"
               >
-      {AGENT_META.map(({ key, label, icon }) => {
+      {AGENT_META.map(({ key, label, icon, cbDone, tropicalDone }) => {
         const isLoading = loading[key];
         const isDone = !isLoading && responses[key] !== null;
 
@@ -42,22 +42,22 @@ export function AgentProgressStrip({ loading, responses, accessMode }: AgentProg
               "flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wide border transition-all",
               isDone
                 ? accessMode === 'tropical'
-                  ? "bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800"
+                  ? tropicalDone
                   : accessMode === 'colorblind'
-                  ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-slate-900 dark:border-white"
-                  : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/50"
+                  ? cbDone
+                  : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-900/50"
                 : isLoading
                 ? accessMode === 'tropical'
-                  ? "bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800"
+                  ? "bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-300 border-teal-200 dark:border-teal-800"
                   : accessMode === 'colorblind'
                   ? "bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 border-2 border-blue-600 dark:border-blue-400"
-                  : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-900/50"
+                  : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 border-lime-100 dark:border-lime-900/50"
                 : "bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700/50"
             )}
           >
             {isDone ? (
               <CheckCircle2 size={13} className={
-                accessMode === 'tropical' ? "text-teal-500" : accessMode === 'colorblind' ? "text-slate-800 dark:text-white" : "text-emerald-500"
+                accessMode === 'tropical' ? "text-teal-500" : accessMode === 'colorblind' ? "text-white" : "text-lime-600"
               } />
             ) : isLoading ? (
               <Loader2 size={13} className="animate-spin" />

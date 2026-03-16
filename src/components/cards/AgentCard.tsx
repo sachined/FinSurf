@@ -26,33 +26,69 @@ interface AgentCardProps {
 
 export function AgentCard({ title, icon, loading, response, color, isDividendAgent, emptyDescription, accessMode, isCompact }: AgentCardProps) {
   const colorClasses = {
-    cyan: accessMode === 'tropical' 
-      ? 'bg-teal-50/50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800'
+    // cyan  = ocean / turquoise water
+    cyan: accessMode === 'tropical'
+      ? 'bg-teal-100 text-teal-800 border-teal-300 dark:bg-teal-900/40 dark:text-teal-200 dark:border-teal-700'
       : accessMode === 'colorblind'
-      ? 'bg-white text-blue-950 border-blue-600 border-2 dark:bg-slate-900 dark:text-blue-100 dark:border-blue-400 shadow-[4px_4px_0px_0px_rgba(37,99,235,1)]'
-      : 'bg-cyan-50 text-cyan-600 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-900',
+      ? 'bg-blue-700 text-white border-blue-700 dark:bg-blue-600 dark:border-blue-600'
+      : 'bg-lime-50 text-lime-700 border-lime-100 dark:bg-lime-900/20 dark:text-lime-400 dark:border-lime-900',
+    // emerald = coral / hibiscus flower
     emerald: accessMode === 'tropical'
-      ? 'bg-orange-50/50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800'
+      ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700'
       : accessMode === 'colorblind'
-      ? 'bg-white text-slate-900 border-slate-900 border-2 dark:bg-slate-900 dark:text-white dark:border-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]'
+      ? 'bg-orange-600 text-white border-orange-600 dark:bg-orange-500 dark:border-orange-500'
       : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
+    // amber  = golden sunshine / mango
     amber: accessMode === 'tropical'
-      ? 'bg-yellow-50/50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800'
+      ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700'
       : accessMode === 'colorblind'
-      ? 'bg-yellow-50 text-yellow-950 border-yellow-600 border-2 dark:bg-yellow-900/40 dark:text-yellow-100 dark:border-yellow-400 shadow-[4px_4px_0px_0px_rgba(202,138,4,1)]'
+      ? 'bg-amber-700 text-white border-amber-700 dark:bg-amber-600 dark:border-amber-600'
       : 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
+    // violet = fuchsia / bougainvillea
     violet: accessMode === 'tropical'
-      ? 'bg-pink-50/50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800'
+      ? 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 dark:bg-fuchsia-900/40 dark:text-fuchsia-200 dark:border-fuchsia-700'
       : accessMode === 'colorblind'
-      ? 'bg-blue-50 text-blue-950 border-blue-800 border-2 dark:bg-blue-900/40 dark:text-blue-100 dark:border-blue-400 shadow-[4px_4px_0px_0px_rgba(30,58,138,1)]'
+      ? 'bg-rose-700 text-white border-rose-700 dark:bg-rose-600 dark:border-rose-600'
       : 'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900'
   };
 
   const accentClasses = {
-    cyan: accessMode === 'tropical' ? 'bg-gradient-to-r from-teal-400 to-cyan-400' : accessMode === 'colorblind' ? 'bg-blue-700' : 'bg-cyan-600',
-    emerald: accessMode === 'tropical' ? 'bg-gradient-to-r from-orange-400 to-amber-400' : accessMode === 'colorblind' ? 'bg-orange-700' : 'bg-emerald-600',
-    amber: accessMode === 'tropical' ? 'bg-gradient-to-r from-yellow-400 to-orange-400' : accessMode === 'colorblind' ? 'bg-yellow-700' : 'bg-amber-600',
-    violet: accessMode === 'tropical' ? 'bg-gradient-to-r from-pink-400 to-rose-400' : accessMode === 'colorblind' ? 'bg-purple-700' : 'bg-violet-600'
+    cyan:    accessMode === 'tropical' ? 'bg-gradient-to-r from-teal-500 to-cyan-400'    : accessMode === 'colorblind' ? 'bg-blue-700'    : 'bg-lime-500',
+    emerald: accessMode === 'tropical' ? 'bg-gradient-to-r from-rose-500 to-orange-400'  : accessMode === 'colorblind' ? 'bg-orange-600'  : 'bg-emerald-600',
+    amber:   accessMode === 'tropical' ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : accessMode === 'colorblind' ? 'bg-amber-700'   : 'bg-amber-600',
+    violet:  accessMode === 'tropical' ? 'bg-gradient-to-r from-fuchsia-500 to-pink-400' : accessMode === 'colorblind' ? 'bg-rose-700'    : 'bg-violet-600'
+  };
+
+  // Per-card tropical borders (ocean / coral / sunshine / bougainvillea)
+  const tropicalBorderClasses = {
+    cyan:    'border border-teal-200 dark:border-teal-800/60 shadow-teal-500/10 dark:shadow-teal-950/20',
+    emerald: 'border border-rose-200 dark:border-rose-800/60 shadow-rose-500/10 dark:shadow-rose-950/20',
+    amber:   'border border-yellow-200 dark:border-yellow-800/60 shadow-yellow-500/10 dark:shadow-yellow-950/20',
+    violet:  'border border-fuchsia-200 dark:border-fuchsia-800/60 shadow-fuchsia-500/10 dark:shadow-fuchsia-950/20',
+  };
+
+  // Tinted card header backgrounds (tropical mode)
+  const tropicalHeaderClasses = {
+    cyan:    'bg-teal-50/60 dark:bg-teal-950/30 border-teal-100 dark:border-teal-900/30',
+    emerald: 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/30',
+    amber:   'bg-yellow-50/60 dark:bg-yellow-950/30 border-yellow-100 dark:border-yellow-900/30',
+    violet:  'bg-fuchsia-50/60 dark:bg-fuchsia-950/30 border-fuchsia-100 dark:border-fuchsia-900/30',
+  };
+
+  // Per-card colorblind-safe borders & shadows (Okabe-Ito palette)
+  const cardBorderClasses = {
+    cyan:    'border-4 border-blue-700 dark:border-blue-500 shadow-[6px_6px_0px_0px_rgba(29,78,216,1)] dark:shadow-[6px_6px_0px_0px_rgba(59,130,246,0.5)]',
+    emerald: 'border-4 border-orange-600 dark:border-orange-400 shadow-[6px_6px_0px_0px_rgba(234,88,12,1)] dark:shadow-[6px_6px_0px_0px_rgba(251,146,60,0.5)]',
+    amber:   'border-4 border-amber-700 dark:border-amber-500 shadow-[6px_6px_0px_0px_rgba(180,83,9,1)] dark:shadow-[6px_6px_0px_0px_rgba(245,158,11,0.5)]',
+    violet:  'border-4 border-rose-700 dark:border-rose-500 shadow-[6px_6px_0px_0px_rgba(190,18,60,1)] dark:shadow-[6px_6px_0px_0px_rgba(251,113,133,0.5)]',
+  };
+
+  // Tinted card header backgrounds (colorblind mode)
+  const headerBgClasses = {
+    cyan:    'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900',
+    emerald: 'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-900',
+    amber:   'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900',
+    violet:  'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900',
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
@@ -69,17 +105,26 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
 
   return (
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
-      "bg-white dark:bg-slate-900 flex flex-col transition-all resize overflow-auto min-h-[400px] min-w-[280px] h-full",
-      isCompact ? "rounded-none shadow-none border-none" : "rounded-[2rem] shadow-xl hover:scale-[1.01]",
-      accessMode === 'colorblind' 
-        ? "border-4 border-blue-600 dark:border-blue-500 shadow-[8px_8px_0px_0px_rgba(30,58,138,0.2)]" 
+      "flex flex-col transition-all resize overflow-auto min-h-[400px] min-w-[280px] h-full",
+      accessMode === 'tropical'
+        ? "bg-white dark:bg-[#0b1f1e]"
+        : accessMode === 'colorblind'
+        ? "bg-blue-50/30 dark:bg-[#0a0d18]"
+        : "bg-white dark:bg-slate-900",
+      isCompact ? "rounded-none shadow-none border-none" : "rounded-2xl shadow-sm",
+      accessMode === 'colorblind'
+        ? cardBorderClasses[color]
         : accessMode === 'tropical'
-        ? "shadow-orange-900/5 dark:shadow-orange-950/20 border border-orange-100 dark:border-orange-900/50"
-        : "shadow-cyan-900/5 dark:shadow-black/20 border border-cyan-50 dark:border-cyan-900/50"
+        ? tropicalBorderClasses[color]
+        : "shadow-lime-900/5 dark:shadow-black/20 border border-lime-50 dark:border-lime-900/50"
     )}>
       <div className={cn(
-        "p-6 border-b flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10",
-        accessMode === 'tropical' ? "border-orange-50 dark:border-orange-900/20" : "border-cyan-50 dark:border-cyan-900/30"
+        "p-6 border-b flex items-center justify-between sticky top-0 z-10",
+        accessMode === 'colorblind'
+          ? headerBgClasses[color]
+          : accessMode === 'tropical'
+          ? tropicalHeaderClasses[color]
+          : "bg-white dark:bg-slate-900 border-lime-50 dark:border-lime-900/30"
       )}>
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -111,9 +156,9 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="h-full flex flex-col items-center justify-center text-cyan-200 dark:text-cyan-900 text-center space-y-4 py-12"
+              className="h-full flex flex-col items-center justify-center text-lime-200 dark:text-lime-900 text-center space-y-4 py-12"
             >
-              <div className="w-16 h-16 rounded-full bg-cyan-50/50 dark:bg-cyan-900/10 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-lime-50/50 dark:bg-lime-900/10 flex items-center justify-center">
                 <TrendingUp size={32} />
               </div>
               <div className="space-y-1.5">
@@ -129,10 +174,10 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-3/4 animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-full animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-5/6 animate-pulse" />
-              <div className="h-4 bg-cyan-50 dark:bg-slate-800 rounded-full w-2/3 animate-pulse" />
+              <div className="h-4 bg-lime-50 dark:bg-slate-800 rounded-full w-3/4 animate-pulse" />
+              <div className="h-4 bg-lime-50 dark:bg-slate-800 rounded-full w-full animate-pulse" />
+              <div className="h-4 bg-lime-50 dark:bg-slate-800 rounded-full w-5/6 animate-pulse" />
+              <div className="h-4 bg-lime-50 dark:bg-slate-800 rounded-full w-2/3 animate-pulse" />
             </motion.div>
           ) : (
             <motion.div 
@@ -222,8 +267,8 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               )}
 
               {response?.sources && response.sources.length > 0 && (
-                <div className="pdf-sources mt-8 pt-6 border-t border-cyan-50 dark:border-cyan-900/30">
-                  <h4 className="text-[10px] font-black text-cyan-300 dark:text-cyan-700 uppercase tracking-widest mb-4">Sources</h4>
+                <div className="pdf-sources mt-8 pt-6 border-t border-lime-50 dark:border-lime-900/30">
+                  <h4 className="text-[10px] font-black text-lime-400 dark:text-lime-800 uppercase tracking-widest mb-4">Sources</h4>
                   <div className="flex flex-wrap gap-2">
                     {response.sources.map((source, i) => (
                       <a 
@@ -231,7 +276,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                         href={source.uri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="pdf-source-link inline-flex items-center gap-1.5 px-3 py-2 bg-cyan-50/50 dark:bg-slate-800 border border-cyan-100 dark:border-cyan-900 rounded-xl text-[10px] font-bold text-cyan-700 dark:text-cyan-400 transition-colors"
+                        className="pdf-source-link inline-flex items-center gap-1.5 px-3 py-2 bg-lime-50/50 dark:bg-slate-800 border border-lime-100 dark:border-lime-900 rounded-xl text-[10px] font-bold text-lime-700 dark:text-lime-400 transition-colors"
                       >
                         <ExternalLink size={10} />
                         <span>{source.title}</span>

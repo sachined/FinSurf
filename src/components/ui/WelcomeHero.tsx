@@ -15,11 +15,11 @@ const TRUST_BADGES = [
 ];
 
 const AGENTS = [
-  { icon: <Sparkles size={18} />, title: 'Executive Summary', desc: 'A plain-English brief combining all findings — great starting point for any investor.' },
-  { icon: <Search size={18} />, title: 'Research Analyst', desc: 'Is the company healthy? Earnings growth, valuation, and who the big investors are.' },
-  { icon: <Receipt size={18} />, title: 'Tax Strategist', desc: 'Know your tax bill before you sell — short-term vs. long-term rates, explained simply.' },
-  { icon: <Coins size={18} />, title: 'Dividend Specialist', desc: 'How much cash will this stock pay you? Income projections on your exact share count.' },
-  { icon: <MessageSquare size={18} />, title: 'Sentiment Analyst', desc: "What is everyone saying? Reddit, X, StockTwits & news — the crowd's mood right now." },
+  { icon: <Sparkles size={18} />, title: 'Executive Summary', desc: 'A plain-English brief combining all findings — great starting point for any investor.',   cbIcon: 'bg-slate-800 text-white border-slate-800',    tropicalCard: 'border-teal-200 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-900/10',       tropicalIcon: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300' },
+  { icon: <Search size={18} />,    title: 'Research Analyst',   desc: 'Is the company healthy? Earnings growth, valuation, and who the big investors are.',         cbIcon: 'bg-blue-700 text-white border-blue-700',      tropicalCard: 'border-teal-200 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-900/10',       tropicalIcon: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300' },
+  { icon: <Receipt size={18} />,   title: 'Tax Strategist',     desc: 'Know your tax bill before you sell — short-term vs. long-term rates, explained simply.',     cbIcon: 'bg-orange-600 text-white border-orange-600',  tropicalCard: 'border-rose-200 dark:border-rose-800/60 bg-rose-50/40 dark:bg-rose-900/10',       tropicalIcon: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300' },
+  { icon: <Coins size={18} />,     title: 'Dividend Specialist', desc: 'How much cash will this stock pay you? Income projections on your exact share count.',      cbIcon: 'bg-amber-700 text-white border-amber-700',    tropicalCard: 'border-yellow-200 dark:border-yellow-800/60 bg-yellow-50/40 dark:bg-yellow-900/10', tropicalIcon: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' },
+  { icon: <MessageSquare size={18} />, title: 'Sentiment Analyst', desc: "What is everyone saying? Reddit, X, StockTwits & news — the crowd's mood right now.",    cbIcon: 'bg-rose-700 text-white border-rose-700',      tropicalCard: 'border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50/40 dark:bg-fuchsia-900/10', tropicalIcon: 'bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' },
 ];
 
 export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
@@ -27,13 +27,14 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
     ? 'text-orange-500'
     : accessMode === 'colorblind'
     ? 'text-blue-700 dark:text-blue-400'
-    : 'text-cyan-500';
+    : 'text-lime-500';
 
+  // Trust badges use a generic teal in tropical; agent cards use per-card colors below
   const cardBorder = accessMode === 'tropical'
-    ? 'border-orange-100 dark:border-orange-900/40 bg-orange-50/40 dark:bg-orange-900/10'
+    ? 'border-teal-200 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-900/10'
     : accessMode === 'colorblind'
     ? 'border-2 border-blue-600 dark:border-blue-400 bg-white dark:bg-slate-900'
-    : 'border-cyan-50 dark:border-cyan-900/40 bg-white/60 dark:bg-slate-900/60';
+    : 'border-lime-100 dark:border-lime-900/40 bg-white/60 dark:bg-slate-900/60';
 
   return (
     <motion.div
@@ -48,10 +49,10 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
         <div className={cn(
           "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border",
           accessMode === 'tropical'
-            ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800"
+            ? "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800"
             : accessMode === 'colorblind'
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 border-blue-600 dark:border-blue-400"
-            : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border-cyan-100 dark:border-cyan-900/50"
+            : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-900/50"
         )}>
           <Zap size={12} /> 5 AI agents · No finance degree needed · Free to use
         </div>
@@ -83,7 +84,7 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
                 ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
                 : accessMode === 'colorblind'
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-600 dark:border-blue-400"
-                : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400"
+                : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400"
             )}>
               {icon}
             </div>
@@ -100,7 +101,7 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
 
       {/* Agent cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {AGENTS.map(({ icon, title, desc }, i) => (
+        {AGENTS.map(({ icon, title, desc, cbIcon, tropicalCard, tropicalIcon }, i) => (
           <motion.div
             key={title}
             initial={{ opacity: 0, y: 12 }}
@@ -108,16 +109,16 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
             transition={{ delay: 0.1 + i * 0.07, duration: 0.4 }}
             className={cn(
               "flex items-start gap-3 p-4 rounded-2xl border transition-all",
-              cardBorder
+              accessMode === 'tropical' ? tropicalCard : cardBorder
             )}
           >
             <div className={cn(
-              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5",
+              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border border-transparent",
               accessMode === 'tropical'
-                ? "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
+                ? tropicalIcon
                 : accessMode === 'colorblind'
-                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-600 dark:border-blue-400"
-                : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400"
+                ? cbIcon
+                : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400"
             )}>
               {icon}
             </div>

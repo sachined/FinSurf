@@ -15,44 +15,49 @@ interface HeaderProps {
 export function Header({ theme, toggleTheme, accessMode, setAccessMode, onAboutClick, onUpgradeClick }: HeaderProps) {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-20">
-      <div className="flex items-center gap-4 group">
+      <div className="flex items-center gap-3">
         <div className={cn(
-          "w-14 h-14 rounded-4xl flex items-center justify-center shadow-lg transition-transform duration-500 group-hover:rotate-12",
-          accessMode === 'tropical' 
-            ? "bg-orange-500 dark:bg-orange-600 shadow-orange-500/30" 
+          "w-10 h-10 rounded-2xl flex items-center justify-center",
+          accessMode === 'tropical'
+            ? "bg-gradient-to-br from-teal-400 to-rose-500"
             : accessMode === 'colorblind'
-            ? "bg-blue-700 dark:bg-blue-600 shadow-blue-900/40"
-            : "bg-cyan-500 dark:bg-cyan-600 shadow-cyan-500/20"
+            ? "bg-blue-700 dark:bg-blue-600"
+            : "bg-lime-500 dark:bg-lime-600"
         )}>
           {accessMode === 'tropical' ? (
-            <Palmtree className="text-white" size={32} />
+            <Palmtree className="text-white" size={22} />
           ) : (
-            <Waves className="text-white" size={32} />
+            <Waves className="text-white" size={22} />
           )}
         </div>
         <div>
-          <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none mb-1">
+          <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter leading-none mb-0.5">
             FinSurf<span className={
-              accessMode === 'tropical' 
-                ? "text-orange-500" 
-                : accessMode === 'colorblind' 
-                ? "text-blue-700 dark:text-blue-400" 
-                : "text-cyan-500"
+              accessMode === 'tropical'
+                ? "text-orange-500"
+                : accessMode === 'colorblind'
+                ? "text-blue-700 dark:text-blue-400"
+                : "text-lime-500"
             }>.ai</span>
           </h1>
           <p className={cn(
-            "text-[10px] font-bold uppercase tracking-[0.3em] opacity-70 group-hover:tracking-[0.4em] transition-all",
-            accessMode === 'tropical' ? "text-orange-600 dark:text-orange-400" : accessMode === 'colorblind' ? "text-blue-700 dark:text-blue-400 font-black" : "text-cyan-600 dark:text-cyan-400"
+            "text-[10px] font-bold uppercase tracking-[0.25em] opacity-60",
+            accessMode === 'tropical' ? "text-orange-600 dark:text-orange-400" : accessMode === 'colorblind' ? "text-blue-700 dark:text-blue-400 font-black" : "text-lime-700 dark:text-lime-400"
           )}>
             {accessMode === 'colorblind' ? "Accessibility Enhanced View" : "Ride the market waves"}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-900/50 p-2 rounded-3xl border border-white dark:border-slate-800 backdrop-blur-md shadow-sm">
+      <div className={cn(
+        "flex items-center gap-1.5 p-1.5 rounded-xl border",
+        accessMode === 'tropical'
+          ? "border-teal-200 dark:border-teal-900 bg-teal-50/50 dark:bg-teal-950/20"
+          : "border-slate-200 dark:border-slate-800"
+      )}>
         <button
           onClick={() => setAccessMode('default')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl transition-all text-[10px] font-black uppercase tracking-wide ${accessMode === 'default' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl transition-all text-[10px] font-black uppercase tracking-wide ${accessMode === 'default' ? 'bg-lime-500 text-slate-900 shadow-lg shadow-lime-500/30' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
           title="Default Mode"
         >
           <Waves size={16} />
