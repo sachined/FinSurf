@@ -18,14 +18,29 @@ def format_ts(ts):
     return datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 def view_tracking():
+    # Diagnostic: print current configuration
+    print(f"DEBUG: TELEMETRY_DB env: {os.environ.get('TELEMETRY_DB')}")
+    print(f"DEBUG: DB_PATH: {DB_PATH}")
+    
     # If DB_PATH points to a file that exists, we continue.
     # Otherwise, if it was default, explain.
     if not os.path.exists(DB_PATH):
         print("\n--- FinSurf Usage Tracking (VIP Access & IP/GPS) ---")
         print("-" * 80)
         print(f"No tracking data available yet (DB not found at {DB_PATH}).")
-        print("Note: In production, run this command INSIDE the Docker container:")
-        print("  docker exec -it <container_id> npm run view-tracking")
+        
+        # Check if directory exists
+        db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+        if not os.path.exists(db_dir):
+            print(f"ERROR: Directory {db_dir} does not exist!")
+        elif not os.access(db_dir, os.W_OK):
+            print(f"ERROR: Directory {db_dir} is NOT writable!")
+        else:
+            print(f"The directory {db_dir} exists and is writable, but {os.path.basename(DB_PATH)} has not been created yet.")
+            print("Tracking starts after the first agent analysis ('Research' button) is performed.")
+        
+        print("\nNote: In production, run this command INSIDE the Docker container:")
+        print("  docker compose exec finsurf npm run view-tracking")
         return
 
     con = sqlite3.connect(DB_PATH)

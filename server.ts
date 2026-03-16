@@ -138,6 +138,10 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
     // execFile avoids shell injection — args are passed as an array, never interpolated
     // 120 s timeout prevents hung Python processes from blocking the event loop indefinitely
     execFile(pythonCommand, ["backend/agents.py", mode, ...argStrings], { env, maxBuffer: 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
+      if (stderr) {
+        // Log Python stderr (warnings, etc.) even if the process succeeded
+        console.error(`Python stderr: ${stderr}`);
+      }
       if (error) {
         console.error(`Exec error: ${error}`);
         reject(stderr || error.message);

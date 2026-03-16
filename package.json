@@ -12,6 +12,7 @@
     "test:backend": "python -m pytest backend/tests/",
     "generate-passes": "tsx scripts/generate-passes.ts",
     "view-tracking": "python scripts/view_tracking.py",
+    "telemetry-diag": "python scripts/diagnostic.py",
     "start": "cross-env NODE_ENV=production tsx server.ts"
   },
   "dependencies": {
