@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Receipt, Coins, MessageSquare, Zap } from 'lucide-react';
+import { Search, Receipt, Coins, MessageSquare, Zap, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { type AccessMode } from '../../types';
@@ -9,6 +9,7 @@ interface WelcomeHeroProps {
 }
 
 const AGENTS = [
+  { icon: <Sparkles size={18} />, title: 'Executive Summary', desc: 'A cohesive narrative synthesising all specialist findings into one brief.' },
   { icon: <Search size={18} />, title: 'Research Analyst', desc: 'Fundamentals, P/E, revenue growth & institutional ownership.' },
   { icon: <Receipt size={18} />, title: 'Tax Strategist', desc: 'Short vs. long-term capital gains — know your tax before you sell.' },
   { icon: <Coins size={18} />, title: 'Dividend Specialist', desc: 'Dividend yield, payout ratio & projected income on your shares.' },
@@ -46,19 +47,19 @@ export function WelcomeHero({ accessMode }: WelcomeHeroProps) {
             ? "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200 border-blue-600 dark:border-blue-400"
             : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 border-cyan-100 dark:border-cyan-900/50"
         )}>
-          <Zap size={12} /> 4 AI agents · Instant analysis · Free to use
+          <Zap size={12} /> 5 AI agents · Instant analysis · Free to use
         </div>
         <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-tight mb-3">
           Your personal team of{' '}
           <span className={accentText}>AI financial analysts</span>
         </h2>
         <p className="text-slate-500 dark:text-slate-400 font-medium max-w-xl mx-auto text-sm leading-relaxed">
-          Enter a stock ticker below and four specialized AI agents will instantly deliver research, tax implications, dividend projections, and market sentiment — all in one place.
+          Enter a stock ticker below and five specialized AI agents will instantly deliver research, tax implications, dividend projections, and market sentiment — all in one place.
         </p>
       </div>
 
       {/* Agent cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {AGENTS.map(({ icon, title, desc }, i) => (
           <motion.div
             key={title}

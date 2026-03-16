@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Receipt, Coins, MessageSquare, CheckCircle2, Loader2 } from 'lucide-react';
+import { Search, Receipt, Coins, MessageSquare, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import { cn } from '../../utils/cn';
 import { type LoadingState, type FinancialAgentsState, type AccessMode } from '../../types';
@@ -11,6 +11,7 @@ interface AgentProgressStripProps {
 }
 
 const AGENT_META = [
+  { key: 'summary' as const, label: 'Summary', icon: <Sparkles size={14} /> },
   { key: 'research' as const, label: 'Research', icon: <Search size={14} /> },
   { key: 'tax' as const, label: 'Tax', icon: <Receipt size={14} /> },
   { key: 'dividend' as const, label: 'Dividends', icon: <Coins size={14} /> },
