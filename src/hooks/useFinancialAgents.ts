@@ -34,18 +34,20 @@ export function useFinancialAgents() {
       summary: true,
     });
 
-    try {
-      const sharesNum = parseFloat(shares) || 0;
-      let years = 3;
-      if (purchaseDate && sellDate) {
-        const pDate = parseISO(purchaseDate);
-        const sDate = parseISO(sellDate);
-        if (!isNaN(pDate.getTime()) && !isNaN(sDate.getTime())) {
-          years = Math.max(1, Math.ceil(differenceInDays(sDate, pDate) / 365));
-        }
+    const sharesNum = parseFloat(shares) || 0;
+    let years = 3;
+    if (purchaseDate && sellDate) {
+      const pDate = parseISO(purchaseDate);
+      const sDate = parseISO(sellDate);
+      if (!isNaN(pDate.getTime()) && !isNaN(sDate.getTime())) {
+        years = Math.max(1, Math.ceil(differenceInDays(sDate, pDate) / 365));
       }
+    }
 
+    try {
       const state = await analyzeAgent(ticker, purchaseDate, sellDate, sharesNum, years, userKeys);
+      
+      // Update responses with the result
       setResponses(state);
     } catch (error) {
       console.error('Unified analysis error:', error);

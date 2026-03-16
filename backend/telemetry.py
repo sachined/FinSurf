@@ -14,6 +14,7 @@ Usage pattern:
 import os
 import sqlite3
 import time
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -180,7 +181,21 @@ class TelemetryDB:
                     ts         REAL    NOT NULL
                 )
             """)
+            # Tracking for user access and location (IP/GPS)
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS request_events (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id     TEXT    NOT NULL,
+                    ticker     TEXT    NOT NULL,
+                    user_id    TEXT,
+                    ip_address TEXT,
+                    lat        REAL,
+                    lon        REAL,
+                    ts         REAL    NOT NULL
+                )
+            """)
             con.commit()
+            print(f"DEBUG: Telemetry DB {self.db_path} schema initialized.", file=sys.stderr)
 
     def write_run(self, run_id: str, ticker: str, usages: List[TokenUsage]) -> None:
         """Persist all TokenUsage records for a single graph run."""
@@ -203,6 +218,21 @@ class TelemetryDB:
                     input_tok, output_tok, latency_ms, cost_usd, ts)
                    VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 rows,
+            )
+            con.commit()
+
+    def write_request(self, run_id: str, ticker: str, user_id: Optional[str] = None,
+                      ip: Optional[str] = None, lat: Optional[float] = None,
+                      lon: Optional[float] = None) -> None:
+        """Persist a high-level request event for tracking access codes and location."""
+        if self.disabled:
+            return
+        with sqlite3.connect(self.db_path) as con:
+            con.execute(
+                """INSERT INTO request_events
+                   (run_id, ticker, user_id, ip_address, lat, lon, ts)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (run_id, ticker, user_id, ip, lat, lon, time.time()),
             )
             con.commit()
 

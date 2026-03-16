@@ -115,8 +115,23 @@ function parseCitations(citations: unknown[]): { title: string; uri: string }[] 
   });
 }
 
-async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false, envOverrides?: Record<string, string>): Promise<string> {
-  const env = { ...process.env, SKIP_GUARDRAIL: skipGuardrail ? "true" : "false", ...envOverrides };
+interface RequestMetadata {
+  userId?: string;
+  ip?: string;
+  lat?: string;
+  lon?: string;
+}
+
+async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false, envOverrides?: Record<string, string>, metadata?: RequestMetadata): Promise<string> {
+  const env = { 
+    ...process.env, 
+    SKIP_GUARDRAIL: skipGuardrail ? "true" : "false", 
+    ...envOverrides,
+    USER_ID: metadata?.userId || "",
+    IP_ADDRESS: metadata?.ip || "",
+    LAT: metadata?.lat || "",
+    LON: metadata?.lon || ""
+  };
   const argStrings = args.map(String);
 
   return new Promise((resolve, reject) => {
@@ -411,6 +426,14 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
     const { purchaseDate, sellDate, shares, years } = req.body;
     const userEnv = getUserKeyEnv(req);
 
+    // Extract tracking metadata from headers
+    const metadata: RequestMetadata = {
+      userId: req.headers["x-finsurf-pass"] as string,
+      ip: req.ip,
+      lat: req.headers["x-lat"] as string,
+      lon: req.headers["x-lon"] as string,
+    };
+
     const cachedStatus = getCachedGuardrailStatus(ticker);
     const skipGuardrail = cachedStatus === true;
 
@@ -423,7 +446,7 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
         years || 3
       ];
 
-      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv);
+      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv, metadata);
       const graphData = JSON.parse(stdout);
 
       // Update the cache if we performed a fresh check

@@ -357,8 +357,21 @@ def run_graph(
     shares: float = 1.0,
     years: int = 3,
     skip_guardrail: bool = False,
+    # New parameters for usage tracking
+    user_id: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
 ) -> FinSurfState:
     clear_session_usages()
+
+    run_id = str(uuid.uuid4())
+
+    # Log the high-level request event before starting the graph
+    try:
+        telemetry_db.write_request(run_id, ticker, user_id, ip_address, lat, lon)
+    except Exception as exc:
+        print(f"TELEMETRY WARNING: could not write request to DB: {exc}", file=sys.stderr)
 
     initial: FinSurfState = {
         "ticker": ticker,
@@ -390,16 +403,15 @@ def run_graph(
         for err in final["errors"]:
             print(f"GRAPH WARNING: {err}", file=sys.stderr)
 
-    run_id = str(uuid.uuid4())
     usages = get_session_usages()
     summary = summarize_usages(usages)
     final["token_summary"] = summary
 
-    # Persist to SQLite (no-op if TELEMETRY_DISABLED=true)
+    # Persist agent calls (token usage) linked to the same run_id
     try:
         telemetry_db.write_run(run_id, ticker, usages)
     except Exception as exc:
-        print(f"TELEMETRY WARNING: could not write to DB: {exc}", file=sys.stderr)
+        print(f"TELEMETRY WARNING: could not write run usage to DB: {exc}", file=sys.stderr)
 
     print(f"TOKEN SUMMARY: {json.dumps(summary)}", file=sys.stderr)
     return final

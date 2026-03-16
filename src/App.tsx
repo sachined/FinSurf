@@ -71,6 +71,9 @@ export default function App() {
     const pass = params.get('pass');
 
     if (pass) {
+      const enableGps = params.get('gps') === '1';
+      if (enableGps) localStorage.setItem('finsurf_gps_enabled', 'true');
+      
       validatePass(pass).then(data => {
         if (data.valid && data.expiry) {
           localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
@@ -81,6 +84,25 @@ export default function App() {
       }).catch(err => {
         console.error("Failed to validate VIP pass:", err);
       });
+    }
+  }, []);
+
+  // Location tracking logic — requests coordinates if VIP pass is active and tracking is enabled
+  useEffect(() => {
+    const activePass = localStorage.getItem('finsurf_active_pass');
+    const trackingEnabled = localStorage.getItem('finsurf_gps_enabled') === 'true';
+    
+    if (activePass && trackingEnabled && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          localStorage.setItem('finsurf_lat', position.coords.latitude.toString());
+          localStorage.setItem('finsurf_lon', position.coords.longitude.toString());
+        },
+        (error) => {
+          console.warn("Location tracking permission denied or unavailable:", error.message);
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
+      );
     }
   }, []);
 

@@ -17,6 +17,12 @@ async function apiPost<T>(
   if (activePass) {
     headers["X-FinSurf-Pass"] = activePass;
   }
+  
+  // Forward optional GPS coordinates if the user has enabled location tracking
+  const lat = localStorage.getItem('finsurf_lat');
+  const lon = localStorage.getItem('finsurf_lon');
+  if (lat) headers["X-Lat"] = lat;
+  if (lon) headers["X-Lon"] = lon;
 
   // Include the Bearer token for server-side API authentication.
   // This is baked into the frontend bundle at build time.
