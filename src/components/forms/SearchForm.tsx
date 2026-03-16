@@ -115,7 +115,7 @@ export function SearchForm({
               accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
             )}
           />
-          <p className="text-[10px] text-slate-400 px-1 font-medium">When did you buy (or plan to buy)?</p>
+          <p className="text-[10px] text-slate-400 px-1 font-medium">When did you buy it (or plan to)?</p>
         </div>
 
         <div className="space-y-2 group">
@@ -123,7 +123,7 @@ export function SearchForm({
             "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors px-1",
             accessMode === 'tropical' ? "group-focus-within:text-orange-500" : accessMode === 'colorblind' ? "group-focus-within:text-blue-700 dark:group-focus-within:text-blue-400 font-black" : "group-focus-within:text-cyan-500"
           )}>
-            <Calendar size={12} /> Sell / Target Date
+            <Calendar size={12} /> Sell / Analysis Date
           </label>
           <input
             type="date"
@@ -134,7 +134,7 @@ export function SearchForm({
               accessMode === 'tropical' ? "focus:ring-4 focus:ring-orange-500/10" : accessMode === 'colorblind' ? "focus:ring-4 focus:ring-blue-600 focus:bg-white dark:focus:bg-slate-900 border-2 border-transparent focus:border-blue-600 dark:focus:border-blue-400" : "focus:ring-4 focus:ring-cyan-500/10"
             )}
           />
-          <p className="text-[10px] text-slate-400 px-1 font-medium">Affects tax rate: &gt;1 yr = lower tax</p>
+          <p className="text-[10px] text-slate-400 px-1 font-medium">Planning to sell soon? Over 1 year = lower tax rate</p>
         </div>
 
         <div className="space-y-2 group">

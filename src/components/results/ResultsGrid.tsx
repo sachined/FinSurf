@@ -28,7 +28,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
           loading={loading.summary}
           response={responses.summary}
           color="cyan"
-          emptyDescription="A cohesive narrative synthesising all specialist findings into one plain-English investment brief."
+          emptyDescription="A plain-English investment brief combining all findings — the best place to start."
           accessMode={accessMode}
           isCompact={isDone}
         />
@@ -39,7 +39,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.research}
         response={responses.research}
         color="cyan"
-        emptyDescription="Analyzes fundamentals: P/E ratios, revenue growth & institutional ownership."
+        emptyDescription="Is the company healthy? Earnings growth, valuation, and who the big investors are."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -49,7 +49,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.tax}
         response={responses.tax}
         color="emerald"
-        emptyDescription="Calculates your capital gains tax based on your holding period (short vs. long term)."
+        emptyDescription="Know your tax bill before you sell — short-term vs. long-term rates, explained simply."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -60,7 +60,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.dividend}
         color="amber"
         isDividendAgent
-        emptyDescription="Projects dividend income on your shares including yield, payout ratio & growth rate."
+        emptyDescription="How much cash will this stock pay you? Income projections on your exact share count."
         accessMode={accessMode}
         isCompact={isDone}
       />
@@ -70,7 +70,7 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         loading={loading.sentiment}
         response={responses.sentiment}
         color="violet"
-        emptyDescription="Scans Reddit, X, StockTwits & news for real-time investor mood."
+        emptyDescription="What is everyone saying? Reddit, X, StockTwits & news — the crowd's mood right now."
         accessMode={accessMode}
         isCompact={isDone}
       />

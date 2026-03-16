@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { Download, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -95,6 +96,7 @@ export default function App() {
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
+  const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
 
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -123,6 +125,7 @@ export default function App() {
 
   const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
     setHasSurfed(true);
+    setDownloadBarCollapsed(false);
     setError(null);
     await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
   }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
@@ -183,13 +186,105 @@ export default function App() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <Header 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
-          accessMode={accessMode} 
+        <Header
+          theme={theme}
+          toggleTheme={toggleTheme}
+          accessMode={accessMode}
           setAccessMode={setAccessMode}
           onAboutClick={handleAbout}
         />
+
+        {/* Download banner — slides in at the top when results are ready */}
+        <AnimatePresence>
+          {currentPage === 'home' && hasResponses && !isAnyLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scaleY: 0.85 }}
+              animate={{ opacity: 1, y: 0, scaleY: 1 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.4, type: 'spring', bounce: 0.15 }}
+              className="mb-6 origin-top"
+            >
+              {downloadBarCollapsed ? (
+                <div className={cn(
+                  "flex items-center justify-between px-6 py-3 rounded-2xl text-white",
+                  accessMode === 'tropical'
+                    ? "bg-orange-500 shadow-lg shadow-orange-500/20"
+                    : accessMode === 'colorblind'
+                    ? "bg-blue-900 border-2 border-blue-400"
+                    : "bg-slate-900 dark:bg-slate-800"
+                )}>
+                  <span className="text-sm font-bold flex items-center gap-2">
+                    <Download size={15} /> Report ready — export your financial analysis
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleDownloadPDF}
+                      className={cn(
+                        "text-sm font-black px-4 py-1.5 rounded-xl transition-colors",
+                        accessMode === 'tropical' ? "bg-white text-orange-600 hover:bg-orange-50"
+                          : accessMode === 'colorblind' ? "bg-white text-blue-900 hover:bg-slate-100"
+                          : "bg-white text-cyan-600 hover:bg-cyan-50"
+                      )}
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      onClick={() => setDownloadBarCollapsed(false)}
+                      className="opacity-60 hover:opacity-100 transition-opacity"
+                      aria-label="Expand download bar"
+                    >
+                      <ChevronDown size={18} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={cn(
+                  "flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-[3rem] shadow-2xl text-white transition-all",
+                  accessMode === 'tropical'
+                    ? "bg-orange-500 shadow-orange-500/20"
+                    : accessMode === 'colorblind'
+                    ? "bg-blue-900 dark:bg-blue-950 border-4 border-blue-600 dark:border-blue-400 shadow-blue-900/40"
+                    : "bg-slate-900 dark:bg-slate-800"
+                )}>
+                  <div className="flex items-center gap-6">
+                    <div className="hidden sm:flex w-16 h-16 bg-white/10 rounded-[1.5rem] items-center justify-center">
+                      <Download size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black tracking-tight">Report Ready — Export Now</h3>
+                      <p className={cn(
+                        "text-sm font-medium",
+                        accessMode === 'tropical' ? "text-orange-100"
+                          : accessMode === 'colorblind' ? "text-blue-100"
+                          : "text-slate-300"
+                      )}>Download your complete financial surf report as a PDF</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                    <button
+                      onClick={handleDownloadPDF}
+                      className={cn(
+                        "w-full sm:w-auto px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/20",
+                        accessMode === 'tropical' ? "bg-white hover:bg-orange-50 text-orange-600"
+                          : accessMode === 'colorblind' ? "bg-white text-blue-900 hover:bg-slate-100"
+                          : "bg-white hover:bg-cyan-50 text-cyan-600"
+                      )}
+                    >
+                      <Download size={18} /> Download PDF
+                    </button>
+                    <button
+                      onClick={() => setDownloadBarCollapsed(true)}
+                      className="opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium"
+                      aria-label="Minimize download bar"
+                    >
+                      <ChevronUp size={16} /> Minimize
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
@@ -286,11 +381,7 @@ export default function App() {
           />
         </main>
         )}
-        <Footer
-          onDownloadPDF={handleDownloadPDF}
-          accessMode={accessMode}
-          isDataAvailable={hasResponses && !isAnyLoading}
-        />
+        <Footer accessMode={accessMode} />
       </div>
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
