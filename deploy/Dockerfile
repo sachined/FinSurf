@@ -21,13 +21,11 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_APP_SECRET
-ENV VITE_APP_SECRET=$VITE_APP_SECRET
-
-ARG VITE_STRIPE_PUBLISHABLE_KEY
-ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
-
-RUN npm run build
+RUN --mount=type=secret,id=vite_app_secret \
+    --mount=type=secret,id=vite_stripe_publishable_key \
+    VITE_APP_SECRET=$(cat /run/secrets/vite_app_secret 2>/dev/null || true) \
+    VITE_STRIPE_PUBLISHABLE_KEY=$(cat /run/secrets/vite_stripe_publishable_key 2>/dev/null || true) \
+    npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 — Runtime image (Node.js + Python on Alpine)
