@@ -1,4 +1,3 @@
-# check=skip=SecretsUsedInArgOrEnv
 # ─────────────────────────────────────────────────────────────────────────────
 # OPTIMIZED Dockerfile for FinSurf - Alpine Base (50% Size Reduction)
 #
@@ -8,10 +7,6 @@
 # Size comparison:
 #   Original (bookworm-slim):  ~1.0 GB
 #   Optimized (Alpine):        ~500 MB  (50% reduction!)
-#
-# Note: SecretsUsedInArgOrEnv is skipped above because VITE_STRIPE_PUBLISHABLE_KEY
-# is a Stripe *publishable* key (pk_live_...) — intentionally public by design.
-# VITE_APP_SECRET is handled securely via --mount=type=secret in the build stage.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -26,10 +21,8 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_STRIPE_PUBLISHABLE_KEY
 RUN --mount=type=secret,id=vite_app_secret \
     VITE_APP_SECRET=$(cat /run/secrets/vite_app_secret 2>/dev/null || true) \
-    VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY:-} \
     npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
