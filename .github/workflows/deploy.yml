@@ -62,6 +62,7 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           build-args: |
             BUILD_ID=${{ github.sha }}
+            VITE_APP_SECRET=${{ secrets.APP_SECRET }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

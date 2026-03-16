@@ -21,10 +21,8 @@ RUN npm ci
 
 COPY . .
 
-# BUILD_ID changes every commit, busting the Docker layer cache so Vite
-# always produces a fresh, consistent bundle with no stale chunk references.
-ARG BUILD_ID=dev
-RUN echo "BUILD_ID=${BUILD_ID}" > /dev/null
+ARG VITE_APP_SECRET
+ENV VITE_APP_SECRET=VITE_APP_SECRET
 
 RUN npm run build
 

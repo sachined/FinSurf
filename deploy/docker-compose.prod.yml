@@ -28,7 +28,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-      args: {}
+      args:
+        VITE_APP_SECRET: ${VITE_APP_SECRET}
     # Do NOT expose port 3000 to the host — only Caddy can reach it internally.
     expose:
       - "3000"
