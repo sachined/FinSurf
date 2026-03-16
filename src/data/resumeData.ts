@@ -48,11 +48,11 @@ export const resumeData = {
       company: "eGain Corp",
       period: "2020 – 2024",
       bullets: [
-        "\tManaged Fortune 500 accounts (including Worldpay and Fidelity Investments) as primary POC across clients," +
+        "Managed Fortune 500 accounts (including Worldpay and Fidelity Investments) as primary POC across clients," +
         " internal engineering teams, and third-party stakeholders throughout all deployment stages.",
-        "\tOnboarded enterprise clients to AI-powered Knowledge Management platform through full lifecycle: configuration," +
+        "Onboarded enterprise clients to AI-powered Knowledge Management platform through full lifecycle: configuration," +
         " content normalization, production deployment and ongoing optimization.",
-        "\tAutomated recurring Excel reporting workflows using AI-generated action scripts, reducing task completion time " +
+        "Automated recurring Excel reporting workflows using AI-generated action scripts, reducing task completion time " +
         "from 1 hour to 15 minutes (75% efficiency gain)",
         "This experience solidified my passion for automation and efficiency, setting the stage for my future endeavors in tech."
       ],

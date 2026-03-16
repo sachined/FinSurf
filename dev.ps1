@@ -16,7 +16,7 @@ $env:LANGCHAIN_API_KEY_FILE   = "$PSScriptRoot\secrets\langchain_api_key.txt"
 $env:PORT                    = "3000"
 $env:NODE_ENV                = "development"
 $env:TELEMETRY_DB            = "$PSScriptRoot\finsurf_telemetry.db"
-$env:TELEMETRY_DISABLED      = "true"   # keeps dev writes separate from prod DB
+$env:TELEMETRY_DISABLED      = "false"   # keeps dev writes separate from prod DB
 $env:ALLOWED_PROVIDERS       = "gemini,perplexity,groq"
 
 # ── LangSmith (from .env.nonsecret if available, otherwise defaults) ─────────
