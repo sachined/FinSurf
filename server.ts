@@ -76,6 +76,9 @@ async function startServer() {
   const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
+  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
+  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
+  const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
 
   // Make secrets available to child processes (Python agents)
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
@@ -133,8 +136,17 @@ async function startServer() {
     res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
   });
 
-  // Bearer-token auth removed — CORS (locked to https://${DOMAIN}) and
-  // rate limiting already protect the API sufficiently.
+  // ── VIP Pass Validation ──────────────────────────────────────────────────
+  app.get("/api/validate-pass", (req, res) => {
+    const pass = req.query.pass;
+    if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
+      // Return 30-day expiry from now
+      const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      return res.json({ valid: true, expiry });
+    }
+    res.json({ valid: false });
+  });
+
 
   // Rate limiting to prevent abuse
   const limiter = rateLimit({
@@ -145,6 +157,20 @@ async function startServer() {
     message: { error: "Too many requests from this IP, please try again after 15 minutes." }
   });
   app.use("/api/", limiter);
+
+  // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
+  if (APP_SECRET) {
+    app.use("/api/", (req, res, next) => {
+      // Skip auth for health check
+      if (req.path === "/health") return next();
+      
+      const authHeader = req.headers.authorization;
+      if (!authHeader || authHeader !== `Bearer ${APP_SECRET}`) {
+        return res.status(401).json({ error: "Unauthorized — Invalid or missing API secret" });
+      }
+      next();
+    });
+  }
 
   // Extract user-supplied API keys from request headers (forwarded by the frontend).
   // These override the server's keys, so the user's own quota is consumed.

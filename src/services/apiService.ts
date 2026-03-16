@@ -12,6 +12,19 @@ async function apiPost<T>(
   if (userKeys?.perplexityKey) headers["X-User-Perplexity-Key"] = userKeys.perplexityKey;
   if (userKeys?.groqKey)      headers["X-User-Groq-Key"]       = userKeys.groqKey;
 
+  // Retrieve the VIP pass from localStorage if it exists
+  const activePass = localStorage.getItem('finsurf_active_pass');
+  if (activePass) {
+    headers["X-FinSurf-Pass"] = activePass;
+  }
+
+  // Include the Bearer token for server-side API authentication.
+  // This is baked into the frontend bundle at build time.
+  const appSecret = import.meta.env.VITE_APP_SECRET;
+  if (appSecret) {
+    headers["Authorization"] = `Bearer ${appSecret}`;
+  }
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers,
@@ -33,3 +46,12 @@ export const analyzeAgent = (
   userKeys?: UserApiKeys
 ): Promise<FinancialAgentsState> =>
   apiPost<FinancialAgentsState>("/api/analyze", { ticker, purchaseDate, sellDate, shares, years }, userKeys);
+
+export const validatePass = (pass: string): Promise<{ valid: boolean; expiry?: number }> => {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const appSecret = import.meta.env.VITE_APP_SECRET;
+  if (appSecret) headers["Authorization"] = `Bearer ${appSecret}`;
+  
+  return fetch(`/api/validate-pass?pass=${encodeURIComponent(pass)}`, { headers })
+    .then(res => res.json());
+};

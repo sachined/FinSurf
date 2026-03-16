@@ -2,9 +2,11 @@ import json
 import os
 import time
 from typing import Optional, Dict, Any
+from langsmith import traceable
 from .utils import validate_key, get_env_key, http_post, is_provider_allowed
 from .telemetry import TokenUsage, record_usage
 
+@traceable(run_type="llm", name="Gemini")
 def call_gemini(
     prompt: str,
     system_instruction: Optional[str] = None,
@@ -56,6 +58,7 @@ def call_gemini(
     except (KeyError, IndexError):
         raise Exception(f"No candidates in Gemini response: {json.dumps(res)}")
 
+@traceable(run_type="llm", name="Groq")
 def call_groq(
     prompt: str,
     system_instruction: Optional[str] = None,
@@ -108,6 +111,7 @@ def call_groq(
     return res["choices"][0]["message"]["content"]
 
 
+@traceable(run_type="llm", name="Ollama")
 def call_ollama(
     prompt: str,
     system_instruction: Optional[str] = None,
@@ -152,6 +156,7 @@ def call_ollama(
     return res["choices"][0]["message"]["content"]
 
 
+@traceable(run_type="llm", name="Perplexity")
 def call_perplexity(
     prompt: str,
     system_instruction: Optional[str] = None,

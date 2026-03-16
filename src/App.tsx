@@ -1,4 +1,4 @@
-import React, { useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -14,6 +14,7 @@ import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
+import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
 const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
 
@@ -56,6 +57,25 @@ function incrementSurfCount(): number {
 
 export default function App() {
   const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pass = params.get('pass');
+
+    if (pass) {
+      validatePass(pass).then(data => {
+        if (data.valid && data.expiry) {
+          localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
+          localStorage.setItem('finsurf_active_pass', pass);
+          window.history.replaceState({}, '', window.location.pathname);
+          alert("VIP Early Access Activated! You have unlimited analyses for 30 days.");
+        }
+      }).catch(err => {
+        console.error("Failed to validate VIP pass:", err);
+      });
+    }
+  }, []);
+
   const {
     ticker, setTicker,
     purchaseDate, setPurchaseDate,
@@ -83,26 +103,29 @@ export default function App() {
   // In dev (`npm run dev`) import.meta.env.PROD is always false.
   const isProd = import.meta.env.PROD;
 
-  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
-    setHasSurfed(true);
-    setError(null);
-    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
-  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
-
   const handleSearch = async () => {
     if (!validateAll()) return;
 
-    // In production: enforce the free-try limit when no user keys are stored.
-    if (isProd && !userKeys) {
+    // Check if a user has an active VIP pass
+    const vipExpiry = localStorage.getItem('finsurf_vip_expiry');
+    const isVip = vipExpiry && parseInt(vipExpiry, 10) > Date.now();
+
+    // In production: enforce the limit ONLY if not VIP and no user keys are provided
+    if (isProd && !userKeys && !isVip) {
       const count = incrementSurfCount();
       if (count > FREE_TRIES) {
         setShowApiKeyModal(true);
         return;
       }
     }
-
     await executeSearch(userKeys);
   };
+
+  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
+    setHasSurfed(true);
+    setError(null);
+    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
+  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
 
   const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
     localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
