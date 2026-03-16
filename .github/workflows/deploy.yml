@@ -92,8 +92,8 @@ jobs:
             # ── Pull latest config files (.env.nonsecret, deploy/, Caddyfile) ─
             cd /opt/finsurf
             git remote set-url origin https://github.com/${{ github.repository }}
-            git checkout -- .
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
 
             # ── Export non-secret env vars (includes DOMAIN=finsurf.net) ───────
             set -a
