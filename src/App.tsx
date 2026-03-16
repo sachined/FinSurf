@@ -17,6 +17,7 @@ import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
 const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
+const UpgradePage = lazy(() => import('./pages/UpgradePage').then(m => ({ default: m.UpgradePage })));
 
 // localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
@@ -94,7 +95,8 @@ export default function App() {
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
+  const [upgradePage, setUpgradePage] = useState<'home' | 'about'>('home');
 
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -103,7 +105,13 @@ export default function App() {
   // In dev (`npm run dev`) import.meta.env.PROD is always false.
   const isProd = import.meta.env.PROD;
 
-  const handleSearch = async () => {
+  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
+    setHasSurfed(true);
+    setError(null);
+    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
+  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
+
+  const handleSearch = useCallback(async () => {
     if (!validateAll()) return;
 
     // Check if a user has an active VIP pass
@@ -119,13 +127,7 @@ export default function App() {
       }
     }
     await executeSearch(userKeys);
-  };
-
-  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
-    setHasSurfed(true);
-    setError(null);
-    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
-  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
+  }, [validateAll, isProd, userKeys, executeSearch]);
 
   const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
     localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
@@ -135,8 +137,12 @@ export default function App() {
     await executeSearch(keys);
   }, [executeSearch]);
 
-  const handleAbout=useCallback(() => {
+  const handleAbout = useCallback(() => {
     setCurrentPage(p => p === 'about' ? 'home' : 'about');
+  }, []);
+
+  const handleUpgrade = useCallback(() => {
+    setUpgradePage(p => p === 'about' ? 'home' : 'about');
   }, []);
 
   const handleDownloadPDF = useCallback(() => {
@@ -189,11 +195,16 @@ export default function App() {
           accessMode={accessMode} 
           setAccessMode={setAccessMode}
           onAboutClick={handleAbout}
+          onUpgradeClick={handleUpgrade}
         />
 
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
             <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
+          </Suspense>
+        ) : currentPage === 'upgrade' ? (
+          <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
+            <UpgradePage accessMode={accessMode} onBack={() => setCurrentPage('home')} onActivated={() => setCurrentPage('home')} />
           </Suspense>
         ) : (
             <main id="report-container">
@@ -215,14 +226,6 @@ export default function App() {
               </div>
             </div>
             <div className="w-full h-1 bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
-          </div>
-
-          <div data-no-print="">
-            <Footer
-              onDownloadPDF={handleDownloadPDF}
-              accessMode={accessMode}
-              isDataAvailable={hasResponses && !isAnyLoading}
-            />
           </div>
 
           <div data-no-print="">
@@ -248,6 +251,7 @@ export default function App() {
               hasSurfed={hasSurfed}
               accessMode={accessMode}
               isCompact={hasResponses && !isAnyLoading}
+              isDataAvailable={hasResponses && !isAnyLoading}
             />
           </div>
 
@@ -288,10 +292,12 @@ export default function App() {
           </div>
 
           <ResultsGrid
-            responses={responses} 
-            loading={loading} 
-            accessMode={accessMode} 
+            responses={responses}
+            loading={loading}
+            accessMode={accessMode}
           />
+
+          <Footer accessMode={accessMode} />
         </main>
         )}
       </div>

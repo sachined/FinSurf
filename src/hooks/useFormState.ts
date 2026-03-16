@@ -8,14 +8,6 @@ export function useFormState() {
   const [shares, setShares] = useState<string>('10');
   const [error, setError] = useState<string | null>(null);
 
-  const sanitizeShares = (val: string) => {
-    const num = parseFloat(val);
-    if (isNaN(num)) return val;
-    // Limit to 8 decimal places and cap at 1 billion
-    const capped = Math.min(num, 1000000000);
-    return Number(capped.toFixed(8)).toString();
-  };
-
   const validateAll = () => {
     const tickerRegex = /^[A-Z0-9.^=-]{1,10}$/;
     if (!tickerRegex.test(ticker)) {
@@ -69,6 +61,5 @@ export function useFormState() {
     error,
     setError,
     validateAll,
-    sanitizeShares
   };
 }

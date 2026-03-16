@@ -89,19 +89,20 @@ class TestResearchNode(unittest.TestCase):
         self.assertTrue(len(result.get("errors", [])) > 0)
 
 
-class TestTaxNode(unittest.TestCase):
-    def test_returns_tax_output(self):
-        from backend.graph import tax_node, FinSurfState
+class TestTaxDividendNode(unittest.TestCase):
+    def test_returns_tax_and_dividend_output(self):
+        from backend.graph import tax_dividend_node, FinSurfState
         state: FinSurfState = _make_state("AAPL", purchase_date="2022-01-01", sell_date="2023-06-01")
-        with patch(f"{GRAPH_MODULE}.tax_agent", return_value=_TAX_RESPONSE):
-            result = tax_node(state)
+        with patch(f"{GRAPH_MODULE}.tax_dividend_agent", return_value=(_TAX_RESPONSE, _DIVIDEND_RESPONSE)):
+            result = tax_dividend_node(state)
         self.assertEqual(result["tax_output"], _TAX_RESPONSE)
+        self.assertEqual(result["dividend_output"], _DIVIDEND_RESPONSE)
 
-    def test_exception_records_error_and_fallback_message(self):
-        from backend.graph import tax_node, FinSurfState
+    def test_exception_records_error_and_fallback(self):
+        from backend.graph import tax_dividend_node, FinSurfState
         state: FinSurfState = _make_state("AAPL")
-        with patch(f"{GRAPH_MODULE}.tax_agent", side_effect=Exception("LLM error")):
-            result = tax_node(state)
+        with patch(f"{GRAPH_MODULE}.tax_dividend_agent", side_effect=Exception("LLM error")):
+            result = tax_dividend_node(state)
         self.assertIn("Unavailable", result["tax_output"])
         self.assertTrue(len(result.get("errors", [])) > 0)
 
@@ -114,34 +115,6 @@ class TestSentimentNode(unittest.TestCase):
             result = sentiment_node(state)
         self.assertEqual(result["sentiment_output"], _SENTIMENT_RESPONSE)
 
-
-class TestDividendNode(unittest.TestCase):
-    def test_returns_dividend_output(self):
-        from backend.graph import dividend_node, FinSurfState
-        state: FinSurfState = _make_state("AAPL", shares=100.0, years=3)
-        with patch(f"{GRAPH_MODULE}.dividend_agent", return_value=_DIVIDEND_RESPONSE):
-            result = dividend_node(state)
-        self.assertEqual(result["dividend_output"], _DIVIDEND_RESPONSE)
-
-    def test_exception_records_error(self):
-        from backend.graph import dividend_node, FinSurfState
-        state: FinSurfState = _make_state("AAPL", shares=100.0, years=3)
-        with patch(f"{GRAPH_MODULE}.dividend_agent", side_effect=Exception("LLM error")):
-            result = dividend_node(state)
-        self.assertFalse(result["dividend_output"]["isDividendStock"])
-        self.assertTrue(len(result.get("errors", [])) > 0)
-
-
-class TestRouteDividend(unittest.TestCase):
-    def test_routes_to_dividend_when_is_dividend_stock_true(self):
-        from backend.graph import route_dividend, FinSurfState
-        state: FinSurfState = _make_state("AAPL", is_dividend_stock=True)
-        self.assertEqual(route_dividend(state), "dividend")
-
-    def test_routes_to_dividend_skip_when_false(self):
-        from backend.graph import route_dividend, FinSurfState
-        state: FinSurfState = _make_state("GOOGL", is_dividend_stock=False)
-        self.assertEqual(route_dividend(state), "dividend_skip")
 
 
 # ---------------------------------------------------------------------------
