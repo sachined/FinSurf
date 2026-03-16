@@ -147,15 +147,16 @@
     color: #991b1b !important;
   }
 
-  /* ── Price chart: match bleed to reduced print card padding (10px) ─────── */
+  /* ── Price chart: scale down to fit card width ──────────────────────────── */
   [data-pdf-chunk="card"] .-mx-6 {
-    margin-left: -10px !important;
-    margin-right: -10px !important;
+    zoom: 78%;
   }
 
-  [data-pdf-chunk="card"] .-mx-6 .recharts-responsive-container,
-  [data-pdf-chunk="card"] .-mx-6 > .recharts-responsive-container {
-    height: 120px !important;
+  /* ── Card sizing ────────────────────────────────────────────────────────── */
+  [data-pdf-chunk="card"] {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
   }
 
   /* ── Utilities ─────────────────────────────────────────────────────────── */

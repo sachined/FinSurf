@@ -76,16 +76,16 @@ export function Header({ theme, toggleTheme, accessMode, setAccessMode, onAboutC
         </button>
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
         <button
-          onClick={onUpgradeClick}
+          disabled
           className={cn(
-            "flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wide transition-all",
+            "flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wide cursor-not-allowed opacity-50",
             accessMode === 'tropical'
-              ? "bg-orange-500 text-white shadow-sm shadow-orange-500/30 hover:bg-orange-400"
+              ? "bg-orange-500 text-white shadow-sm shadow-orange-500/30"
               : accessMode === 'colorblind'
-              ? "bg-blue-700 text-white shadow-sm shadow-blue-700/30 hover:bg-blue-600"
-              : "bg-cyan-500 text-white shadow-sm shadow-cyan-500/30 hover:bg-cyan-400"
+              ? "bg-blue-700 text-white shadow-sm shadow-blue-700/30"
+              : "bg-cyan-500 text-white shadow-sm shadow-cyan-500/30"
           )}
-          title="Upgrade to Pro"
+          title="Coming soon"
         >
           <Zap size={16} />
           <span className="hidden sm:inline">Upgrade</span>

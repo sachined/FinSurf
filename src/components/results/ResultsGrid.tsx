@@ -31,26 +31,30 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
           isCompact={isDone}
         />
       </div>
-      <AgentCard
-        title="Research Analyst"
-        icon={<Search size={20} />}
-        loading={loading.research}
-        response={responses.research}
-        color="cyan"
-        emptyDescription="Analyzes fundamentals: P/E ratios, revenue growth & institutional ownership."
-        accessMode={accessMode}
-        isCompact={isDone}
-      />
-      <AgentCard
-        title="Tax Strategist"
-        icon={<Receipt size={20} />}
-        loading={loading.tax}
-        response={responses.tax}
-        color="emerald"
-        emptyDescription="Calculates your capital gains tax based on your holding period (short vs. long term)."
-        accessMode={accessMode}
-        isCompact={isDone}
-      />
+      <div className="col-span-1 md:col-span-2">
+        <AgentCard
+          title="Research Analyst"
+          icon={<Search size={20} />}
+          loading={loading.research}
+          response={responses.research}
+          color="cyan"
+          emptyDescription="Analyzes fundamentals: P/E ratios, revenue growth & institutional ownership."
+          accessMode={accessMode}
+          isCompact={isDone}
+        />
+      </div>
+      <div className="col-span-1 md:col-span-2">
+        <AgentCard
+          title="Tax Strategist"
+          icon={<Receipt size={20} />}
+          loading={loading.tax}
+          response={responses.tax}
+          color="emerald"
+          emptyDescription="Calculates your capital gains tax based on your holding period (short vs. long term)."
+          accessMode={accessMode}
+          isCompact={isDone}
+        />
+      </div>
       <AgentCard
         title="Dividend Specialist"
         icon={<Coins size={20} />}

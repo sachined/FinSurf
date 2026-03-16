@@ -50,10 +50,10 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
     return data.filter(p => new Date(p.date) >= cutoff);
   }, [data, period]);
 
-  // Thin the series to ~52 weekly points for performance while keeping shape
+  // Thin the series to ~24 monthly points for a clean per-month x-axis
   const thinned = useMemo(() => {
-    if (filtered.length <= 52) return filtered;
-    const step = Math.floor(filtered.length / 52);
+    if (filtered.length <= 24) return filtered;
+    const step = Math.floor(filtered.length / 24);
     return filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1);
   }, [filtered]);
 
@@ -88,7 +88,7 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
           <button className={`${btnBase} ${period === '2y' ? btnActive : btnInactive}`} onClick={() => setPeriod('2y')}>2Y</button>
         </div>
       </div>
-      <ResponsiveContainer width="90%" height={160}>
+      <ResponsiveContainer width="100%" height={80}>
         <AreaChart data={thinned} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
