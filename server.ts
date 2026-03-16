@@ -98,13 +98,13 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com"],
+        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "https://js.stripe.com"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
-        imgSrc:               ["'self'", "data:", "https:"],
-        connectSrc:           ["'self'", "https://cloudflareinsights.com"],
+        imgSrc:               ["'self'", "data:", "https:", "https://*.stripe.com"],
+        connectSrc:           ["'self'", "https://cloudflareinsights.com", "https://api.stripe.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
-        frameSrc:             ["'none'"],
+        frameSrc:             ["https://js.stripe.com", "https://hooks.stripe.com"],
         workerSrc:            ["'self'"],
         upgradeInsecureRequests: useHttps ? [] : null,
       },
@@ -187,15 +187,26 @@ async function startServer() {
     return overrides;
   }
 
-  // Simplified cache check
-const getCachedGuardrailStatus = (ticker: string): boolean | null => {
-  const key = ticker.toUpperCase().trim();
-  const cached = guardrailCache.get(key);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+  const getCachedGuardrailStatus = (ticker: string): boolean | null => {
+    const key = ticker.toUpperCase().trim();
+    const cached = guardrailCache.get(key);
+    if (!cached) return null;
+    if (Date.now() - cached.timestamp >= CACHE_TTL) {
+      guardrailCache.delete(key); // evict stale entry
+      return null;
+    }
     return cached.status;
-  }
-  return null;
-};
+  };
+
+  const setGuardrailCache = (ticker: string, status: boolean) => {
+    const key = ticker.toUpperCase().trim();
+    // Evict the oldest entry before adding a new one if at capacity
+    if (!guardrailCache.has(key) && guardrailCache.size >= MAX_CACHE_SIZE) {
+      const oldestKey = guardrailCache.keys().next().value;
+      if (oldestKey !== undefined) guardrailCache.delete(oldestKey);
+    }
+    guardrailCache.set(key, { status, timestamp: Date.now() });
+  };
 
   // Log key presence on startup (without exposing the value)
   console.log("GEMINI_API_KEY present:", !!GEMINI_API_KEY);
@@ -216,10 +227,7 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
     // Prevents duplicate guardrail checks when concurrent requests arrive
     // for the same ticker while the first is still processing
     if (!skipGuardrail) {
-      guardrailCache.set(ticker.toUpperCase(), {
-        status: true,  // Optimistically assume safe; will be corrected if blocked
-        timestamp: Date.now()
-      });
+      setGuardrailCache(ticker, true); // Optimistically assume safe; corrected below
     }
 
     try {
@@ -236,10 +244,7 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
 
       // Correct the cache entry with the actual guardrail result
       if (!skipGuardrail) {
-        guardrailCache.set(ticker.toUpperCase(), {
-          status: !!graphData.is_safe,
-          timestamp: Date.now()
-        });
+        setGuardrailCache(ticker, !!graphData.is_safe);
       }
 
       // Map the LangGraph state back to the frontend

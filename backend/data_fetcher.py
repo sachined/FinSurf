@@ -182,6 +182,23 @@ def _consecutive_dividend_years(dividends) -> str:
         return "N/A"
 
 
+def _extract_last_close(df: "pd.DataFrame") -> float:
+    """Return the last Close price from a yfinance history DataFrame.
+
+    Handles both flat and MultiIndex column layouts, and the edge case where
+    ``xs`` still returns a Series when multiple ticker columns are present.
+    """
+    if df.columns.nlevels > 1:
+        level = 1 if "Close" in df.columns.get_level_values(1) else 0
+        close_series = df.xs("Close", axis=1, level=level)
+    else:
+        close_series = df["Close"]
+
+    last_row = close_series.iloc[-1]
+    # xs() can return a Series when multiple tickers match; take the first value.
+    return float(last_row.iloc[0] if hasattr(last_row, "iloc") else last_row)
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -218,20 +235,7 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
         if past.empty:
             return None
         # yfinance sometimes returns a MultiIndex column (ticker, "Close")
-        if past.columns.nlevels > 1:
-            # Check which level has "Close" (usually level 1 in a Ticker/Price MultiIndex)
-            level = 1 if "Close" in past.columns.get_level_values(1) else 0
-            close_series = past.xs("Close", axis=1, level=level)
-        else:
-            close_series = past["Close"]
-        
-        # Robustly extract the last scalar price
-        last_row = close_series.iloc[-1]
-        if hasattr(last_row, "iloc"):
-            # If still a Series (multiple matching columns), take the first one
-            close = last_row.iloc[0]
-        else:
-            close = last_row
+        close = _extract_last_close(past)
 
         return round(float(close), 4)
     except ValueError:
@@ -407,18 +411,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                 latest_hist = t.history(period="1d")
                 if not latest_hist.empty:
                     # Apply robust column access to fallback
-                    if latest_hist.columns.nlevels > 1:
-                        c_level = 1 if "Close" in latest_hist.columns.get_level_values(1) else 0
-                        close_series = latest_hist.xs("Close", axis=1, level=c_level)
-                    else:
-                        close_series = latest_hist["Close"]
-                
-                    # Robustly extract the last scalar price
-                    last_row = close_series.iloc[-1]
-                    if hasattr(last_row, "iloc"):
-                        current_price_raw = last_row.iloc[0]
-                    else:
-                        current_price_raw = last_row
+                    current_price_raw = _extract_last_close(latest_hist)
             except ValueError:
                 return None
 
