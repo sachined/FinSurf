@@ -66,6 +66,36 @@ function incrementSurfCount(): number {
 export default function App() {
   const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
 
+  const {
+    ticker, setTicker,
+    purchaseDate, setPurchaseDate,
+    sellDate, setSellDate,
+    shares, setShares,
+    error, setError,
+    validateAll
+  } = useFormState();
+
+  const {
+    loading,
+    responses,
+    runAll
+  } = useFinancialAgents();
+
+  const [hasSurfed, setHasSurfed] = useState(false);
+  const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
+  const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
+  const [isActivatingPass, setIsActivatingPass] = useState(false);
+  const [autoSearchDone, setAutoSearchDone] = useState(false);
+
+  const isAnyLoading = Object.values(loading).some(v => v);
+  const hasResponses = Object.values(responses).some(r => r !== null);
+
+  // isProd is true only in the Vite production build (Docker / CI).
+  // In dev (`npm run dev`) import.meta.env.PROD is always false.
+  const isProd = import.meta.env.PROD;
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const pass = params.get('pass');
@@ -110,35 +140,12 @@ export default function App() {
     }
   }, []);
 
-  const {
-    ticker, setTicker,
-    purchaseDate, setPurchaseDate,
-    sellDate, setSellDate,
-    shares, setShares,
-    error, setError,
-    validateAll
-  } = useFormState();
-
-  const {
-    loading,
-    responses,
-    runAll
-  } = useFinancialAgents();
-
-  const [hasSurfed, setHasSurfed] = useState(false);
-  const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
-  const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
-  const [isActivatingPass, setIsActivatingPass] = useState(false);
-  const [autoSearchDone, setAutoSearchDone] = useState(false);
-
-  const isAnyLoading = Object.values(loading).some(v => v);
-  const hasResponses = Object.values(responses).some(r => r !== null);
-
-  // isProd is true only in the Vite production build (Docker / CI).
-  // In dev (`npm run dev`) import.meta.env.PROD is always false.
-  const isProd = import.meta.env.PROD;
+  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
+    setHasSurfed(true);
+    setDownloadBarCollapsed(false);
+    setError(null);
+    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
+  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
 
   const handleSearch = useCallback(async () => {
     if (!validateAll()) return;
@@ -188,13 +195,6 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [setTicker, setPurchaseDate, setSellDate, setShares, handleSearch, isActivatingPass, autoSearchDone]);
-
-  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
-    setHasSurfed(true);
-    setDownloadBarCollapsed(false);
-    setError(null);
-    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
-  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
 
   const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
     localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));

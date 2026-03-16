@@ -197,7 +197,7 @@ async function startServer() {
         connectSrc:           ["'self'", "https://cloudflareinsights.com", "https://api.stripe.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
-        frameSrc:             ["'none'", "https://js.stripe.com", "https://hooks.stripe.com"],
+        frameSrc:             ["https://js.stripe.com", "https://hooks.stripe.com"],
         workerSrc:            ["'self'"],
         upgradeInsecureRequests: useHttps ? [] : null,
       },
