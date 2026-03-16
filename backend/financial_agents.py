@@ -173,10 +173,10 @@ Answer each of the 6 points below using only the data above. Each answer must be
 3. Valuation: Is the trailing P/E cheap, fair, or stretched, and does the forward P/E suggest the market expects improvement?
 4. Growth: Is revenue growing, shrinking, or flat year-over-year?
 5. Conviction: Does the combination of institutional ownership and analyst consensus signal confidence or caution?
-6. Risk/Reward: How far is the analyst mean price target from the current price, and what is the single biggest risk?
+6. Risk/Reward: How far is the analyst mean price target from the current price, and name the single biggest risk from these categories — valuation (P/E vs growth), debt/leverage, macro sensitivity (rates/cycle), competition, or regulatory?
 
 For any N/A value, write "N/A" in the sentence — do not explain it.
-Finish with one sentence verdict: is {ticker} worth further research for a retail investor, and why?
+Finish with one sentence verdict: is {ticker} worth further research for a retail investor, and what is the single most important factor (bullish or bearish) driving that view?
 
 If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
         max_tokens = 2048
@@ -189,10 +189,10 @@ If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
     3. Valuation: Is the trailing P/E cheap, fair, or stretched, and does the forward P/E suggest improvement?
     4. Growth: Is revenue growing, shrinking, or flat year-over-year?
     5. Conviction: Does institutional ownership and analyst consensus signal confidence or caution?
-    6. Risk/Reward: How far is the analyst mean price target from the current price, and what is the single biggest risk?
+    6. Risk/Reward: How far is the analyst mean price target from the current price, and name the single biggest risk from: valuation (P/E vs growth), debt/leverage, macro sensitivity, competition, or regulatory?
 
     Use N/A for unavailable data.
-    Finish with one sentence verdict: is {ticker} worth further research for a retail investor, and why?
+    Finish with one sentence verdict: is {ticker} worth further research for a retail investor, and what is the single most important factor (bullish or bearish) driving that view?
 
     If {ticker} is not a recognised stock or company, say "Ticker Not Found" and stop.
     """
@@ -368,10 +368,17 @@ Use these facts as the foundation for your report — do not contradict them:
     else:
         structured_preamble = ""
 
-    social_instruction = (
-        "StockTwits, Reddit, and X/Twitter data are not yet available from direct API feeds. "
-        "For those platforms, search the web for current investor discussion and report what you find, "
-        "or clearly state 'Not Found' if nothing is available."
+    # Build table rows dynamically — only include social rows when real data exists
+    table_rows = "| 📰 News | 🟢/🔴/🟡/— | one-line note |\n| 📊 Analysts | 🟢/🔴/🟡/— | one-line note |"
+    if stocktwits:
+        table_rows += "\n| 📣 StockTwits | 🟢/🔴/🟡/— | one-line note |"
+    if reddit:
+        table_rows += "\n| 💬 Reddit | 🟢/🔴/🟡/— | one-line note |"
+    if twitter:
+        table_rows += "\n| 🐦 X/Twitter | 🟢/🔴/🟡/— | one-line note |"
+
+    social_note = (
+        "\n*Social signals (Reddit, StockTwits, X/Twitter) not yet available from direct feeds.*"
         if not (stocktwits or reddit or twitter)
         else ""
     )
@@ -382,21 +389,17 @@ Rules:
 - '{ticker}' is a US stock ticker (e.g. 'T' = AT&T, 'F' = Ford). Do not confuse it with a common word.
 - Ignore cryptocurrency. Focus only on this stock.
 - If data for a source is unavailable, write "—" in the table.
-{social_instruction}
 
 **Overall Vibe: [Bullish 🟢 / Bearish 🔴 / Neutral 🟡]** (confidence: High / Medium / Low) — one sentence reason.
 
 | Source | Signal | Key Note |
 |---|---|---|
-| 📰 News | 🟢/🔴/🟡/— | one-line note |
-| 📊 Analysts | 🟢/🔴/🟡/— | one-line note |
-| 💬 Reddit | 🟢/🔴/🟡/— | one-line note |
-| 📣 StockTwits | 🟢/🔴/🟡/— | one-line note |
-| 🐦 X/Twitter | 🟢/🔴/🟡/— | one-line note |
+{table_rows}
+{social_note}
 
 **⚡ 2 Things to Watch**
-- [one sentence]
-- [one sentence]
+- [specific near-term catalyst or risk: earnings date, rate decision, product launch, legal event — no generic observations]
+- [specific near-term catalyst or risk]
 """
     system = ("You are a market sentiment analyst. Use provided structured data as ground truth; supplement with web search where needed. "
               "Plain language only. If data is unavailable for a platform, say so. Never cover cryptocurrency — focus only on the stock.")
@@ -706,6 +709,151 @@ Use 'N/A' for unavailable data.
             "hasDividendHistory": False,
             "analysis": f"### Analysis Unavailable\n\nIssue processing dividend data for **{ticker}**.\n\n**Reason:** {str(e)}"
         }
+
+
+# ---------------------------------------------------------------------------
+# Combined Tax + Dividend Agent
+# ---------------------------------------------------------------------------
+
+def tax_dividend_agent(
+    ticker: str,
+    purchase_date: str = "",
+    sell_date: str = "",
+    shares: float = 0.0,
+    years: int = 3,
+    pnl_summary: Optional[Dict[str, Any]] = None,
+    dividend_data: Optional[Dict[str, Any]] = None,
+    is_dividend_stock: bool = False,
+    skip_guardrail: bool = False,
+) -> tuple:
+    """Combined tax + dividend agent — single LLM call (or zero for dividend-only).
+
+    Makes one LLM call for tax analysis (when purchase_date is provided) and uses
+    the template-based _narrate_dividend() for dividend output (zero LLM tokens).
+    Returns (tax_output: str, dividend_output: dict) — same shapes as the individual
+    agents so graph state and the frontend require no changes.
+    """
+    if not skip_guardrail and not security_guardrail(ticker):
+        blocked = _blocked_json()
+        return blocked, {"isDividendStock": False, "hasDividendHistory": False, "analysis": _BLOCKED_MSG}
+
+    # ── Tax section ──────────────────────────────────────────────────────────
+    if purchase_date:
+        if pnl_summary is None:
+            buy_price = fetch_price_on_date(ticker, purchase_date)
+            sell_price = fetch_price_on_date(ticker, sell_date) if sell_date else None
+            pnl_summary = calculate_pnl(buy_price, sell_price, None, shares, purchase_date, sell_date)
+
+        bp = pnl_summary.get("buy_price")
+        sp = pnl_summary.get("sell_price")
+        rg = pnl_summary.get("realized_gain")
+        rg_pct = pnl_summary.get("realized_gain_pct")
+
+        pnl_block = ""
+        if rg is not None and bp is not None and sp is not None:
+            direction = "gain" if rg >= 0 else "loss"
+            eff_shares = pnl_summary.get("shares") or shares
+            if eff_shares and eff_shares > 0:
+                pnl_block = (
+                    f"\n**Realised P&L** ({eff_shares} share{'s' if eff_shares != 1 else ''}): "
+                    f"Buy @ ${bp:,.4f} → Sell @ ${sp:,.4f} = "
+                    f"${abs(rg):,.2f} {direction} ({rg_pct:+.2f}%)\n"
+                )
+            else:
+                pnl_block = (
+                    f"\n**Realised P&L** (per share): "
+                    f"Buy @ ${bp:,.4f} → Sell @ ${sp:,.4f} = "
+                    f"${abs(rg):,.4f} {direction} ({rg_pct:+.2f}%)\n"
+                )
+
+        status = calculate_holding_status(purchase_date, sell_date)
+        tax_prompt = f"""Summarise the US capital gains tax situation for selling {ticker} after a {status} holding period.{pnl_block}
+Output exactly this structure — no extra prose:
+
+**Tax Summary**
+| Item | Detail |
+|---|---|
+| Holding type | Short-term (<1 yr) or Long-term (≥1 yr) |
+| Applicable tax | Ordinary income rates (short-term) OR preferential LTCG rates (long-term) |
+| Rate range | Relevant IRS bracket range (0%/15%/20% for LT; 10–37% for ST) |
+| Key rule | Single most important rule the investor should know |
+| Estimated gain/loss | Dollar amount and % return (use Realised P&L above if provided, otherwise N/A) |
+
+**Takeaway**
+One sentence: what does this mean in plain English for this investor?
+
+*⚠️ Consult a CPA or tax professional for advice specific to your situation.*"""
+        tax_system = (
+            "You are a concise tax education assistant for retail investors. "
+            "Output only the requested table and takeaway — no introductions, no extra sections. "
+            "Use plain English and IRS-accurate rates."
+        )
+        try:
+            tax_content = _groq_with_gemini_fallback(tax_prompt, tax_system, max_tokens=1024, agent="tax")
+            tax_output = json.dumps({"content": tax_content, "citations": []})
+        except Exception as e:
+            tax_output = json.dumps({"content": f"Tax analysis temporarily unavailable: {e}", "citations": []})
+    else:
+        tax_output = json.dumps({
+            "content": (
+                "### Tax Summary\n\nNo transaction dates provided. "
+                "To see capital gains analysis, please enter a **Purchase Date** and **Sell Date**."
+            ),
+            "citations": [],
+        })
+
+    # ── Dividend section (template-based — zero LLM tokens) ──────────────────
+    if is_dividend_stock and dividend_data:
+        fetched = dividend_data
+        pnl_block_div = ""
+        if pnl_summary is not None:
+            rg = pnl_summary.get("realized_gain")
+            rg_pct = pnl_summary.get("realized_gain_pct")
+            bp = pnl_summary.get("buy_price")
+            sp = pnl_summary.get("sell_price")
+            if rg is not None and bp is not None and sp is not None:
+                direction = "gain" if rg >= 0 else "loss"
+                pnl_block_div = (
+                    f"\n**Realised P&L**: Buy @ ${bp:,.4f} → Sell @ ${sp:,.4f} "
+                    f"= ${abs(rg):,.2f} {direction} ({rg_pct:+.2f}%) on {shares} share(s).\n"
+                )
+
+        stats = {
+            "currentYield": fetched.get("current_yield", "N/A"),
+            "annualDividendPerShare": fetched.get("annual_dividend_per_share", "N/A"),
+            "payoutRatio": fetched.get("payout_ratio", "N/A"),
+            "fiveYearGrowthRate": fetched.get("five_year_avg_yield", "N/A"),
+            "paymentFrequency": fetched.get("payment_frequency", "N/A"),
+            "exDividendDate": fetched.get("ex_dividend_date", "N/A"),
+            "consecutiveYears": fetched.get("consecutive_years", "N/A"),
+        }
+        analysis = _narrate_dividend(ticker, shares, years, stats, True, pnl_block_div)
+
+        # Enrich pnl_summary with estimated total dividends
+        try:
+            adps_raw = fetched.get("annual_dividend_per_share", "N/A")
+            adps = float(str(adps_raw).replace("$", "").replace(",", "")) if adps_raw != "N/A" else None
+            if adps is not None and pnl_summary is not None:
+                pnl_summary = dict(pnl_summary)
+                pnl_summary["total_dividends"] = round(adps * float(shares) * float(years), 2)
+        except (ValueError, TypeError):
+            pass
+
+        dividend_output: Dict[str, Any] = {
+            "isDividendStock": True,
+            "hasDividendHistory": fetched.get("has_history", False),
+            "analysis": analysis,
+            "stats": stats,
+            "pnl_summary": pnl_summary,
+        }
+    else:
+        dividend_output = {
+            "isDividendStock": False,
+            "hasDividendHistory": False,
+            "analysis": f"### No Dividend Data\n\n**{ticker}** does not appear to pay dividends.",
+        }
+
+    return tax_output, dividend_output
 
 
 # ---------------------------------------------------------------------------

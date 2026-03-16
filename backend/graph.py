@@ -2,14 +2,14 @@
 FinSurf LangGraph agent orchestration.
 
 Graph topology:
-  guardrail → research → [tax, sentiment] → dividend (conditional) → END
+  guardrail → research → [tax_dividend, sentiment] → executive_summary → END
 
 Conditional routing:
   - If the guardrail blocks the ticker, the run short-circuits immediately.
-  - After research completes, tax and sentiment run in parallel (fan-out via
-    Send API).
-  - The dividend node is only invoked when research signals the ticker is a
-    dividend-paying stock, saving ~2 000 Gemini tokens per non-dividend query.
+  - After research completes, tax_dividend and sentiment run in parallel.
+  - tax_dividend handles both tax and dividend in a single node (one LLM call
+    for tax when dates are provided; template-based dividend narration with zero
+    LLM tokens). Skip logic is handled internally — no skip nodes needed.
   - Every agent node catches its own exceptions and writes a structured error
     into state so the graph always reaches END cleanly.
 """
@@ -32,8 +32,7 @@ from .telemetry import (
 from .financial_agents import (
     security_guardrail,
     research_agent,
-    tax_agent,
-    dividend_agent,
+    tax_dividend_agent,
     social_sentiment_agent,
     executive_summary_agent,
 )
@@ -179,40 +178,39 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
         }
 
 
-def tax_node(state: FinSurfState) -> Dict[str, Any]:
-    """Run tax analysis, forwarding the shared pnl_summary from research_node."""
+def tax_dividend_node(state: FinSurfState) -> Dict[str, Any]:
+    """Combined tax + dividend node — single LLM call (or zero for dividend-only).
+
+    Replaces the four separate tax_node, tax_skip_node, dividend_node, and
+    dividend_skip_node. The agent handles all skip logic internally so no
+    conditional routing is required in the fan-out.
+    """
     ticker = state["ticker"]
-    purchase_date = state.get("purchase_date", "")
-    sell_date = state.get("sell_date", "")
-    shares: float = state.get("shares", 0.0) or 0.0
-    pnl = state.get("pnl_summary")
     try:
-        result = tax_agent(
-            ticker, purchase_date, sell_date,
+        tax_output, dividend_output = tax_dividend_agent(
+            ticker=ticker,
+            purchase_date=state.get("purchase_date", ""),
+            sell_date=state.get("sell_date", ""),
+            shares=state.get("shares", 0.0) or 0.0,
+            years=state.get("years", 3),
+            pnl_summary=state.get("pnl_summary"),
+            dividend_data=state.get("dividend_data"),
+            is_dividend_stock=state.get("is_dividend_stock", False),
             skip_guardrail=True,
-            shares=shares,
-            pnl_summary=pnl,
         )
-        return {"tax_output": result}
+        out: Dict[str, Any] = {"tax_output": tax_output, "dividend_output": dividend_output}
+        # Propagate enriched pnl_summary (total_dividends) if dividend agent updated it
+        updated_pnl = dividend_output.get("pnl_summary") if isinstance(dividend_output, dict) else None
+        if updated_pnl is not None:
+            out["pnl_summary"] = updated_pnl
+        return out
     except Exception as exc:
+        skip_tax = json.dumps({"content": f"### Tax Analysis Unavailable\n\nReason: {exc}", "citations": []})
         return {
-            "tax_output": json.dumps({
-                "content": f"### Tax Analysis Unavailable\n\nReason: {exc}",
-                "citations": [],
-            }),
-            "errors": [f"tax error: {exc}"],
+            "tax_output": skip_tax,
+            "dividend_output": {"isDividendStock": False, "hasDividendHistory": False, "analysis": f"Dividend analysis unavailable: {exc}"},
+            "errors": [f"tax_dividend error: {exc}"],
         }
-
-
-def tax_skip_node(state: FinSurfState) -> Dict[str, Any]:
-    """Short-circuit for tax analysis when transaction dates are missing."""
-    return {
-        "tax_output": json.dumps({
-            "content": "### Tax Summary\n\nNo transaction dates provided. To see capital gains analysis, please enter a **Purchase Date** and **Sell Date**.",
-            "citations": []
-        })
-    }
-
 
 
 def sentiment_node(state: FinSurfState) -> Dict[str, Any]:
@@ -226,56 +224,6 @@ def sentiment_node(state: FinSurfState) -> Dict[str, Any]:
             "sentiment_output": json.dumps({"content": f"Sentiment failed: {exc}", "citations": []}),
             "errors": [f"sentiment error: {exc}"],
         }
-
-
-def dividend_node(state: FinSurfState) -> Dict[str, Any]:
-    """Run dividend analysis — only reached when is_dividend_stock is True."""
-    ticker = state["ticker"]
-    shares = state.get("shares", 1.0)
-    years = state.get("years", 3)
-    prefetched = state.get("dividend_data")
-    pnl = state.get("pnl_summary")
-    try:
-        result = dividend_agent(
-            ticker, shares, years, skip_guardrail=True, prefetched_data=prefetched,
-            pnl_summary=pnl,
-        )
-        # Enrich pnl_summary with estimated total_dividends from the dividend data
-        updated_pnl: Optional[Dict[str, Any]] = None
-        if prefetched and pnl is not None:
-            try:
-                adps_raw = prefetched.get("annual_dividend_per_share", "N/A")
-                adps = float(str(adps_raw).replace("$", "").replace(",", "")) if adps_raw != "N/A" else None
-                if adps is not None:
-                    total_div = round(adps * float(shares) * float(years), 2)
-                    updated_pnl = dict(pnl)
-                    updated_pnl["total_dividends"] = total_div
-            except (ValueError, TypeError):
-                pass
-        out: Dict[str, Any] = {"dividend_output": result}
-        if updated_pnl is not None:
-            out["pnl_summary"] = updated_pnl
-        return out
-    except Exception as exc:
-        return {
-            "dividend_output": {
-                "isDividendStock": False,
-                "hasDividendHistory": False,
-                "analysis": f"### Dividend Analysis Unavailable\n\nReason: {exc}",
-            },
-            "errors": [f"dividend error: {exc}"],
-        }
-
-
-def dividend_skip_node(state: FinSurfState) -> Dict[str, Any]:
-    """Placeholder node for non-dividend stocks — zero LLM tokens consumed."""
-    return {
-        "dividend_output": {
-            "isDividendStock": False,
-            "hasDividendHistory": False,
-            "analysis": f"### No Dividend Data\n\n**{state['ticker']}** does not appear to pay dividends.",
-        }
-    }
 
 
 def executive_summary_node(state: FinSurfState) -> Dict[str, Any]:
@@ -306,37 +254,13 @@ def executive_summary_node(state: FinSurfState) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def fan_out_after_research(state: FinSurfState):
+    """Fan out to tax_dividend and sentiment in parallel after research completes.
+
+    tax_dividend handles all skip logic internally (no purchase_date → skip tax,
+    not a dividend stock → skip dividend), so no conditional routing is needed here.
+    Both nodes write to disjoint state fields — no race conditions.
     """
-    PERFORMANCE OPTIMIZATION: Fan out to tax, sentiment, AND dividend in parallel.
-
-    This maximizes concurrency by running all three specialist agents simultaneously
-    instead of tax → dividend sequentially, reducing total execution time by ~40%.
-
-    All three agents read from research_output but write to disjoint state fields:
-    - tax → tax_output
-    - sentiment → sentiment_output
-    - dividend → dividend_output, pnl_summary (enrichment only)
-
-    No race conditions exist because:
-    1. Each agent writes to its own output field
-    2. pnl_summary uses _overwrite reducer (last-writer-wins is safe)
-    3. All three are reading shared data (research output), not modifying it
-    """
-    nodes = [Send("sentiment", state)]
-
-    # Tax branch: skip LLM if no purchase date
-    if state.get("purchase_date"):
-        nodes.append(Send("tax", state))
-    else:
-        nodes.append(Send("tax_skip", state))
-
-    # Dividend branch: run in parallel, not sequential after tax
-    if state.get("is_dividend_stock"):
-        nodes.append(Send("dividend", state))
-    else:
-        nodes.append(Send("dividend_skip", state))
-
-    return nodes
+    return [Send("tax_dividend", state), Send("sentiment", state)]
 
 
 # ---------------------------------------------------------------------------
@@ -348,29 +272,18 @@ def build_graph() -> Any:
 
     builder.add_node("guardrail", guardrail_node)
     builder.add_node("research", research_node)
-    builder.add_node("tax", tax_node)
-    builder.add_node("tax_skip", tax_skip_node)
+    builder.add_node("tax_dividend", tax_dividend_node)
     builder.add_node("sentiment", sentiment_node)
-    builder.add_node("dividend", dividend_node)
-    builder.add_node("dividend_skip", dividend_skip_node)
     builder.add_node("executive_summary", executive_summary_node)
 
     builder.set_entry_point("guardrail")
 
     builder.add_conditional_edges("guardrail", route_after_guardrail)
-    # PERFORMANCE FIX: All three specialist agents run in parallel now
-    builder.add_conditional_edges(
-        "research",
-        fan_out_after_research,
-        ["tax", "tax_skip", "sentiment", "dividend", "dividend_skip"]
-    )
+    builder.add_conditional_edges("research", fan_out_after_research, ["tax_dividend", "sentiment"])
 
-    # All specialist paths converge on the executive_summary accumulator node
-    builder.add_edge("tax", "executive_summary")
-    builder.add_edge("tax_skip", "executive_summary")
+    # Both parallel nodes converge on the executive_summary accumulator
+    builder.add_edge("tax_dividend", "executive_summary")
     builder.add_edge("sentiment", "executive_summary")
-    builder.add_edge("dividend", "executive_summary")
-    builder.add_edge("dividend_skip", "executive_summary")
     builder.add_edge("executive_summary", END)
 
     return builder.compile()
