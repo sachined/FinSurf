@@ -66,9 +66,9 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           build-args: |
             BUILD_ID=${{ github.sha }}
+            VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           secrets: |
             vite_app_secret=${{ secrets.APP_SECRET }}
-            vite_stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
