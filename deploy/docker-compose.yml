@@ -34,6 +34,7 @@ services:
       PERPLEXITY_API_KEY_FILE: ../secrets/perplexity_api_key
       GROQ_API_KEY_FILE: ../secrets/groq_api_key
       APP_SECRET_FILE: ../secrets/app_secret
+      LANGCHAIN_API_KEY_FILE: ../secrets/langchain_api_key
       # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
       # Sign up at https://console.groq.com — no GPU needed.
       # If key is missing, agents fall back to Gemini automatically.
@@ -47,6 +48,7 @@ services:
       - perplexity_api_key
       - groq_api_key
       - app_secret
+      - langchain_api_key
     volumes:
       # Named volume persists both the telemetry DB and the future MemorySaver DB
       # across container restarts and image rebuilds.
@@ -89,3 +91,5 @@ secrets:
     file: ../secrets/groq_api_key.txt
   app_secret:
     file: ../secrets/app_secret.txt
+  langchain_api_key:
+    file: ../secrets/langchain_api_key.txt
