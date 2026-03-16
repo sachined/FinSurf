@@ -19,10 +19,14 @@ env:
 #   GEMINI_API_KEY        — Google Gemini API key
 #   PERPLEXITY_API_KEY    — Perplexity API key (leave blank to use Gemini-only)
 #   GROQ_API_KEY          — Groq API key (free tier at console.groq.com; leave blank to use Gemini-only)
-#   DEPLOYMENT_HOST       — Production server IP or hostname (e.g. 123.45.67.89)
-#   DEPLOYMENT_USER       — SSH user on the server (e.g. root)
-#   DEPLOYMENT_SSH_KEY    — Private SSH key for that user (PEM format, full contents)
-#   DEPLOYMENT_PORT       — SSH port (usually 22)
+#   DEPLOYMENT_HOST           — Production server IP or hostname (e.g. 123.45.67.89)
+#   DEPLOYMENT_USER           — SSH user on the server (e.g. root)
+#   DEPLOYMENT_SSH_KEY        — Private SSH key for that user (PEM format, full contents)
+#   DEPLOYMENT_PORT           — SSH port (usually 22)
+#   STRIPE_PUBLISHABLE_KEY    — Stripe publishable key (pk_live_...) baked into frontend
+#   STRIPE_SECRET_KEY         — Stripe secret key (sk_live_...)
+#   STRIPE_WEBHOOK_SECRET     — Stripe webhook signing secret (whsec_...)
+#   RESEND_API_KEY            — Resend API key for transactional emails
 #
 # Note: The repository must be public, OR replace the git clone URL below with
 #       a deploy key / PAT for private repo access from the server.
@@ -63,6 +67,7 @@ jobs:
           build-args: |
             BUILD_ID=${{ github.sha }}
             VITE_APP_SECRET=${{ secrets.APP_SECRET }}
+            VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -103,7 +108,10 @@ jobs:
             printf '%s' "${{ secrets.PERPLEXITY_API_KEY }}" > secrets/perplexity_api_key.txt
             printf '%s' "${{ secrets.GROQ_API_KEY }}"        > secrets/groq_api_key.txt
             printf '%s' "${{ secrets.APP_SECRET }}"         > secrets/app_secret.txt
-            printf '%s' "${{ secrets.LANGCHAIN_API_KEY }}"  > secrets/langchain_api_key.txt
+            printf '%s' "${{ secrets.LANGCHAIN_API_KEY }}"      > secrets/langchain_api_key.txt
+            printf '%s' "${{ secrets.STRIPE_SECRET_KEY }}"      > secrets/stripe_secret_key.txt
+            printf '%s' "${{ secrets.STRIPE_WEBHOOK_SECRET }}"  > secrets/stripe_webhook_secret.txt
+            printf '%s' "${{ secrets.RESEND_API_KEY }}"         > secrets/resend_api_key.txt
             chmod 644 secrets/*.txt
             echo "✅ Secret files written"
 

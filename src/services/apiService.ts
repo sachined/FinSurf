@@ -47,6 +47,16 @@ export const analyzeAgent = (
 ): Promise<FinancialAgentsState> =>
   apiPost<FinancialAgentsState>("/api/analyze", { ticker, purchaseDate, sellDate, shares, years }, userKeys);
 
+export const createPaymentIntent = (email: string): Promise<{ clientSecret: string }> =>
+  fetch("/api/stripe/create-payment-intent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  }).then(res => {
+    if (!res.ok) return res.json().then(e => Promise.reject(new Error(e.error || "Request failed")));
+    return res.json();
+  });
+
 export const validatePass = (pass: string): Promise<{ valid: boolean; expiry?: number }> => {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const appSecret = import.meta.env.VITE_APP_SECRET;

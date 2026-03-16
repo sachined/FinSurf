@@ -8,6 +8,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "fs";
 import crypto from "crypto";
+import Stripe from "stripe";
+import { Resend } from "resend";
 import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +25,7 @@ const PASSES_FILE = process.env.VIP_PASSES_FILE ?? path.join(__dirname, "vip_pas
 interface Pass {
   code: string;
   label: string;
+  type?: "admin" | "paid";
   createdAt: number;
   expiresAt: number;
 }
@@ -46,6 +49,38 @@ function savePasses(passes: Pass[]): void {
 function generatePassCode(): string {
   const part = () => crypto.randomBytes(2).toString("hex").toUpperCase();
   return `FINSURF-${part()}-${part()}`;
+}
+
+function generatePaidPassCode(): string {
+  const part = () => crypto.randomBytes(2).toString("hex").toUpperCase();
+  return `PAID-${part()}-${part()}`;
+}
+
+function buildActivationEmail(code: string, appUrl: string): string {
+  const activationUrl = `${appUrl}?pass=${encodeURIComponent(code)}`;
+  return `<!DOCTYPE html>
+<html><body style="font-family:system-ui,sans-serif;background:#f8fafc;padding:40px 20px;margin:0">
+<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:24px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,0.06)">
+  <div style="text-align:center;margin-bottom:32px">
+    <span style="font-size:30px;font-weight:900;color:#0f172a;letter-spacing:-1px">Fin<span style="color:#06b6d4">Surf</span>.ai</span>
+    <p style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;margin:8px 0 0">Lifetime Access</p>
+  </div>
+  <p style="color:#334155;font-size:16px;margin:0 0 8px">Thanks for your purchase! Here is your access code:</p>
+  <div style="background:#f0f9ff;border:2px solid #bae6fd;border-radius:16px;padding:24px;text-align:center;margin:0 0 24px">
+    <code style="font-size:24px;font-weight:900;letter-spacing:6px;color:#0c4a6e">${code}</code>
+  </div>
+  <a href="${activationUrl}" style="display:block;background:#06b6d4;color:#fff;text-align:center;padding:16px;border-radius:14px;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-decoration:none;margin:0 0 24px">Activate Now →</a>
+  <div style="background:#f8fafc;border-radius:12px;padding:16px;margin:0 0 24px">
+    <p style="color:#475569;font-size:13px;font-weight:700;margin:0 0 8px">What you get:</p>
+    <ul style="color:#64748b;font-size:13px;margin:0;padding-left:16px;line-height:2">
+      <li>Unlimited financial analyses</li>
+      <li>All 5 AI agents — Research, Tax, Dividend, Sentiment, Summary</li>
+      <li>Works with your own API keys</li>
+      <li>Never expires</li>
+    </ul>
+  </div>
+  <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0">Questions? Reply to this email · FinSurf.ai</p>
+</div></body></html>`;
 }
 
 // ── Helper to read secrets from files or environment ────────────────────────
@@ -115,6 +150,15 @@ async function startServer() {
   const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") ?? "";
   const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
 
+  const STRIPE_SECRET_KEY    = getSecret("STRIPE_SECRET_KEY",    "STRIPE_SECRET_KEY_FILE");
+  const STRIPE_WEBHOOK_SECRET = getSecret("STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_FILE");
+  const RESEND_API_KEY       = getSecret("RESEND_API_KEY",       "RESEND_API_KEY_FILE");
+  const FROM_EMAIL  = process.env.FROM_EMAIL  || "onboarding@resend.dev";
+  const APP_URL     = process.env.APP_URL     || (process.env.DOMAIN ? `https://${process.env.DOMAIN}` : "https://finsurf.ai");
+
+  const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+  const resend = RESEND_API_KEY    ? new Resend(RESEND_API_KEY)    : null;
+
   // Make secrets available to child processes (Python agents)
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
   process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
@@ -132,13 +176,13 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com"],
+        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "https://js.stripe.com"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
         imgSrc:               ["'self'", "data:", "https:"],
-        connectSrc:           ["'self'", "https://cloudflareinsights.com"],
+        connectSrc:           ["'self'", "https://cloudflareinsights.com", "https://api.stripe.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
-        frameSrc:             ["'none'"],
+        frameSrc:             ["'none'", "https://js.stripe.com", "https://hooks.stripe.com"],
         workerSrc:            ["'self'"],
         upgradeInsecureRequests: useHttps ? [] : null,
       },
@@ -152,6 +196,59 @@ async function startServer() {
     ? rawOrigins.split(",").map((o) => o.trim()).filter(Boolean)
     : null; // null = allow any origin (dev default)
   app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : {}));
+
+  // ── Stripe webhook — MUST be before express.json() to receive raw body ──────
+  // Stripe sends application/json but signature verification requires the raw Buffer.
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
+    if (!stripe || !STRIPE_WEBHOOK_SECRET) {
+      return res.status(503).json({ error: "Stripe not configured" });
+    }
+    const sig = req.headers["stripe-signature"];
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig!, STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+      console.error("Stripe webhook signature error:", err);
+      return res.status(400).json({ error: "Invalid signature" });
+    }
+
+    if (event.type === "payment_intent.succeeded") {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      const email = intent.metadata.customer_email;
+      if (email) {
+        const code = generatePaidPassCode();
+        const now = Date.now();
+        const pass: Pass = {
+          code,
+          label: `Paid — ${email}`,
+          type: "paid",
+          createdAt: now,
+          expiresAt: now + 100 * 365 * 24 * 60 * 60 * 1000,
+        };
+        const passes = loadPasses();
+        passes.push(pass);
+        savePasses(passes);
+        console.log(`Paid pass generated for ${email}: ${code}`);
+
+        if (resend) {
+          try {
+            await resend.emails.send({
+              from: FROM_EMAIL,
+              to: email,
+              subject: "Your FinSurf lifetime access code",
+              html: buildActivationEmail(code, APP_URL),
+            });
+          } catch (e) {
+            console.error("Failed to send activation email:", e);
+          }
+        } else {
+          console.warn("RESEND_API_KEY not set — activation email not sent. Code:", code);
+        }
+      }
+    }
+
+    res.json({ received: true });
+  });
 
   app.use(express.json({ limit: "16kb" }));
 
@@ -201,6 +298,30 @@ async function startServer() {
     message: { error: "Too many requests from this IP, please try again after 15 minutes." }
   });
   app.use("/api/", limiter);
+
+  // ── Stripe: create payment intent (rate-limited, public — no APP_SECRET required) ──
+  app.post("/api/stripe/create-payment-intent", async (req: Request, res: Response) => {
+    if (!stripe) return res.status(503).json({ error: "Stripe not configured" });
+
+    const { email } = req.body;
+    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Valid email required" });
+    }
+
+    try {
+      const intent = await stripe.paymentIntents.create({
+        amount: 1500, // $15.00 USD
+        currency: "usd",
+        receipt_email: email,
+        metadata: { customer_email: email },
+        automatic_payment_methods: { enabled: true },
+      });
+      res.json({ clientSecret: intent.client_secret });
+    } catch (err) {
+      console.error("Stripe PaymentIntent error:", err);
+      res.status(500).json({ error: "Payment initialization failed" });
+    }
+  });
 
   // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
   if (APP_SECRET) {

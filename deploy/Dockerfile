@@ -24,6 +24,9 @@ COPY . .
 ARG VITE_APP_SECRET
 ENV VITE_APP_SECRET=$VITE_APP_SECRET
 
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+ENV VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
+
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────

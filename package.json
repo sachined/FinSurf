@@ -12,6 +12,8 @@
     "start": "cross-env NODE_ENV=production tsx server.ts"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^5.6.1",
+    "@stripe/stripe-js": "^8.9.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
@@ -29,6 +31,8 @@
     "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
     "remark-gfm": "^4.0.1",
+    "resend": "^6.9.3",
+    "stripe": "^20.4.1",
     "tailwind-merge": "^3.5.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",

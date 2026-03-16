@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
-import { Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { Download, ChevronUp, ChevronDown, Info, RotateCcw, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -17,11 +17,18 @@ import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
-const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
+const AboutPage   = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
+const UpgradePage = lazy(() => import('./pages/UpgradePage').then(m => ({ default: m.UpgradePage })));
 
 // localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
 const LS_USER_KEYS  = 'finsurf_user_keys';
+const TRUST_BADGES = [
+  { icon: <RotateCcw size={20} />, title: 'Real-time Data', desc: 'Synced with market waves' },
+  { icon: <HelpCircle size={20} />, title: 'AI Insights', desc: 'Powered by specialized agents' },
+  { icon: <Info size={20} />, title: 'Tax Ready', desc: 'Automated holding analysis' },
+];
+
 const FREE_TRIES    = 3;
 
 function loadUserKeys(): UserApiKeys | null {
@@ -95,7 +102,7 @@ export default function App() {
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
   const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
 
   const isAnyLoading = Object.values(loading).some(v => v);
@@ -138,8 +145,15 @@ export default function App() {
     await executeSearch(keys);
   }, [executeSearch]);
 
-  const handleAbout=useCallback(() => {
+  const handleAbout = useCallback(() => {
     setCurrentPage(p => p === 'about' ? 'home' : 'about');
+  }, []);
+
+  const handleUpgrade = useCallback(() => setCurrentPage('upgrade'), []);
+
+  const handlePassActivated = useCallback(() => {
+    setCurrentPage('home');
+    alert('Access activated! You now have unlimited analyses.');
   }, []);
 
   const handleDownloadPDF = useCallback(() => {
@@ -192,103 +206,20 @@ export default function App() {
           accessMode={accessMode}
           setAccessMode={setAccessMode}
           onAboutClick={handleAbout}
+          onUpgradeClick={handleUpgrade}
         />
-
-        {/* Download banner — slides in at the top when results are ready */}
-        <AnimatePresence>
-          {currentPage === 'home' && hasResponses && !isAnyLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scaleY: 0.85 }}
-              animate={{ opacity: 1, y: 0, scaleY: 1 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.4, type: 'spring', bounce: 0.15 }}
-              className="mb-6 origin-top"
-            >
-              {downloadBarCollapsed ? (
-                <div className={cn(
-                  "flex items-center justify-between px-6 py-3 rounded-2xl text-white",
-                  accessMode === 'tropical'
-                    ? "bg-orange-500 shadow-lg shadow-orange-500/20"
-                    : accessMode === 'colorblind'
-                    ? "bg-blue-900 border-2 border-blue-400"
-                    : "bg-slate-900 dark:bg-slate-800"
-                )}>
-                  <span className="text-sm font-bold flex items-center gap-2">
-                    <Download size={15} /> Report ready — export your financial analysis
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleDownloadPDF}
-                      className={cn(
-                        "text-sm font-black px-4 py-1.5 rounded-xl transition-colors",
-                        accessMode === 'tropical' ? "bg-white text-orange-600 hover:bg-orange-50"
-                          : accessMode === 'colorblind' ? "bg-white text-blue-900 hover:bg-slate-100"
-                          : "bg-white text-cyan-600 hover:bg-cyan-50"
-                      )}
-                    >
-                      Download PDF
-                    </button>
-                    <button
-                      onClick={() => setDownloadBarCollapsed(false)}
-                      className="opacity-60 hover:opacity-100 transition-opacity"
-                      aria-label="Expand download bar"
-                    >
-                      <ChevronDown size={18} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className={cn(
-                  "flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-[3rem] shadow-2xl text-white transition-all",
-                  accessMode === 'tropical'
-                    ? "bg-orange-500 shadow-orange-500/20"
-                    : accessMode === 'colorblind'
-                    ? "bg-blue-900 dark:bg-blue-950 border-4 border-blue-600 dark:border-blue-400 shadow-blue-900/40"
-                    : "bg-slate-900 dark:bg-slate-800"
-                )}>
-                  <div className="flex items-center gap-6">
-                    <div className="hidden sm:flex w-16 h-16 bg-white/10 rounded-[1.5rem] items-center justify-center">
-                      <Download size={32} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black tracking-tight">Report Ready — Export Now</h3>
-                      <p className={cn(
-                        "text-sm font-medium",
-                        accessMode === 'tropical' ? "text-orange-100"
-                          : accessMode === 'colorblind' ? "text-blue-100"
-                          : "text-slate-300"
-                      )}>Download your complete financial surf report as a PDF</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                    <button
-                      onClick={handleDownloadPDF}
-                      className={cn(
-                        "w-full sm:w-auto px-8 py-4 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/20",
-                        accessMode === 'tropical' ? "bg-white hover:bg-orange-50 text-orange-600"
-                          : accessMode === 'colorblind' ? "bg-white text-blue-900 hover:bg-slate-100"
-                          : "bg-white hover:bg-cyan-50 text-cyan-600"
-                      )}
-                    >
-                      <Download size={18} /> Download PDF
-                    </button>
-                    <button
-                      onClick={() => setDownloadBarCollapsed(true)}
-                      className="opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1.5 text-sm font-medium"
-                      aria-label="Minimize download bar"
-                    >
-                      <ChevronUp size={16} /> Minimize
-                    </button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
             <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
+          </Suspense>
+        ) : currentPage === 'upgrade' ? (
+          <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
+            <UpgradePage
+              accessMode={accessMode}
+              onBack={() => setCurrentPage('home')}
+              onActivated={handlePassActivated}
+            />
           </Suspense>
         ) : (
             <main id="report-container">
@@ -375,9 +306,10 @@ export default function App() {
           </div>
 
           <ResultsGrid
-            responses={responses} 
-            loading={loading} 
-            accessMode={accessMode} 
+            responses={responses}
+            loading={loading}
+            accessMode={accessMode}
+            onDownloadPDF={handleDownloadPDF}
           />
         </main>
         )}
