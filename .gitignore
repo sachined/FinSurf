@@ -22,6 +22,9 @@ secrets/*.txt
 *.db-wal
 *.db-shm
 
+# Admin-generated VIP passes (contains real access codes — never commit)
+vip_passes.json
+
 # Python cache
 __pycache__/
 *.pyc

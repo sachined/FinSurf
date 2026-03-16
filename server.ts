@@ -6,7 +6,7 @@ import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "fs";
 import crypto from "crypto";
 import "dotenv/config";
 
@@ -16,7 +16,9 @@ const __dirname = path.dirname(__filename);
 const pythonCommand = process.platform === "win32" ? "python" : "python3";
 
 // ── VIP Pass persistence ─────────────────────────────────────────────────────
-const PASSES_FILE = path.join("/app/data", "vip_passes.json");
+// VIP_PASSES_FILE can be overridden (e.g. /app/data/vip_passes.json in Docker).
+// Defaults to vip_passes.json next to server.ts for local development.
+const PASSES_FILE = process.env.VIP_PASSES_FILE ?? path.join(__dirname, "vip_passes.json");
 
 interface Pass {
   code: string;
@@ -35,6 +37,7 @@ function loadPasses(): Pass[] {
 }
 
 function savePasses(passes: Pass[]): void {
+  mkdirSync(path.dirname(PASSES_FILE), { recursive: true });
   const tmp = PASSES_FILE + ".tmp";
   writeFileSync(tmp, JSON.stringify(passes, null, 2), "utf-8");
   renameSync(tmp, PASSES_FILE);
