@@ -291,7 +291,7 @@ async function startServer() {
 
     // Check env-var set first (fast path)
     if (VALID_VIP_PASSES.has(pass)) {
-      const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const expiry = Date.now() + 15 * 24 * 60 * 60 * 1000;
       return res.json({ valid: true, expiry });
     }
 
@@ -364,7 +364,7 @@ async function startServer() {
   // ── Admin: VIP Pass Management ───────────────────────────────────────────
   app.post("/api/admin/passes", requireAdmin, (req, res) => {
     const label: string = req.body.label ?? "";
-    const days: number = Number(req.body.days) || 365;
+    const days: number = Number(req.body.days) || 15;
     const code = generatePassCode();
     const now = Date.now();
     const pass: Pass = { code, label, createdAt: now, expiresAt: now + days * 24 * 60 * 60 * 1000 };

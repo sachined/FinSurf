@@ -37,7 +37,7 @@ function savePasses(passes: Pass[]): void {
 
 const count = parseInt(process.argv[2]) || 5;
 const label = process.argv[3] || `Admin Generated - ${new Date().toISOString().split('T')[0]}`;
-const days = 365 * 10; // 10 years by default for "lifetime"
+const days = 15; // VIP passes expire in 15 days
 const now = Date.now();
 const passes = loadPasses();
 

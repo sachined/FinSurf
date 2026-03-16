@@ -71,6 +71,7 @@ export default function App() {
     const pass = params.get('pass');
 
     if (pass) {
+      setIsActivatingPass(true);
       const enableGps = params.get('gps') === '1';
       if (enableGps) localStorage.setItem('finsurf_gps_enabled', 'true');
       
@@ -79,10 +80,13 @@ export default function App() {
           localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
           localStorage.setItem('finsurf_active_pass', pass);
           window.history.replaceState({}, '', window.location.pathname);
-          alert("VIP Early Access Activated! You have unlimited analyses for 30 days.");
+          const daysRemaining = Math.max(1, Math.round((data.expiry - Date.now()) / (1000 * 60 * 60 * 24)));
+          alert(`VIP Early Access Activated! You have unlimited analyses for the next ${daysRemaining} days.`);
         }
       }).catch(err => {
         console.error("Failed to validate VIP pass:", err);
+      }).finally(() => {
+        setIsActivatingPass(false);
       });
     }
   }, []);
@@ -126,6 +130,8 @@ export default function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
   const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
+  const [isActivatingPass, setIsActivatingPass] = useState(false);
+  const [autoSearchDone, setAutoSearchDone] = useState(false);
 
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -134,7 +140,7 @@ export default function App() {
   // In dev (`npm run dev`) import.meta.env.PROD is always false.
   const isProd = import.meta.env.PROD;
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!validateAll()) return;
 
     // Check if a user has an active VIP pass
@@ -150,7 +156,38 @@ export default function App() {
       }
     }
     await executeSearch(userKeys);
-  };
+  }, [validateAll, isProd, userKeys, executeSearch]);
+
+  // URL Parameters logic — pre-fills form and optionally auto-triggers search
+  useEffect(() => {
+    if (autoSearchDone) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('ticker');
+    const b = params.get('buy');
+    const s = params.get('sell');
+    const q = params.get('shares');
+    const auto = params.get('auto') === '1';
+
+    if (t) setTicker(t);
+    if (b) setPurchaseDate(b);
+    if (s) setSellDate(s);
+    if (q) setShares(q);
+
+    if (auto && t) {
+      // If we are currently activating a pass from the same URL, wait for it
+      if (isActivatingPass) return;
+
+      setAutoSearchDone(true);
+      // Small delay to ensure state updates have propagated
+      const timer = setTimeout(() => {
+        handleSearch();
+        // Clear parameters from URL after auto-triggering to prevent loops
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [setTicker, setPurchaseDate, setSellDate, setShares, handleSearch, isActivatingPass, autoSearchDone]);
 
   const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
     setHasSurfed(true);
