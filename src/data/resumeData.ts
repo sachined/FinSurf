@@ -72,7 +72,7 @@ export const resumeData = {
       company: "MMA & TPG",
       period: "2017 – 2019",
       bullets: [
-        "Enterprise tech deployment & workspace migrations at Apple, Broadcom and Bay Area campuses.",
+        "Enterprise tech deployment & workspace migrations at Apple, Broadcom, Salesforce and Bay Area campuses.",
         "Saw directly how compartmentalization of labor benefits all involved, so FinSurf is inspired by efforts of investing research.",
       ],
     },

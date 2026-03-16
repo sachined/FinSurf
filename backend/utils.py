@@ -27,7 +27,7 @@ def validate_key(provider_name: str, key: Optional[str]) -> str:
         raise Exception(f"{provider_name} API Key is missing or invalid. Please set it in the environment.")
     return key.strip().strip('"').strip("'").strip()
 
-def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 30, max_retries: int = 3) -> Any:
+def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 30, max_retries: int = 3, retry_429: bool = True) -> Any:
     """Generic HTTP POST request with optional retry logic for 429/5xx errors."""
     start_time = time.time()
     endpoint = url.split("?")[0].split("/")[-1]
@@ -43,14 +43,25 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
         except urllib.error.HTTPError as e:
             if e.code in [429, 502, 503, 504] and attempt < max_retries:
                 if e.code == 429:
+                    if not retry_429:
+                        # Fail-fast for 429: caller (e.g., Groq) can fall back to Gemini immediately
+                        raise Exception(f"API Error 429: {e.read().decode('utf-8')}")
+
                     # Honor Retry-After header (Gemini and most APIs send it).
                     # Fall back to 60 s if absent — paid-tier 429s clear in ~60 s.
                     retry_after = None
+                    sleep_time = 60 * (attempt + 1)
                     try:
-                        retry_after = e.headers.get("Retry-After") if e.headers else None
-                        sleep_time = min(int(retry_after), 120)
+                        retry_after_val = e.headers.get("Retry-After") if e.headers else None
+                        if retry_after_val:
+                            if retry_after_val.isdigit():
+                                sleep_time = min(int(retry_after_val), 120)
+                            else:
+                                # It might be a HTTP-date, but we'll stick to a reasonable default
+                                # instead of complex date parsing for now.
+                                sleep_time = 60
                     except (ValueError, TypeError):
-                        sleep_time = 60 * (attempt + 1)  # 60 s, 120 s, …
+                        pass
                 else:
                     # Transient gateway errors: fast exponential back-off (2 s, 4 s, 8 s)
                     sleep_time = 2 ** (attempt + 1)

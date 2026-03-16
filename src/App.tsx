@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
-import { Download, ChevronUp, ChevronDown, Info, RotateCcw, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
@@ -17,18 +16,11 @@ import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
-const AboutPage   = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
-const UpgradePage = lazy(() => import('./pages/UpgradePage').then(m => ({ default: m.UpgradePage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
 
 // localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
 const LS_USER_KEYS  = 'finsurf_user_keys';
-const TRUST_BADGES = [
-  { icon: <RotateCcw size={20} />, title: 'Real-time Data', desc: 'Synced with market waves' },
-  { icon: <HelpCircle size={20} />, title: 'AI Insights', desc: 'Powered by specialized agents' },
-  { icon: <Info size={20} />, title: 'Tax Ready', desc: 'Automated holding analysis' },
-];
-
 const FREE_TRIES    = 3;
 
 function loadUserKeys(): UserApiKeys | null {
@@ -66,6 +58,24 @@ function incrementSurfCount(): number {
 export default function App() {
   const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pass = params.get('pass');
+
+    if (pass) {
+      validatePass(pass).then(data => {
+        if (data.valid && data.expiry) {
+          localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
+          localStorage.setItem('finsurf_active_pass', pass);
+          window.history.replaceState({}, '', window.location.pathname);
+          alert("VIP Early Access Activated! You have unlimited analyses for 15 days.");
+        }
+      }).catch(err => {
+        console.error("Failed to validate VIP pass:", err);
+      });
+    }
+  }, []);
+
   const {
     ticker, setTicker,
     purchaseDate, setPurchaseDate,
@@ -84,10 +94,7 @@ export default function App() {
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
-  const [downloadBarCollapsed, setDownloadBarCollapsed] = useState(false);
-  const [isActivatingPass, setIsActivatingPass] = useState(false);
-  const [autoSearchDone, setAutoSearchDone] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
 
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -96,58 +103,7 @@ export default function App() {
   // In dev (`npm run dev`) import.meta.env.PROD is always false.
   const isProd = import.meta.env.PROD;
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const pass = params.get('pass');
-
-    if (pass) {
-      setIsActivatingPass(true);
-      const enableGps = params.get('gps') === '1';
-      if (enableGps) localStorage.setItem('finsurf_gps_enabled', 'true');
-      
-      validatePass(pass).then(data => {
-        if (data.valid && data.expiry) {
-          localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
-          localStorage.setItem('finsurf_active_pass', pass);
-          window.history.replaceState({}, '', window.location.pathname);
-          const daysRemaining = Math.max(1, Math.round((data.expiry - Date.now()) / (1000 * 60 * 60 * 24)));
-          alert(`VIP Early Access Activated! You have unlimited analyses for the next ${daysRemaining} days.`);
-        }
-      }).catch(err => {
-        console.error("Failed to validate VIP pass:", err);
-      }).finally(() => {
-        setIsActivatingPass(false);
-      });
-    }
-  }, []);
-
-  // Location tracking logic — requests coordinates if VIP pass is active and tracking is enabled
-  useEffect(() => {
-    const activePass = localStorage.getItem('finsurf_active_pass');
-    const trackingEnabled = localStorage.getItem('finsurf_gps_enabled') === 'true';
-    
-    if (activePass && trackingEnabled && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          localStorage.setItem('finsurf_lat', position.coords.latitude.toString());
-          localStorage.setItem('finsurf_lon', position.coords.longitude.toString());
-        },
-        (error) => {
-          console.warn("Location tracking permission denied or unavailable:", error.message);
-        },
-        { enableHighAccuracy: false, timeout: 5000, maximumAge: 600000 }
-      );
-    }
-  }, []);
-
-  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
-    setHasSurfed(true);
-    setDownloadBarCollapsed(false);
-    setError(null);
-    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
-  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
-
-  const handleSearch = useCallback(async () => {
+  const handleSearch = async () => {
     if (!validateAll()) return;
 
     // Check if a user has an active VIP pass
@@ -163,38 +119,13 @@ export default function App() {
       }
     }
     await executeSearch(userKeys);
-  }, [validateAll, isProd, userKeys, executeSearch]);
+  };
 
-  // URL Parameters logic — pre-fills form and optionally auto-triggers search
-  useEffect(() => {
-    if (autoSearchDone) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get('ticker');
-    const b = params.get('buy');
-    const s = params.get('sell');
-    const q = params.get('shares');
-    const auto = params.get('auto') === '1';
-
-    if (t) setTicker(t);
-    if (b) setPurchaseDate(b);
-    if (s) setSellDate(s);
-    if (q) setShares(q);
-
-    if (auto && t) {
-      // If we are currently activating a pass from the same URL, wait for it
-      if (isActivatingPass) return;
-
-      setAutoSearchDone(true);
-      // Small delay to ensure state updates have propagated
-      const timer = setTimeout(() => {
-        handleSearch();
-        // Clear parameters from URL after auto-triggering to prevent loops
-        window.history.replaceState({}, '', window.location.pathname);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [setTicker, setPurchaseDate, setSellDate, setShares, handleSearch, isActivatingPass, autoSearchDone]);
+  const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
+    setHasSurfed(true);
+    setError(null);
+    await runAll(ticker, purchaseDate, sellDate, shares, setError, keys ?? undefined);
+  }, [ticker, purchaseDate, sellDate, shares, runAll, setError]);
 
   const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
     localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
@@ -204,15 +135,8 @@ export default function App() {
     await executeSearch(keys);
   }, [executeSearch]);
 
-  const handleAbout = useCallback(() => {
+  const handleAbout=useCallback(() => {
     setCurrentPage(p => p === 'about' ? 'home' : 'about');
-  }, []);
-
-  const handleUpgrade = useCallback(() => setCurrentPage('upgrade'), []);
-
-  const handlePassActivated = useCallback(() => {
-    setCurrentPage('home');
-    alert('Access activated! You now have unlimited analyses.');
   }, []);
 
   const handleDownloadPDF = useCallback(() => {
@@ -259,26 +183,17 @@ export default function App() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <Header
-          theme={theme}
-          toggleTheme={toggleTheme}
-          accessMode={accessMode}
+        <Header 
+          theme={theme} 
+          toggleTheme={toggleTheme} 
+          accessMode={accessMode} 
           setAccessMode={setAccessMode}
           onAboutClick={handleAbout}
-          onUpgradeClick={handleUpgrade}
         />
 
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
             <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
-          </Suspense>
-        ) : currentPage === 'upgrade' ? (
-          <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
-            <UpgradePage
-              accessMode={accessMode}
-              onBack={() => setCurrentPage('home')}
-              onActivated={handlePassActivated}
-            />
           </Suspense>
         ) : (
             <main id="report-container">
@@ -300,6 +215,14 @@ export default function App() {
               </div>
             </div>
             <div className="w-full h-1 bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
+          </div>
+
+          <div data-no-print="">
+            <Footer
+              onDownloadPDF={handleDownloadPDF}
+              accessMode={accessMode}
+              isDataAvailable={hasResponses && !isAnyLoading}
+            />
           </div>
 
           <div data-no-print="">
@@ -365,14 +288,12 @@ export default function App() {
           </div>
 
           <ResultsGrid
-            responses={responses}
-            loading={loading}
-            accessMode={accessMode}
-            onDownloadPDF={handleDownloadPDF}
+            responses={responses} 
+            loading={loading} 
+            accessMode={accessMode} 
           />
         </main>
         )}
-        <Footer accessMode={accessMode} />
       </div>
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">

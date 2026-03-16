@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
@@ -6,82 +6,13 @@ import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync } from "fs";
-import crypto from "crypto";
-import Stripe from "stripe";
-import { Resend } from "resend";
+import { readFileSync } from "fs";
 import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pythonCommand = process.platform === "win32" ? "python" : "python3";
-
-// ── VIP Pass persistence ─────────────────────────────────────────────────────
-// VIP_PASSES_FILE can be overridden (e.g. /app/data/vip_passes.json in Docker).
-// Defaults to vip_passes.json next to server.ts for local development.
-const PASSES_FILE = process.env.VIP_PASSES_FILE ?? path.join(__dirname, "vip_passes.json");
-
-interface Pass {
-  code: string;
-  label: string;
-  type?: "admin" | "paid";
-  createdAt: number;
-  expiresAt: number;
-}
-
-function loadPasses(): Pass[] {
-  try {
-    if (!existsSync(PASSES_FILE)) return [];
-    return JSON.parse(readFileSync(PASSES_FILE, "utf-8")) as Pass[];
-  } catch {
-    return [];
-  }
-}
-
-function savePasses(passes: Pass[]): void {
-  mkdirSync(path.dirname(PASSES_FILE), { recursive: true });
-  const tmp = PASSES_FILE + ".tmp";
-  writeFileSync(tmp, JSON.stringify(passes, null, 2), "utf-8");
-  renameSync(tmp, PASSES_FILE);
-}
-
-function generatePassCode(): string {
-  const part = () => crypto.randomBytes(2).toString("hex").toUpperCase();
-  return `FINSURF-${part()}-${part()}`;
-}
-
-function generatePaidPassCode(): string {
-  const part = () => crypto.randomBytes(2).toString("hex").toUpperCase();
-  return `PAID-${part()}-${part()}`;
-}
-
-function buildActivationEmail(code: string, appUrl: string): string {
-  const activationUrl = `${appUrl}?pass=${encodeURIComponent(code)}`;
-  return `<!DOCTYPE html>
-<html><body style="font-family:system-ui,sans-serif;background:#f8fafc;padding:40px 20px;margin:0">
-<div style="max-width:480px;margin:0 auto;background:#fff;border-radius:24px;padding:40px;box-shadow:0 4px 24px rgba(0,0,0,0.06)">
-  <div style="text-align:center;margin-bottom:32px">
-    <span style="font-size:30px;font-weight:900;color:#0f172a;letter-spacing:-1px">Fin<span style="color:#06b6d4">Surf</span>.ai</span>
-    <p style="color:#64748b;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;margin:8px 0 0">Lifetime Access</p>
-  </div>
-  <p style="color:#334155;font-size:16px;margin:0 0 8px">Thanks for your purchase! Here is your access code:</p>
-  <div style="background:#f0f9ff;border:2px solid #bae6fd;border-radius:16px;padding:24px;text-align:center;margin:0 0 24px">
-    <code style="font-size:24px;font-weight:900;letter-spacing:6px;color:#0c4a6e">${code}</code>
-  </div>
-  <a href="${activationUrl}" style="display:block;background:#06b6d4;color:#fff;text-align:center;padding:16px;border-radius:14px;font-weight:900;font-size:13px;text-transform:uppercase;letter-spacing:2px;text-decoration:none;margin:0 0 24px">Activate Now →</a>
-  <div style="background:#f8fafc;border-radius:12px;padding:16px;margin:0 0 24px">
-    <p style="color:#475569;font-size:13px;font-weight:700;margin:0 0 8px">What you get:</p>
-    <ul style="color:#64748b;font-size:13px;margin:0;padding-left:16px;line-height:2">
-      <li>Unlimited financial analyses</li>
-      <li>All 5 AI agents — Research, Tax, Dividend, Sentiment, Summary</li>
-      <li>Works with your own API keys</li>
-      <li>Never expires</li>
-    </ul>
-  </div>
-  <p style="color:#94a3b8;font-size:12px;text-align:center;margin:0">Questions? Reply to this email · FinSurf.ai</p>
-</div></body></html>`;
-}
 
 // ── Helper to read secrets from files or environment ────────────────────────
 // In Docker Swarm/Kubernetes, secrets are mounted as files in /run/secrets/
@@ -115,33 +46,14 @@ function parseCitations(citations: unknown[]): { title: string; uri: string }[] 
   });
 }
 
-interface RequestMetadata {
-  userId?: string;
-  ip?: string;
-  lat?: string;
-  lon?: string;
-}
-
-async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false, envOverrides?: Record<string, string>, metadata?: RequestMetadata): Promise<string> {
-  const env = { 
-    ...process.env, 
-    SKIP_GUARDRAIL: skipGuardrail ? "true" : "false", 
-    ...envOverrides,
-    USER_ID: metadata?.userId || "",
-    IP_ADDRESS: metadata?.ip || "",
-    LAT: metadata?.lat || "",
-    LON: metadata?.lon || ""
-  };
+async function runPythonAgent(mode: string, args: (string | number)[], skipGuardrail: boolean = false, envOverrides?: Record<string, string>): Promise<string> {
+  const env = { ...process.env, SKIP_GUARDRAIL: skipGuardrail ? "true" : "false", ...envOverrides };
   const argStrings = args.map(String);
 
   return new Promise((resolve, reject) => {
     // execFile avoids shell injection — args are passed as an array, never interpolated
     // 120 s timeout prevents hung Python processes from blocking the event loop indefinitely
     execFile(pythonCommand, ["backend/agents.py", mode, ...argStrings], { env, maxBuffer: 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
-      if (stderr) {
-        // Log Python stderr (warnings, etc.) even if the process succeeded
-        console.error(`Python stderr: ${stderr}`);
-      }
       if (error) {
         console.error(`Exec error: ${error}`);
         reject(stderr || error.message);
@@ -166,17 +78,8 @@ async function startServer() {
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
   const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
   const LANGCHAIN_API_KEY = getSecret("LANGCHAIN_API_KEY", "LANGCHAIN_API_KEY_FILE");
-  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") ?? "";
+  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
   const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
-
-  const STRIPE_SECRET_KEY    = getSecret("STRIPE_SECRET_KEY",    "STRIPE_SECRET_KEY_FILE");
-  const STRIPE_WEBHOOK_SECRET = getSecret("STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_FILE");
-  const RESEND_API_KEY       = getSecret("RESEND_API_KEY",       "RESEND_API_KEY_FILE");
-  const FROM_EMAIL  = process.env.FROM_EMAIL  || "onboarding@resend.dev";
-  const APP_URL     = process.env.APP_URL     || (process.env.DOMAIN ? `https://${process.env.DOMAIN}` : "https://finsurf.ai");
-
-  const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
-  const resend = RESEND_API_KEY    ? new Resend(RESEND_API_KEY)    : null;
 
   // Make secrets available to child processes (Python agents)
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
@@ -195,13 +98,13 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "https://js.stripe.com"],
+        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
         imgSrc:               ["'self'", "data:", "https:"],
-        connectSrc:           ["'self'", "https://cloudflareinsights.com", "https://api.stripe.com"],
+        connectSrc:           ["'self'", "https://cloudflareinsights.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
-        frameSrc:             ["https://js.stripe.com", "https://hooks.stripe.com"],
+        frameSrc:             ["'none'"],
         workerSrc:            ["'self'"],
         upgradeInsecureRequests: useHttps ? [] : null,
       },
@@ -215,59 +118,6 @@ async function startServer() {
     ? rawOrigins.split(",").map((o) => o.trim()).filter(Boolean)
     : null; // null = allow any origin (dev default)
   app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : {}));
-
-  // ── Stripe webhook — MUST be before express.json() to receive raw body ──────
-  // Stripe sends application/json but signature verification requires the raw Buffer.
-  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
-    if (!stripe || !STRIPE_WEBHOOK_SECRET) {
-      return res.status(503).json({ error: "Stripe not configured" });
-    }
-    const sig = req.headers["stripe-signature"];
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig!, STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-      console.error("Stripe webhook signature error:", err);
-      return res.status(400).json({ error: "Invalid signature" });
-    }
-
-    if (event.type === "payment_intent.succeeded") {
-      const intent = event.data.object as Stripe.PaymentIntent;
-      const email = intent.metadata.customer_email;
-      if (email) {
-        const code = generatePaidPassCode();
-        const now = Date.now();
-        const pass: Pass = {
-          code,
-          label: `Paid — ${email}`,
-          type: "paid",
-          createdAt: now,
-          expiresAt: now + 100 * 365 * 24 * 60 * 60 * 1000,
-        };
-        const passes = loadPasses();
-        passes.push(pass);
-        savePasses(passes);
-        console.log(`Paid pass generated for ${email}: ${code}`);
-
-        if (resend) {
-          try {
-            await resend.emails.send({
-              from: FROM_EMAIL,
-              to: email,
-              subject: "Your FinSurf lifetime access code",
-              html: buildActivationEmail(code, APP_URL),
-            });
-          } catch (e) {
-            console.error("Failed to send activation email:", e);
-          }
-        } else {
-          console.warn("RESEND_API_KEY not set — activation email not sent. Code:", code);
-        }
-      }
-    }
-
-    res.json({ received: true });
-  });
 
   app.use(express.json({ limit: "16kb" }));
 
@@ -291,19 +141,11 @@ async function startServer() {
   // ── VIP Pass Validation ──────────────────────────────────────────────────
   app.get("/api/validate-pass", (req, res) => {
     const pass = req.query.pass;
-    if (typeof pass !== 'string' || !pass) return res.json({ valid: false });
-
-    // Check env-var set first (fast path)
-    if (VALID_VIP_PASSES.has(pass)) {
+    if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
+      // Return 30-day expiry from now
       const expiry = Date.now() + 15 * 24 * 60 * 60 * 1000;
       return res.json({ valid: true, expiry });
     }
-
-    // Check JSON-persisted admin passes
-    const now = Date.now();
-    const match = loadPasses().find(p => p.code === pass && p.expiresAt > now);
-    if (match) return res.json({ valid: true, expiry: match.expiresAt });
-
     res.json({ valid: false });
   });
 
@@ -318,30 +160,6 @@ async function startServer() {
   });
   app.use("/api/", limiter);
 
-  // ── Stripe: create payment intent (rate-limited, public — no APP_SECRET required) ──
-  app.post("/api/stripe/create-payment-intent", async (req: Request, res: Response) => {
-    if (!stripe) return res.status(503).json({ error: "Stripe not configured" });
-
-    const { email } = req.body;
-    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ error: "Valid email required" });
-    }
-
-    try {
-      const intent = await stripe.paymentIntents.create({
-        amount: 1500, // $15.00 USD
-        currency: "usd",
-        receipt_email: email,
-        metadata: { customer_email: email },
-        automatic_payment_methods: { enabled: true },
-      });
-      res.json({ clientSecret: intent.client_secret });
-    } catch (err) {
-      console.error("Stripe PaymentIntent error:", err);
-      res.status(500).json({ error: "Payment initialization failed" });
-    }
-  });
-
   // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
   if (APP_SECRET) {
     app.use("/api/", (req, res, next) => {
@@ -355,45 +173,6 @@ async function startServer() {
       next();
     });
   }
-
-  // ── Admin auth middleware ─────────────────────────────────────────────────
-  function requireAdmin(req: Request, res: Response, next: NextFunction) {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!APP_SECRET || token !== APP_SECRET) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-    next();
-  }
-
-  // ── Admin: VIP Pass Management ───────────────────────────────────────────
-  app.post("/api/admin/passes", requireAdmin, (req, res) => {
-    const label: string = req.body.label ?? "";
-    const days: number = Number(req.body.days) || 15;
-    const code = generatePassCode();
-    const now = Date.now();
-    const pass: Pass = { code, label, createdAt: now, expiresAt: now + days * 24 * 60 * 60 * 1000 };
-    const passes = loadPasses();
-    passes.push(pass);
-    savePasses(passes);
-    res.json({ code: pass.code, expiresAt: pass.expiresAt });
-  });
-
-  app.get("/api/admin/passes", requireAdmin, (_req, res) => {
-    const now = Date.now();
-    const passes = loadPasses().map(p => ({ ...p, expired: p.expiresAt <= now }));
-    res.json(passes);
-  });
-
-  app.delete("/api/admin/passes/:code", requireAdmin, (req, res) => {
-    const { code } = req.params;
-    const passes = loadPasses();
-    const filtered = passes.filter(p => p.code !== code);
-    if (filtered.length === passes.length) {
-      return res.status(404).json({ error: "Pass not found" });
-    }
-    savePasses(filtered);
-    res.json({ revoked: code });
-  });
 
   // Extract user-supplied API keys from request headers (forwarded by the frontend).
   // These override the server's keys, so the user's own quota is consumed.
@@ -430,16 +209,18 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
     const { purchaseDate, sellDate, shares, years } = req.body;
     const userEnv = getUserKeyEnv(req);
 
-    // Extract tracking metadata from headers
-    const metadata: RequestMetadata = {
-      userId: req.headers["x-finsurf-pass"] as string,
-      ip: req.ip,
-      lat: req.headers["x-lat"] as string,
-      lon: req.headers["x-lon"] as string,
-    };
-
     const cachedStatus = getCachedGuardrailStatus(ticker);
     const skipGuardrail = cachedStatus === true;
+
+    // RACE CONDITION FIX: Optimistic cache write BEFORE Python call
+    // Prevents duplicate guardrail checks when concurrent requests arrive
+    // for the same ticker while the first is still processing
+    if (!skipGuardrail) {
+      guardrailCache.set(ticker.toUpperCase(), {
+        status: true,  // Optimistically assume safe; will be corrected if blocked
+        timestamp: Date.now()
+      });
+    }
 
     try {
       const args= [
@@ -450,10 +231,10 @@ const getCachedGuardrailStatus = (ticker: string): boolean | null => {
         years || 3
       ];
 
-      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv, metadata);
+      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv);
       const graphData = JSON.parse(stdout);
 
-      // Update the cache if we performed a fresh check
+      // Correct the cache entry with the actual guardrail result
       if (!skipGuardrail) {
         guardrailCache.set(ticker.toUpperCase(), {
           status: !!graphData.is_safe,

@@ -95,57 +95,12 @@ def call_groq(
     }
 
     t0 = time.time()
-    res = http_post(url, data, headers, timeout=60, max_retries=2)
+    res = http_post(url, data, headers, timeout=60, max_retries=2, retry_429=False)
     latency_ms = (time.time() - t0) * 1000
 
     usage = res.get("usage", {})
     record_usage(TokenUsage(
         provider="groq",
-        agent=agent,
-        model=model,
-        input_tokens=usage.get("prompt_tokens", 0),
-        output_tokens=usage.get("completion_tokens", 0),
-        latency_ms=latency_ms,
-    ))
-
-    return res["choices"][0]["message"]["content"]
-
-
-@traceable(run_type="llm", name="Ollama")
-def call_ollama(
-    prompt: str,
-    system_instruction: Optional[str] = None,
-    model: str = None,
-    max_tokens: int = 2048,
-    agent: str = "unknown",
-) -> str:
-    """Makes a call to a local Ollama instance via its OpenAI-compatible API.
-
-    Reads OLLAMA_BASE_URL (default: http://localhost:11434) and OLLAMA_MODEL
-    (default: qwen2.5:7b) from the environment so both can be overridden per
-    deployment without code changes.
-    Raises on connection failure so callers can fall back to Gemini.
-    """
-    base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-    if model is None:
-        model = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
-    url = f"{base_url}/v1/chat/completions"
-
-    messages = []
-    if system_instruction:
-        messages.append({"role": "system", "content": system_instruction})
-    messages.append({"role": "user", "content": prompt})
-
-    data = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.1}
-    headers = {"Content-Type": "application/json"}
-
-    t0 = time.time()
-    res = http_post(url, data, headers, timeout=120, max_retries=1)
-    latency_ms = (time.time() - t0) * 1000
-
-    usage = res.get("usage", {})
-    record_usage(TokenUsage(
-        provider="ollama",
         agent=agent,
         model=model,
         input_tokens=usage.get("prompt_tokens", 0),
@@ -179,7 +134,7 @@ def call_perplexity(
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
 
     t0 = time.time()
-    res = http_post(url, data, headers, timeout=60, max_retries=2)
+    res = http_post(url, data, headers, timeout=60, max_retries=2, retry_429=False)
     latency_ms = (time.time() - t0) * 1000
 
     usage = res.get("usage", {})

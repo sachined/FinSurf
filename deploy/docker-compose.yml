@@ -24,17 +24,19 @@ services:
       # the correct Authorization header to the Express API middleware.
       args:
         VITE_APP_SECRET: ${APP_SECRET:-}
+    ports:
+      - "3000:3000"  # Expose to host for local testing
     env_file: ../.env.nonsecret
     environment:
       NODE_ENV: production
       TELEMETRY_DB: /app/data/finsurf_telemetry.db
       # Secrets are mounted as files in /run/secrets/ inside the container
       # The application reads them from there instead of env vars.
-      GEMINI_API_KEY_FILE: ../secrets/gemini_api_key
-      PERPLEXITY_API_KEY_FILE: ../secrets/perplexity_api_key
-      GROQ_API_KEY_FILE: ../secrets/groq_api_key
-      APP_SECRET_FILE: ../secrets/app_secret
-      LANGCHAIN_API_KEY_FILE: ../secrets/langchain_api_key
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
+      PERPLEXITY_API_KEY_FILE: /run/secrets/perplexity_api_key
+      GROQ_API_KEY_FILE: /run/secrets/groq_api_key
+      APP_SECRET_FILE: /run/secrets/app_secret
+      LANGCHAIN_API_KEY_FILE: /run/secrets/langchain_api_key
       # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
       # Sign up at https://console.groq.com — no GPU needed.
       # If key is missing, agents fall back to Gemini automatically.
@@ -43,6 +45,8 @@ services:
       # Leave empty to skip; agents fall back to Groq then Gemini.
       OLLAMA_BASE_URL: ""
       OLLAMA_MODEL: qwen2.5:7b
+      # VIP passes — optional comma-separated list of early access codes
+      VIP_PASSES: ${VIP_PASSES:-}
     secrets:
       - gemini_api_key
       - perplexity_api_key

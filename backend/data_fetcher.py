@@ -237,6 +237,28 @@ def fetch_price_on_date(ticker: str, date_str: str) -> Optional[float]:
     except ValueError:
         return None
 
+def _price_from_history(price_history: list, date_str: str) -> Optional[float]:
+    """Look up a closing price in an already-fetched price_history list.
+
+    price_history is the list of {"date": "YYYY-MM-DD", "close": float} dicts
+    returned by fetch_research_data.  Returns the close for the latest trading
+    day on or before date_str, or None if date_str is outside the window.
+    """
+    if not price_history or not date_str:
+        return None
+    try:
+        target = datetime.date.fromisoformat(date_str)
+        best: Optional[float] = None
+        for entry in price_history:
+            entry_date = datetime.date.fromisoformat(entry["date"])
+            if entry_date <= target:
+                best = entry["close"]
+            else:
+                break
+        return best
+    except (ValueError, KeyError, TypeError):
+        return None
+
 def _extract_news_data(t: yf.Ticker) -> list:
     """Extract recent news headlines from yf.Ticker object."""
     news_items: list = []
