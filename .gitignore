@@ -26,6 +26,10 @@ secrets/*.txt
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+
+# IDE
+.idea/
 
 # Captured output artifacts
 .output.txt

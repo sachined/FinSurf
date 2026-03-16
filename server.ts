@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { rateLimit } from "express-rate-limit";
@@ -6,13 +6,44 @@ import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, renameSync } from "fs";
+import crypto from "crypto";
 import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pythonCommand = process.platform === "win32" ? "python" : "python3";
+
+// ── VIP Pass persistence ─────────────────────────────────────────────────────
+const PASSES_FILE = path.join("/app/data", "vip_passes.json");
+
+interface Pass {
+  code: string;
+  label: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
+function loadPasses(): Pass[] {
+  try {
+    if (!existsSync(PASSES_FILE)) return [];
+    return JSON.parse(readFileSync(PASSES_FILE, "utf-8")) as Pass[];
+  } catch {
+    return [];
+  }
+}
+
+function savePasses(passes: Pass[]): void {
+  const tmp = PASSES_FILE + ".tmp";
+  writeFileSync(tmp, JSON.stringify(passes, null, 2), "utf-8");
+  renameSync(tmp, PASSES_FILE);
+}
+
+function generatePassCode(): string {
+  const part = () => crypto.randomBytes(2).toString("hex").toUpperCase();
+  return `FINSURF-${part()}-${part()}`;
+}
 
 // ── Helper to read secrets from files or environment ────────────────────────
 // In Docker Swarm/Kubernetes, secrets are mounted as files in /run/secrets/
@@ -78,7 +109,7 @@ async function startServer() {
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
   const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
   const LANGCHAIN_API_KEY = getSecret("LANGCHAIN_API_KEY", "LANGCHAIN_API_KEY_FILE");
-  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
+  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") ?? "";
   const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
 
   // Make secrets available to child processes (Python agents)
@@ -141,11 +172,19 @@ async function startServer() {
   // ── VIP Pass Validation ──────────────────────────────────────────────────
   app.get("/api/validate-pass", (req, res) => {
     const pass = req.query.pass;
-    if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
-      // Return 30-day expiry from now
+    if (typeof pass !== 'string' || !pass) return res.json({ valid: false });
+
+    // Check env-var set first (fast path)
+    if (VALID_VIP_PASSES.has(pass)) {
       const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
       return res.json({ valid: true, expiry });
     }
+
+    // Check JSON-persisted admin passes
+    const now = Date.now();
+    const match = loadPasses().find(p => p.code === pass && p.expiresAt > now);
+    if (match) return res.json({ valid: true, expiry: match.expiresAt });
+
     res.json({ valid: false });
   });
 
@@ -173,6 +212,45 @@ async function startServer() {
       next();
     });
   }
+
+  // ── Admin auth middleware ─────────────────────────────────────────────────
+  function requireAdmin(req: Request, res: Response, next: NextFunction) {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!APP_SECRET || token !== APP_SECRET) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  }
+
+  // ── Admin: VIP Pass Management ───────────────────────────────────────────
+  app.post("/api/admin/passes", requireAdmin, (req, res) => {
+    const label: string = req.body.label ?? "";
+    const days: number = Number(req.body.days) || 365;
+    const code = generatePassCode();
+    const now = Date.now();
+    const pass: Pass = { code, label, createdAt: now, expiresAt: now + days * 24 * 60 * 60 * 1000 };
+    const passes = loadPasses();
+    passes.push(pass);
+    savePasses(passes);
+    res.json({ code: pass.code, expiresAt: pass.expiresAt });
+  });
+
+  app.get("/api/admin/passes", requireAdmin, (_req, res) => {
+    const now = Date.now();
+    const passes = loadPasses().map(p => ({ ...p, expired: p.expiresAt <= now }));
+    res.json(passes);
+  });
+
+  app.delete("/api/admin/passes/:code", requireAdmin, (req, res) => {
+    const { code } = req.params;
+    const passes = loadPasses();
+    const filtered = passes.filter(p => p.code !== code);
+    if (filtered.length === passes.length) {
+      return res.status(404).json({ error: "Pass not found" });
+    }
+    savePasses(filtered);
+    res.json({ revoked: code });
+  });
 
   // Extract user-supplied API keys from request headers (forwarded by the frontend).
   // These override the server's keys, so the user's own quota is consumed.

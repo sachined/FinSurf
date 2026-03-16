@@ -3,9 +3,7 @@ import { cn } from '../../utils/cn';
 import { type AccessMode } from '../../types';
 
 interface FooterProps {
-  onDownloadPDF?: () => void;
   accessMode?: AccessMode;
-  isDataAvailable?: boolean;
 }
 
 export function Footer({ accessMode }: FooterProps) {

@@ -1,13 +1,9 @@
 import React from 'react';
-import { 
-  TrendingUp, 
-  Loader2, 
+import {
+  TrendingUp,
+  Loader2,
   ExternalLink,
   Info,
-  MessageSquare,
-  Search,
-  Receipt,
-  Coins
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';

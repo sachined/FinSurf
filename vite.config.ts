@@ -25,10 +25,7 @@ export default defineConfig(() => {
               if (id.includes('lucide-react')) {
                 return 'icons';
               }
-              if (id.includes('jspdf') || id.includes('html2canvas')) {
-                return 'pdf-lib';
-              }
-              return 'vendor'; // React, ReactDOM, scheduler all go into vendor
+return 'vendor'; // React, ReactDOM, scheduler all go into vendor
             }
           },
         },
