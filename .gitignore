@@ -36,3 +36,6 @@ __pycache__/
 
 # Captured output artifacts
 .output.txt
+
+# Private strategy notes
+GLOBAL_EXPANSION.md

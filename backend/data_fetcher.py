@@ -7,9 +7,12 @@ gracefully to a pure-LLM fallback without crashing.
 Also exposes the shared Tax Calculator tool: ``calculate_pnl``.
 """
 import datetime
+import os
+import re
 import sys
 
 import pandas as pd
+import requests
 from typing import Optional, Dict, Any
 
 import yfinance as yf
@@ -543,31 +546,410 @@ def fetch_sentiment_data(ticker: str) -> Optional[Dict[str, Any]]:
 # Social platform stubs — wired for future API integrations
 # ---------------------------------------------------------------------------
 
+# StockTwits in-process cache: avoid re-fetching the same ticker within 1 hour
+# and stay well inside the 200 req/hour unauthenticated rate limit.
+_stocktwits_cache: Dict[str, Dict[str, Any]] = {}
+_STOCKTWITS_TTL = 60 * 60  # 1 hour in seconds
+
+
 def fetch_stocktwits_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
-    """Return StockTwits sentiment data for *ticker*.
+    """Return StockTwits sentiment data for *ticker* using the public symbol stream.
 
-    TODO: Integrate the StockTwits public API
-          (https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json)
-          and return a dict with keys: {bullish_count, bearish_count, posts}.
+    No API key required. Rate limit: 200 requests/hour unauthenticated.
+    Results are cached for 1 hour per ticker to stay well within that limit.
+    Returns None on any failure so the sentiment agent degrades gracefully.
     """
-    return None
+    key = ticker.upper()
+    cached = _stocktwits_cache.get(key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _STOCKTWITS_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
+    try:
+        url = f"https://api.stocktwits.com/api/2/streams/symbol/{key}.json"
+        resp = requests.get(url, timeout=8, headers={"User-Agent": "FinSurf/1.0"})
+        if resp.status_code != 200:
+            print(f"StockTwits: non-200 for {ticker}: {resp.status_code}", file=sys.stderr)
+            return None
+
+        messages = resp.json().get("messages", [])
+        if not messages:
+            return None
+
+        bullish = 0
+        bearish = 0
+        posts: list[str] = []
+
+        for msg in messages:
+            sentiment = (
+                msg.get("entities", {})
+                   .get("sentiment", {}) or {}
+            ).get("basic")
+
+            if sentiment == "Bullish":
+                bullish += 1
+            elif sentiment == "Bearish":
+                bearish += 1
+
+            # Collect up to 8 recent post snippets for the LLM
+            if len(posts) < 8:
+                body = msg.get("body", "").strip()
+                if body:
+                    posts.append(body)
+
+        total = bullish + bearish
+        bullish_pct = round(bullish / total * 100) if total else None
+        bearish_pct = round(bearish / total * 100) if total else None
+
+        result = {
+            "bullish_count": bullish,
+            "bearish_count": bearish,
+            "bullish_pct": bullish_pct,
+            "bearish_pct": bearish_pct,
+            "total_with_sentiment": total,
+            "posts": posts,
+        }
+        _stocktwits_cache[key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        return result
+    except Exception as exc:
+        print(f"StockTwits fetch failed for {ticker}: {exc}", file=sys.stderr)
+        return None
 
 
-def fetch_reddit_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
-    """Return Reddit sentiment data for *ticker*.
+# ---------------------------------------------------------------------------
+# Alpha Vantage — News & Sentiment
+# ---------------------------------------------------------------------------
 
-    TODO: Integrate Reddit API (PRAW or pushshift) to fetch posts from
-          r/stocks, r/investing, r/wallstreetbets mentioning *ticker*,
-          and return a dict with keys: {posts, upvote_ratio, sentiment_label}.
+_av_cache: Dict[str, Dict[str, Any]] = {}
+_AV_TTL = 60 * 60  # 1 hour — free tier is 25 calls/day, cache aggressively
+
+
+def fetch_alphavantage_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
+    """Return news sentiment data for *ticker* from Alpha Vantage NEWS_SENTIMENT.
+
+    Each article is pre-scored with a ticker-specific sentiment label
+    (Bullish / Somewhat-Bullish / Neutral / Somewhat-Bearish / Bearish)
+    and a relevance score.  Only articles with relevance >= 0.3 are counted.
+
+    Requires ALPHA_VANTAGE_API_KEY env var.
+    Results cached for 1 hour to stay within the free-tier limit (25 calls/day).
+    Returns None on any failure so the sentiment agent degrades gracefully.
     """
-    return None
+    key = ticker.upper()
+    cached = _av_cache.get(key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _AV_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
+    api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        resp = requests.get(
+            "https://www.alphavantage.co/query",
+            params={
+                "function": "NEWS_SENTIMENT",
+                "tickers": key,
+                "sort": "RELEVANCE",
+                "limit": 20,
+                "apikey": api_key,
+            },
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            print(f"Alpha Vantage error for {ticker}: {resp.status_code}", file=sys.stderr)
+            return None
+
+        data = resp.json()
+
+        # Rate-limit or info messages come back as {"Information": "..."} / {"Note": "..."}
+        if "Information" in data or "Note" in data:
+            print(f"Alpha Vantage rate limit reached for {ticker}", file=sys.stderr)
+            return None
+
+        feed = data.get("feed", [])
+        if not feed:
+            return None
+
+        bullish = bearish = neutral = 0
+        articles: list[Dict[str, Any]] = []
+
+        for article in feed:
+            # Find the sentiment entry specific to this ticker
+            ticker_sentiment = next(
+                (ts for ts in article.get("ticker_sentiment", []) if ts.get("ticker") == key),
+                None,
+            )
+            if not ticker_sentiment:
+                continue
+
+            relevance = float(ticker_sentiment.get("relevance_score", 0))
+            if relevance < 0.3:
+                continue  # article barely mentions this ticker — skip
+
+            label = ticker_sentiment.get("ticker_sentiment_label", "Neutral")
+            if "Bullish" in label:
+                bullish += 1
+            elif "Bearish" in label:
+                bearish += 1
+            else:
+                neutral += 1
+
+            if len(articles) < 8:
+                articles.append({
+                    "title":     article.get("title", ""),
+                    "source":    article.get("source", ""),
+                    "sentiment": label,
+                    "summary":   article.get("summary", "")[:200],
+                })
+
+        total = bullish + bearish + neutral
+        if total == 0:
+            return None
+
+        result: Dict[str, Any] = {
+            "bullish_count":  bullish,
+            "bearish_count":  bearish,
+            "neutral_count":  neutral,
+            "total_articles": total,
+            "bullish_pct":    round(bullish / total * 100) if total else None,
+            "bearish_pct":    round(bearish / total * 100) if total else None,
+            "articles":       articles,
+        }
+        _av_cache[key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        return result
+
+    except Exception as exc:
+        print(f"Alpha Vantage fetch failed for {ticker}", file=sys.stderr)
+        return None
 
 
-def fetch_twitter_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
-    """Return X/Twitter sentiment data for *ticker*.
+# ---------------------------------------------------------------------------
+# Finnhub — Company news, insider transactions, earnings surprises
+# ---------------------------------------------------------------------------
 
-    TODO: Integrate the X/Twitter API v2 (Tweepy or httpx) to search recent
-          tweets mentioning ${ticker}, and return a dict with keys:
-          {tweets, positive_count, negative_count, neutral_count}.
+_finnhub_cache: Dict[str, Dict[str, Any]] = {}
+_FINNHUB_TTL = 60 * 30  # 30 minutes
+
+
+def fetch_finnhub_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
+    """Return recent company news from Finnhub for the sentiment agent.
+
+    Requires FINNHUB_API_KEY env var (free tier: 60 req/min).
+    Returns None on any failure so the sentiment agent degrades gracefully.
     """
-    return None
+    api_key = os.environ.get("FINNHUB_API_KEY")
+    if not api_key:
+        return None
+
+    cache_key = f"fh_news_{ticker.upper()}"
+    cached = _finnhub_cache.get(cache_key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _FINNHUB_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
+    today = datetime.date.today()
+    from_date = (today - datetime.timedelta(days=30)).isoformat()
+
+    try:
+        resp = requests.get(
+            "https://finnhub.io/api/v1/company-news",
+            params={"symbol": ticker.upper(), "from": from_date, "to": today.isoformat(), "token": api_key},
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return None
+
+        raw = resp.json()
+        if not raw:
+            return None
+
+        articles = sorted(raw, key=lambda x: x.get("datetime", 0), reverse=True)[:8]
+        result: Dict[str, Any] = {
+            "articles": [
+                {
+                    "headline": a.get("headline", ""),
+                    "source":   a.get("source", ""),
+                    "date":     datetime.datetime.utcfromtimestamp(a["datetime"]).strftime("%Y-%m-%d") if a.get("datetime") else "",
+                    "url":      a.get("url", ""),
+                    "summary":  (a.get("summary") or "")[:200],
+                }
+                for a in articles
+            ],
+            "total": len(articles),
+        }
+        _finnhub_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        return result
+
+    except Exception as exc:
+        print(f"Finnhub news fetch failed for {ticker}: {exc}", file=sys.stderr)
+        return None
+
+
+def fetch_finnhub_research(ticker: str) -> Optional[Dict[str, Any]]:
+    """Return insider transactions and last earnings surprise from Finnhub.
+
+    Used by the research agent to surface insider buying/selling activity
+    and whether the company beat or missed its last earnings estimate.
+
+    Requires FINNHUB_API_KEY env var.
+    Returns None when the key is absent or both sub-fetches fail.
+    """
+    api_key = os.environ.get("FINNHUB_API_KEY")
+    if not api_key:
+        return None
+
+    cache_key = f"fh_research_{ticker.upper()}"
+    cached = _finnhub_cache.get(cache_key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _FINNHUB_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
+    result: Dict[str, Any] = {}
+
+    # --- Insider transactions (last 90 days) ---
+    try:
+        from_date = (datetime.date.today() - datetime.timedelta(days=90)).isoformat()
+        resp = requests.get(
+            "https://finnhub.io/api/v1/stock/insider-transactions",
+            params={"symbol": ticker.upper(), "from": from_date, "token": api_key},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            transactions = resp.json().get("data", [])
+            buys  = [t for t in transactions if t.get("transactionCode") == "P"]
+            sells = [t for t in transactions if t.get("transactionCode") == "S"]
+            if transactions:
+                recent = sorted(transactions, key=lambda x: x.get("transactionDate", ""), reverse=True)[:5]
+                result["insider"] = {
+                    "buy_count":  len(buys),
+                    "sell_count": len(sells),
+                    "recent": [
+                        {
+                            "name":   t.get("name", ""),
+                            "action": "Buy" if t.get("transactionCode") == "P" else "Sell",
+                            "shares": abs(t.get("change", 0)),
+                            "price":  t.get("transactionPrice"),
+                            "date":   t.get("transactionDate", ""),
+                        }
+                        for t in recent
+                    ],
+                }
+    except Exception as exc:
+        print(f"Finnhub insider fetch failed for {ticker}: {exc}", file=sys.stderr)
+
+    # --- Last earnings surprise ---
+    try:
+        resp = requests.get(
+            "https://finnhub.io/api/v1/stock/earnings",
+            params={"symbol": ticker.upper(), "limit": "4", "token": api_key},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            earnings = resp.json()
+            if earnings:
+                last = earnings[0]
+                result["earnings_surprise"] = {
+                    "period":       last.get("period", ""),
+                    "actual":       last.get("actual"),
+                    "estimate":     last.get("estimate"),
+                    "surprise_pct": last.get("surprisePercent"),
+                }
+    except Exception as exc:
+        print(f"Finnhub earnings fetch failed for {ticker}: {exc}", file=sys.stderr)
+
+    if not result:
+        return None
+
+    _finnhub_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+    return result
+
+
+# ---------------------------------------------------------------------------
+# SEC EDGAR — Recent 8-K filings (material events)
+# ---------------------------------------------------------------------------
+
+_edgar_cache: Dict[str, Dict[str, Any]] = {}
+_EDGAR_TTL = 60 * 60 * 4  # 4 hours — regulatory filings don't change frequently
+
+# SEC requires a descriptive User-Agent with a contact address.
+_EDGAR_HEADERS = {"User-Agent": "FinSurf/1.0 (research tool; contact@finsurf.app)"}
+
+
+def _get_edgar_cik(ticker: str) -> Optional[str]:
+    """Return the 10-digit CIK string for a given ticker, or None."""
+    try:
+        resp = requests.get(
+            "https://www.sec.gov/cgi-bin/browse-edgar",
+            params={
+                "action": "getcompany", "ticker": ticker.upper(),
+                "type": "8-K", "owner": "include", "count": "1", "output": "atom",
+            },
+            headers=_EDGAR_HEADERS,
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return None
+        match = re.search(r"CIK(\d+)", resp.text)
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
+def fetch_edgar_filings(ticker: str) -> Optional[Dict[str, Any]]:
+    """Return recent 8-K filings for ticker from SEC EDGAR.
+
+    8-K forms disclose material events: M&A, leadership changes, earnings
+    releases, guidance updates, restatements, etc. — high-signal inputs for
+    both pre-trade and post-trade analysis.
+
+    No API key required. Results cached 4 hours per ticker.
+    Returns None on any failure so agents degrade gracefully.
+    """
+    cache_key = ticker.upper()
+    cached = _edgar_cache.get(cache_key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _EDGAR_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
+    cik = _get_edgar_cik(ticker)
+    if not cik:
+        return None
+
+    try:
+        padded_cik = cik.zfill(10)
+        resp = requests.get(
+            f"https://data.sec.gov/submissions/CIK{padded_cik}.json",
+            headers=_EDGAR_HEADERS,
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return None
+
+        data = resp.json()
+        recent = data.get("filings", {}).get("recent", {})
+        forms       = recent.get("form", [])
+        dates       = recent.get("filingDate", [])
+        accessions  = recent.get("accessionNumber", [])
+        descriptions = recent.get("primaryDocDescription", [])
+
+        cutoff = (datetime.date.today() - datetime.timedelta(days=60)).isoformat()
+        filings = []
+        for form, date, acc, desc in zip(forms, dates, accessions, descriptions):
+            if form != "8-K" or date < cutoff:
+                continue
+            acc_clean = acc.replace("-", "")
+            filings.append({
+                "date":        date,
+                "description": desc or "Material Event",
+                "url":         f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{acc_clean}/{acc}-index.htm",
+            })
+            if len(filings) >= 6:
+                break
+
+        if not filings:
+            return None
+
+        result = {"company": data.get("name", ticker.upper()), "filings": filings}
+        _edgar_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        return result
+
+    except Exception as exc:
+        print(f"SEC EDGAR fetch failed for {ticker}: {exc}", file=sys.stderr)
+        return None

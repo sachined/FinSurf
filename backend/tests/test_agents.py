@@ -214,8 +214,8 @@ class TestSentimentAgent(unittest.TestCase):
         from backend.financial_agents import social_sentiment_agent
         with patch(f"{SENTIMENT_MODULE}.fetch_sentiment_data", return_value=MOCK_SENTIMENT_DATA):
             with patch(f"{SENTIMENT_MODULE}.fetch_stocktwits_sentiment", return_value=None):
-                with patch(f"{SENTIMENT_MODULE}.fetch_reddit_sentiment", return_value=None):
-                    with patch(f"{SENTIMENT_MODULE}.fetch_twitter_sentiment", return_value=None):
+                with patch(f"{SENTIMENT_MODULE}.fetch_finnhub_sentiment", return_value=None):
+                    with patch(f"{SENTIMENT_MODULE}.fetch_edgar_filings", return_value=None):
                         with patch(f"{SENTIMENT_MODULE}.call_gemini", return_value="Bullish.") as mock_gemini:
                             with patch(f"{HELPERS_MODULE}.call_perplexity") as mock_perplexity:
                                 result = social_sentiment_agent("AAPL", skip_guardrail=True)
@@ -232,8 +232,8 @@ class TestSentimentAgent(unittest.TestCase):
         perplexity_response = json.dumps({"content": "Perplexity sentiment.", "citations": ["https://reddit.com"]})
         with patch(f"{SENTIMENT_MODULE}.fetch_sentiment_data", return_value=thin_data):
             with patch(f"{SENTIMENT_MODULE}.fetch_stocktwits_sentiment", return_value=None):
-                with patch(f"{SENTIMENT_MODULE}.fetch_reddit_sentiment", return_value=None):
-                    with patch(f"{SENTIMENT_MODULE}.fetch_twitter_sentiment", return_value=None):
+                with patch(f"{SENTIMENT_MODULE}.fetch_finnhub_sentiment", return_value=None):
+                    with patch(f"{SENTIMENT_MODULE}.fetch_edgar_filings", return_value=None):
                         with patch(f"{HELPERS_MODULE}.call_perplexity", return_value=perplexity_response) as mock_perplexity:
                             result = social_sentiment_agent("TSLA", skip_guardrail=True)
                             data = json.loads(result)
@@ -247,8 +247,8 @@ class TestSentimentAgent(unittest.TestCase):
         thin_data = {"news": [], "recommendations": {}}
         with patch(f"{SENTIMENT_MODULE}.fetch_sentiment_data", return_value=thin_data):
             with patch(f"{SENTIMENT_MODULE}.fetch_stocktwits_sentiment", return_value=None):
-                with patch(f"{SENTIMENT_MODULE}.fetch_reddit_sentiment", return_value=None):
-                    with patch(f"{SENTIMENT_MODULE}.fetch_twitter_sentiment", return_value=None):
+                with patch(f"{SENTIMENT_MODULE}.fetch_finnhub_sentiment", return_value=None):
+                    with patch(f"{SENTIMENT_MODULE}.fetch_edgar_filings", return_value=None):
                         with patch(f"{HELPERS_MODULE}.call_perplexity", side_effect=Exception("down")):
                             with patch(f"{HELPERS_MODULE}.call_gemini", return_value="Gemini fallback."):
                                 result = social_sentiment_agent("TSLA", skip_guardrail=True)

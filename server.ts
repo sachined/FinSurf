@@ -77,7 +77,10 @@ async function startServer() {
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
   const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
-  const LANGCHAIN_API_KEY = getSecret("LANGCHAIN_API_KEY", "LANGCHAIN_API_KEY_FILE");
+  const LANGCHAIN_API_KEY    = getSecret("LANGCHAIN_API_KEY",    "LANGCHAIN_API_KEY_FILE");
+  const REDDIT_CLIENT_ID      = getSecret("REDDIT_CLIENT_ID",      "REDDIT_CLIENT_ID_FILE");
+  const REDDIT_CLIENT_SECRET  = getSecret("REDDIT_CLIENT_SECRET",  "REDDIT_CLIENT_SECRET_FILE");
+  const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
   const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
   const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
 
@@ -85,7 +88,10 @@ async function startServer() {
   process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
   process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
   process.env.GROQ_API_KEY = GROQ_API_KEY || "";
-  if (LANGCHAIN_API_KEY) process.env.LANGCHAIN_API_KEY = LANGCHAIN_API_KEY;
+  if (LANGCHAIN_API_KEY)    process.env.LANGCHAIN_API_KEY    = LANGCHAIN_API_KEY;
+  if (REDDIT_CLIENT_ID)      process.env.REDDIT_CLIENT_ID      = REDDIT_CLIENT_ID;
+  if (REDDIT_CLIENT_SECRET)  process.env.REDDIT_CLIENT_SECRET  = REDDIT_CLIENT_SECRET;
+  if (ALPHA_VANTAGE_API_KEY) process.env.ALPHA_VANTAGE_API_KEY = ALPHA_VANTAGE_API_KEY;
 
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);

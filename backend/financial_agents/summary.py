@@ -77,7 +77,8 @@ def executive_summary_agent(
 
     # 3. Tax Implications
     if "Takeaway" in tax_text:
-        tax_takeaway = tax_text.split("Takeaway")[-1].split('\n')[0].strip()
+        after = tax_text.split("Takeaway")[-1]
+        tax_takeaway = next((l.strip() for l in after.split('\n') if l.strip().strip('*')), "")
         if tax_takeaway:
             summary_parts.append(f"**Tax:** {tax_takeaway}")
     elif tax_text and tax_text != "No data available.":

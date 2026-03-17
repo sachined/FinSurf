@@ -7,8 +7,9 @@ from ..llm_providers import call_gemini
 from ..data_fetcher import (
     fetch_sentiment_data,
     fetch_stocktwits_sentiment,
-    fetch_reddit_sentiment,
-    fetch_twitter_sentiment,
+    fetch_alphavantage_sentiment,
+    fetch_finnhub_sentiment,
+    fetch_edgar_filings,
 )
 from ._helpers import _blocked_json, _perplexity_with_gemini_fallback
 from .guardrail import security_guardrail
@@ -20,9 +21,9 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched
     Data priority:
       1. Prefetched_data (provided by the graph node to save YF calls)
       2. Finance news headlines and analyst recommendations (free, no API key)
-      3. Social platform stubs: StockTwits, Reddit, X/Twitter (return None until wired)
+      3. StockTwits public stream — live bullish/bearish counts + recent posts (no key needed)
       4. Perplexity (live web search) — only called when yfinance data is thin
-         (fewer than 3 headlines OR no analyst recommendations)
+         AND no StockTwits data is available
       5. Gemini — fallback when Perplexity fails or is unavailable
 
     Returns a JSON string: {content, citations}.
@@ -31,16 +32,19 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched
         return _blocked_json()
 
     yf_data = prefetched_data if prefetched_data else fetch_sentiment_data(ticker)
-    stocktwits = fetch_stocktwits_sentiment(ticker)
-    reddit = fetch_reddit_sentiment(ticker)
-    twitter = fetch_twitter_sentiment(ticker)
+    stocktwits  = fetch_stocktwits_sentiment(ticker)
+    av_news     = fetch_alphavantage_sentiment(ticker)
+    finnhub     = fetch_finnhub_sentiment(ticker)
+    edgar       = fetch_edgar_filings(ticker)
 
     news_items = yf_data.get("news", []) if yf_data else []
     recommendations = yf_data.get("recommendations", {}) if yf_data else {}
 
     has_enough_news = len(news_items) >= 3
     has_analyst_recs = bool(recommendations)
-    needs_llm = not has_enough_news or not has_analyst_recs
+    has_social = bool(stocktwits or av_news or finnhub or edgar)
+    # Skip Perplexity when live social/news-sentiment data compensates for thin yf data
+    needs_llm = (not has_enough_news or not has_analyst_recs) and not has_social
 
     data_sections: list = []
 
@@ -55,13 +59,42 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched
         data_sections.append(f"Analyst recommendations (last 3 months) — {rec_parts}")
 
     if stocktwits:
-        data_sections.append(f"StockTwits data: {stocktwits}")
+        st_lines = [
+            f"StockTwits — last 30 messages for {ticker}:",
+            f"  Bullish: {stocktwits['bullish_count']} ({stocktwits['bullish_pct']}%)"
+            if stocktwits['bullish_pct'] is not None else f"  Bullish: {stocktwits['bullish_count']}",
+            f"  Bearish: {stocktwits['bearish_count']} ({stocktwits['bearish_pct']}%)"
+            if stocktwits['bearish_pct'] is not None else f"  Bearish: {stocktwits['bearish_count']}",
+        ]
+        if stocktwits.get("posts"):
+            st_lines.append("  Recent posts (sample):")
+            st_lines.extend(f"    • {p}" for p in stocktwits["posts"])
+        data_sections.append("\n".join(st_lines))
 
-    if reddit:
-        data_sections.append(f"Reddit data: {reddit}")
+    if av_news:
+        av_lines = [
+            f"Alpha Vantage News Sentiment — {av_news['total_articles']} relevant articles for {ticker}:",
+            f"  Bullish: {av_news['bullish_count']} ({av_news['bullish_pct']}%)"
+            f"  |  Bearish: {av_news['bearish_count']} ({av_news['bearish_pct']}%)"
+            f"  |  Neutral: {av_news['neutral_count']}",
+        ]
+        if av_news.get("articles"):
+            av_lines.append("  Top articles:")
+            for a in av_news["articles"][:5]:
+                av_lines.append(f"    • [{a['source']}] {a['title']} → {a['sentiment']}")
+        data_sections.append("\n".join(av_lines))
 
-    if twitter:
-        data_sections.append(f"X/Twitter data: {twitter}")
+    if finnhub:
+        fh_lines = [f"Finnhub News — {finnhub['total']} recent articles for {ticker}:"]
+        for a in finnhub["articles"][:6]:
+            fh_lines.append(f"  • [{a['source']}] [{a['date']}] {a['headline']}")
+        data_sections.append("\n".join(fh_lines))
+
+    if edgar:
+        ed_lines = [f"SEC EDGAR — Recent 8-K filings for {edgar['company']}:"]
+        for f in edgar["filings"]:
+            ed_lines.append(f"  • [{f['date']}] {f['description']} → {f['url']}")
+        data_sections.append("\n".join(ed_lines))
 
     data_block = "\n\n".join(data_sections)
 
@@ -78,16 +111,18 @@ Use these facts as the foundation for your report — do not contradict them:
     table_rows = "| 📰 News | 🟢/🔴/🟡/— | one-line note |\n| 📊 Analysts | 🟢/🔴/🟡/— | one-line note |"
     if stocktwits:
         table_rows += "\n| 📣 StockTwits | 🟢/🔴/🟡/— | one-line note |"
-    if reddit:
-        table_rows += "\n| 💬 Reddit | 🟢/🔴/🟡/— | one-line note |"
-    if twitter:
-        table_rows += "\n| 🐦 X/Twitter | 🟢/🔴/🟡/— | one-line note |"
+    if av_news:
+        table_rows += "\n| 📰 News Sentiment | 🟢/🔴/🟡/— | one-line note |"
+    if finnhub:
+        table_rows += "\n| 📡 Finnhub News | 🟢/🔴/🟡/— | one-line note |"
+    if edgar:
+        table_rows += "\n| 🏛 SEC Filings | 🟢/🔴/🟡/— | one-line note |"
 
-    social_note = (
-        "\n*Social signals (Reddit, StockTwits, X/Twitter) not yet available from direct feeds.*"
-        if not (stocktwits or reddit or twitter)
-        else ""
-    )
+    live = [s for s, v in [("StockTwits", stocktwits), ("News Sentiment", av_news), ("Finnhub", finnhub), ("SEC EDGAR", edgar)] if v]
+    if not live:
+        social_note = "\n*No live data feeds available — analysis based on web search.*"
+    else:
+        social_note = ""
 
     prompt = f"""{structured_preamble}Output a compact sentiment card for '{ticker}' (past 7 days). Use only the data provided above plus web search where needed. No padding.
 

@@ -9,6 +9,7 @@ from ..data_fetcher import (
     calculate_pnl,
     fetch_price_on_date,
     fetch_research_data,
+    fetch_finnhub_research,
     _price_from_history,
 )
 from ._helpers import _blocked_json
@@ -30,7 +31,8 @@ def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", sk
     if not skip_guardrail and not security_guardrail(ticker):
         return _blocked_json()
 
-    fetched = fetch_research_data(ticker)
+    fetched  = fetch_research_data(ticker)
+    finnhub  = fetch_finnhub_research(ticker)
     price_history = fetched.get("price_history", []) if fetched else []
     dividend_data = fetched.get("dividend_data") if fetched else None
 
@@ -51,6 +53,32 @@ def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", sk
             pass
 
     if fetched:
+        finnhub_lines = []
+        if finnhub:
+            if finnhub.get("earnings_surprise"):
+                es = finnhub["earnings_surprise"]
+                if es.get("surprise_pct") is not None:
+                    direction = "beat" if es["surprise_pct"] >= 0 else "missed"
+                    finnhub_lines.append(
+                        f"- Last earnings ({es['period']}): {direction} estimate by {abs(es['surprise_pct']):.1f}%"
+                        f" (actual {es['actual']} vs estimate {es['estimate']})"
+                    )
+            if finnhub.get("insider"):
+                ins = finnhub["insider"]
+                finnhub_lines.append(
+                    f"- Insider activity (last 90 days): {ins['buy_count']} open-market buy(s), {ins['sell_count']} sell(s)"
+                )
+                for t in ins["recent"][:3]:
+                    price_str = f" @ ${t['price']:.2f}" if t.get("price") else ""
+                    finnhub_lines.append(f"  • {t['name']}: {t['action']} {t['shares']:,} shares{price_str} on {t['date']}")
+
+        finnhub_block = ("\n" + "\n".join(finnhub_lines)) if finnhub_lines else ""
+        insider_question = (
+            "\n7. Insiders: Are company insiders net buyers or sellers over the last 90 days, and what does that signal?"
+            if finnhub and finnhub.get("insider") else ""
+        )
+        insider_instruction = " Answer all 7 — do not skip any." if finnhub and finnhub.get("insider") else " Answer all 6 — do not skip any."
+
         data_block = f"""Here is current data for {ticker} retrieved from market data (do not re-fetch or guess — use only these numbers):
 - Current Price: {fetched['current_price']}
 - 52-Week High: {fetched['week_52_high']}
@@ -63,17 +91,17 @@ def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", sk
 - Institutional ownership: {fetched['institutional_ownership']}
 - Analyst consensus: {fetched['recommendation']} (based on {fetched['analyst_count']} analysts)
 - Analyst price target: Low {fetched['analyst_target_low']} / Mean {fetched['analyst_target_mean']} / High {fetched['analyst_target_high']}
-- Earnings growth (year over year): {fetched['earnings_growth']}
+- Earnings growth (year over year): {fetched['earnings_growth']}{finnhub_block}
 """
         prompt = f"""{data_block}
-Answer each of the 6 points below using only the data above. Each answer must be exactly one sentence. Answer all 6 — do not skip any.
+Answer each of the points below using only the data above. Each answer must be exactly one sentence.{insider_instruction}
 
 1. Price & Range: Is the stock near its 52-week high, low, or middle, and what does that signal?
 2. Size & Volatility: What market cap tier is this (large/mid/small-cap), and is the beta calm, average, or volatile?
 3. Valuation: Is the trailing P/E cheap, fair, or stretched, and does the forward P/E suggest the market expects improvement?
 4. Growth: Is revenue growing, shrinking, or flat year-over-year?
 5. Conviction: Does the combination of institutional ownership and analyst consensus signal confidence or caution?
-6. Risk/Reward: How far is the analyst mean price target from the current price, and name the single biggest risk from these categories — valuation (P/E vs growth), debt/leverage, macro sensitivity (rates/cycle), competition, or regulatory?
+6. Risk/Reward: How far is the analyst mean price target from the current price, and name the single biggest risk from these categories — valuation (P/E vs growth), debt/leverage, macro sensitivity (rates/cycle), competition, or regulatory?{insider_question}
 
 For any N/A value, write "N/A" in the sentence — do not explain it.
 Finish with one sentence verdict: is {ticker} worth further research for a retail investor, and what is the single most important factor (bullish or bearish) driving that view?

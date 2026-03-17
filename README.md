@@ -33,7 +33,7 @@ Enter a stock ticker, your purchase date, and share count. FinSurf's agent netwo
 1. **Guardrail Agent** validates your query before spending any API tokens
 2. **Research Agent** pulls fundamentals, key metrics, and recent performance
 3. **Tax Strategist** calculates your holding period and capital gains tax status
-4. **Sentiment Analyst** aggregates signals from Reddit, X, StockTwits, and news outlets
+4. **Sentiment Analyst** aggregates signals from StockTwits, Finnhub news, Alpha Vantage sentiment, and SEC EDGAR filings
 5. **Dividend Specialist** *(conditional)* projects future payouts using Python arithmetic — not LLM guesses
 
 Results appear in an interactive dashboard. Click **Download PDF** for a professionally formatted report in Standard or HD layout.
@@ -199,12 +199,33 @@ For internet-facing deployment with automatic HTTPS, see the [Docker section of 
 | **Phase 3b** | AI Chat                                  | Single-session "ask about this analysis" chat built on top of 3a using a conversational LangGraph node; cross-analysis RAG deferred                               | Mid–Late 2027 |
 | **Stretch**  | Scenario Planner                         | "If price reaches $X, your gain is Y and your tax status is Z" — informational only, not prescriptive                                                             | TBD           |
 | **Stretch**  | Options Radar                            | Read-only display of top 5 contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins | TBD           |
+| **India**    | India Market Mode (`.NS` / `.BO`)        | Auto-detect NSE/BSE tickers and switch to Indian tax rules, INR display, and India-specific data sources — no user configuration required                         | TBD           |
+| **India**    | Indian Tax Module                        | STCG (20%), LTCG (12.5% above ₹1.25L), STT, April–March fiscal year; reflects post-July 2024 Union Budget rates; DTAA flag for NRI investors                    | TBD           |
+| **India**    | NRI Dual-Currency View                   | Show INR value alongside USD equivalent for each position; surface FX impact separately from stock performance so NRIs see their true USD return                  | TBD           |
+| **India**    | BSE Corporate Announcements              | Equivalent of SEC EDGAR 8-K for Indian-listed companies; material events sourced from BSE disclosure feed                                                         | TBD           |
+| **Japan**    | Japan Market Mode (`.T` tickers)         | Auto-detect TSE tickers and switch to Japanese market context; initial release English-only targeting foreign residents in Japan and international TSE investors   | TBD           |
+| **Japan**    | Japanese Tax Module                      | Flat 20.315% capital gains (income tax + reconstruction tax + local inhabitant tax); NISA account awareness (¥18M lifetime tax-free); no holding-period distinction | TBD           |
+| **Japan**    | J-Quants Data Integration                | JPX's official API for TSE price history, corporate financials, and earnings data; supplements yfinance which thins out on mid/small-cap Japanese names            | TBD           |
+| **Japan**    | EDINET Filings                           | Japan's official securities filing database (FSA/Ministry of Finance); equivalent of SEC EDGAR for TSE-listed companies; no API key required                      | TBD           |
+| **Japan**    | Japanese-Language Product                | Full Japanese UI/UX adaptation including shareholder perks (株主優待) database, density-first layout norms, and Japanese-native copy — separate product decision  | TBD           |
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome — new agent modules, improved validation, bug reports, or tests. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code conventions, and the PR process.
+
+---
+
+## 🌍 Global Community
+
+FinSurf's long-term mission is to bring professional-grade financial analysis to retail investors
+everywhere — not just the US. If you invest in markets outside the US and would like to see
+FinSurf support your local exchange, tax rules, and data sources, reach out or open a discussion
+on GitHub. Every market expansion starts with someone who knows it from the inside.
+
+👉 [Open a GitHub Discussion](https://github.com/sachined/FinSurf/discussions) or
+[file an issue](https://github.com/sachined/FinSurf/issues) — label it `global-expansion`.
 
 ---
 

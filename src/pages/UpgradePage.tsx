@@ -13,7 +13,7 @@ import { cn } from '../utils/cn';
 import { type AccessMode } from '../types';
 import { createPaymentIntent, validatePass } from '../services/apiService';
 
-// Initialise outside component — avoids re-creation on re-renders.
+// Initialize outside component — avoids re-creation on re-renders.
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
