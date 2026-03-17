@@ -4,7 +4,6 @@ Research agent — equity analysis grounded by yfinance data.
 import json
 import sys
 from typing import Dict, Any, Optional
-from ..llm_providers import call_gemini, call_groq
 from ..data_fetcher import (
     calculate_pnl,
     fetch_price_on_date,
@@ -12,7 +11,7 @@ from ..data_fetcher import (
     fetch_finnhub_research,
     _price_from_history,
 )
-from ._helpers import _blocked_json
+from ._helpers import _blocked_json, _groq_with_gemini_fallback
 from .guardrail import security_guardrail
 
 
@@ -143,11 +142,7 @@ If {ticker} is not a recognised stock, say "Ticker Not Found" and stop."""
         "recommendations": fetched.get("recommendations", {}) if fetched else {},
     }
     try:
-        try:
-            content = call_groq(prompt, system, max_tokens=max_tokens, agent="research")
-        except Exception as groq_err:
-            print(f"Groq research unavailable, falling back to Gemini: {groq_err}", file=sys.stderr)
-            content = call_gemini(prompt, system, max_tokens=max_tokens, agent="research")
+        content = _groq_with_gemini_fallback(prompt, system, max_tokens=max_tokens, agent="research")
         return json.dumps({"content": content, **envelope})
     except Exception as e:
         print(f"Research analysis failed: {e}", file=sys.stderr)
