@@ -1,4 +1,4 @@
-﻿# Contributing to FinSurf 🏄‍♂️
+# Contributing to FinSurf 🏄‍♂️
 
 Thank you for your interest in contributing! Whether you're fixing a bug, adding a new agent, improving tests, or enhancing the UI, all contributions are appreciated.
 
@@ -54,8 +54,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable             | Required    | Description                                                        |
 |----------------------|-------------|--------------------------------------------------------------------|
-| `GEMINI_API_KEY`     | âœ…         | Primary LLM provider                                               |
+| `GEMINI_API_KEY`     | ✅          | Primary LLM provider                                               |
 | `PERPLEXITY_API_KEY` | Optional    | Real-time web search for Research & Sentiment agents               |
+| `GROQ_API_KEY`       | Optional    | Fast inference fallback for Tax and Research agents (Groq cloud)   |
 | `APP_SECRET`         | Recommended | Bearer token protecting all `/api/` routes                         |
 | `CORS_ORIGIN`        | Production  | Comma-separated allowed origins                                    |
 | `DOMAIN`             | Production  | Domain for Caddy TLS certificate                                   |
@@ -71,10 +72,17 @@ Open [http://localhost:3000](http://localhost:3000).
 FinSurf/
 ├── backend/
 │   ├── agents.py            # CLI entry point — dispatches to LangGraph
-│   ├── graph.py             # LangGraph StateGraph definition
-│   ├── financial_agents.py  # Individual agent implementations
+│   ├── graph.py             # LangGraph StateGraph definition and FinSurfState schema
+│   ├── financial_agents/    # Agent implementations (one module per agent)
+│   │   ├── guardrail.py     # Ticker validation
+│   │   ├── research.py      # Equity research (Perplexity / Gemini)
+│   │   ├── tax_dividend.py  # Combined tax + dividend agent
+│   │   ├── sentiment.py     # Market sentiment (Perplexity / Gemini)
+│   │   ├── summary.py       # Executive summary (template-based, zero LLM tokens)
+│   │   └── _helpers.py      # Shared LLM call helpers and fallback logic
+│   ├── data_fetcher.py      # yfinance, Finnhub, and P&L calculation
 │   ├── telemetry.py         # Token usage & cost tracking (SQLite)
-│   ├── llm_providers.py     # Provider abstraction & fallback logic
+│   ├── llm_providers.py     # Provider abstraction (Gemini, Perplexity, Groq)
 │   ├── utils.py             # Shared helpers
 │   └── tests/               # Python unit tests (unittest + mocks)
 ├── src/
@@ -106,7 +114,7 @@ python -m pytest backend/tests/
 python -m unittest discover -s backend/tests
 ```
 
-Tests cover four core modules: `financial_agents`, `graph`, `telemetry`, and `utils`.
+Tests cover five modules: `financial_agents` (agents), `data_fetcher`, `graph`, `telemetry`, and `utils`.
 
 **When contributing, please ensure:**
 - New agent modules include a corresponding test file following the existing mock pattern.
@@ -121,7 +129,7 @@ Tests cover four core modules: `financial_agents`, `graph`, `telemetry`, and `ut
 - Follow **PEP 8**.
 - Use type hints on function signatures.
 - Mock all external LLM and API calls in tests — never make real network requests from tests.
-- Keep agent logic in `financial_agents.py`; keep graph wiring in `graph.py`.
+- Each agent lives in its own module under `backend/financial_agents/`; keep graph wiring in `graph.py`.
 
 ### TypeScript / React (Frontend)
 - Follow the existing component structure under `src/components/`.
@@ -140,7 +148,7 @@ Tests cover four core modules: `financial_agents`, `graph`, `telemetry`, and `ut
 
 FinSurf's agent pipeline is defined in `backend/graph.py` as a LangGraph `StateGraph`. To add a new specialist agent:
 
-1. **Implement the agent function** in `backend/financial_agents.py`, following the signature of existing agents. The function receives `FinSurfState` and returns a partial state update.
+1. **Implement the agent function** as a new module in `backend/financial_agents/` (e.g. `my_agent.py`), following the signature of existing agents. The function receives `FinSurfState` and returns a partial state update. Export it from `backend/financial_agents/__init__.py`.
 
 2. **Register the node** in `graph.py`:
    ```python

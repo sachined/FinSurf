@@ -8,17 +8,20 @@
 export const resumeData = {
   // ── Hero ──────────────────────────────────────────────────────────────────
   name: "Sachin Nediyanchath",
-  title: "Full-Stack Developer & Financial Technology Enthusiast",
-  tagline: "Building tools that make complex financial data accessible to everyone.",
+  title: "Full-Stack Developer & AI Systems Builder",
+  tagline: "Building tools that make professional-grade financial analysis accessible to every investor.",
   avatarInitials: "SN", // shown when no photo is provided
   photo: "/GPJaTh.webp",  // place your photo in the public/ folder and set the filename here; set to "" to use initials instead
 
   // ── Bio ───────────────────────────────────────────────────────────────────
   bio: [
-    "A tech generalist passionate about the intersection of technology and personal finance. I built FinSurf to help " +
-    "everyday investors understand market data without needing a finance degree. With a background spanning full-stack " +
-    "web development, cloud infrastructure, and AI integration, I enjoy turning dense datasets into clear, actionable " +
-    "insights for retail investors.",
+    "I build AI-powered tools that solve real problems for real people. FinSurf started from a simple observation: " +
+    "the kind of financial analysis available to institutional investors has always been out of reach for retail investors — " +
+    "locked behind expensive advisors, opaque tools, or a finance degree. I built FinSurf to close that gap.",
+
+    "My background spans enterprise software implementation, cloud infrastructure, and full-stack development. " +
+    "I spent four years at eGain managing Fortune 500 deployments — working at the intersection of AI, knowledge management, " +
+    "and large-scale technical rollouts — before transitioning into independent software development.",
   ],
 
   // ── Skills ────────────────────────────────────────────────────────────────
@@ -29,15 +32,15 @@ export const resumeData = {
     },
     {
       category: "Backend",
-      items: ["Node.js", "Python", "FastAPI", "LangGraph"],
+      items: ["Node.js", "Express", "Python", "LangGraph", "LangChain"],
     },
     {
       category: "Data & AI",
-      items: ["Gemini API", "Groq", "yfinance", "SQLite"],
+      items: ["Gemini API", "Perplexity", "Groq", "yfinance", "SQLite"],
     },
     {
       category: "DevOps",
-      items: ["Docker", "GitHub Actions", "Caddy", "DigitalOcean"],
+      items: ["Docker", "Caddy", "GitHub Actions", "DigitalOcean"],
     },
   ],
 
@@ -48,13 +51,12 @@ export const resumeData = {
       company: "eGain Corp",
       period: "2020 – 2024",
       bullets: [
-        "Managed Fortune 500 accounts (including Worldpay and Fidelity Investments) as primary POC across clients," +
-        " internal engineering teams, and third-party stakeholders throughout all deployment stages.",
-        "Onboarded enterprise clients to AI-powered Knowledge Management platform through full lifecycle: configuration," +
-        " content normalization, production deployment and ongoing optimization.",
-        "Automated recurring Excel reporting workflows using AI-generated action scripts, reducing task completion time " +
-        "from 1 hour to 15 minutes (75% efficiency gain)",
-        "This experience solidified my passion for automation and efficiency, setting the stage for my future endeavors in tech."
+        "Managed Fortune 500 accounts — including Worldpay and Fidelity Investments — as primary technical point of " +
+        "contact across clients, internal engineering teams, and third-party stakeholders throughout all deployment stages.",
+        "Onboarded enterprise clients to an AI-powered Knowledge Management platform through full lifecycle: " +
+        "configuration, content normalization, production deployment, and ongoing optimization.",
+        "Automated recurring Excel reporting workflows using AI-generated action scripts, reducing task completion " +
+        "time from 1 hour to 15 minutes — a 75% efficiency gain.",
       ],
     },
     {
@@ -62,9 +64,9 @@ export const resumeData = {
       company: "v12Software",
       period: "2018",
       bullets: [
-        "Engaged in SaaS win-back engagements for automotive dealerships; recovered dormant account through consultative demonstration.",
-        `First exposure to SaaS environment and Agile development, which helps remind me that a product was once not perfect, but rather 
-        improved from customer feedback. FinSurf definitely has issues, but I hope to improve it according to what the users want.`,
+        "Conducted SaaS win-back engagements for automotive dealerships, recovering dormant accounts through " +
+        "consultative product demonstrations.",
+        "Gained first exposure to SaaS product cycles and Agile development methodology in a commercial environment.",
       ],
     },
     {
@@ -72,8 +74,8 @@ export const resumeData = {
       company: "MMA & TPG",
       period: "2017 – 2019",
       bullets: [
-        "Enterprise tech deployment & workspace migrations at Apple, Broadcom, Salesforce and Bay Area campuses.",
-        "Saw directly how compartmentalization of labor benefits all involved, so FinSurf is inspired by efforts of investing research.",
+        "Delivered enterprise tech deployments and workspace migrations at Apple, Broadcom, Salesforce, and " +
+        "other Bay Area campuses.",
       ],
     },
     {
@@ -81,9 +83,7 @@ export const resumeData = {
       company: "NeuroLeap",
       period: "2017",
       bullets: [
-        "Utilized C++ development and Linux diagnostics for educational technology prototype.",
-        "Practiced Linux in order to troubleshoot a prototype, and used C++ to create diagnostic tools. This helps me be tech-agnostic, " +
-        "so I can adapt to changing tech environments smoothly.",
+        "C++ development and Linux diagnostics for an educational technology prototype.",
       ],
     },
     {
@@ -92,7 +92,6 @@ export const resumeData = {
       period: "2016",
       bullets: [
         "Diagnostic testing of next-generation mobile devices at AppleCare.",
-        "Where I came across Linux environment when testing, and that grew my passion for troubleshooting tech.",
       ],
     },
   ],
@@ -101,7 +100,7 @@ export const resumeData = {
   education: [
     {
       degree: "B.A. Geography",
-      school: "University of California - Los Angeles",
+      school: "University of California — Los Angeles",
       year: "2014",
     },
   ],
@@ -109,16 +108,19 @@ export const resumeData = {
   // ── Projects ──────────────────────────────────────────────────────────────
   projects: [
     {
-      name: "FinSurf.ai",
+      name: "FinSurf",
       description:
-        "Multi-agent AI platform for retail stock analysis. Combines yfinance data with Gemini, Groq, and Perplexity to deliver plain-English market insights.",
+        "Multi-agent AI platform for retail stock analysis. A LangGraph state machine orchestrates five specialist " +
+        "agents — research, tax strategy, market sentiment, dividend analysis, and executive summary — delivering " +
+        "professional-grade reports in seconds. Built solo, end-to-end.",
       url: "https://finsurf.net",
     },
     {
       name: "WikiSurf",
       description:
-        "An autonomous research agent that accepts a topic, orchestrates multiple search tools in priority order, and " +
-          "returns a structured summary with cited sources — all rendered in a rich terminal UI.",
+        "Autonomous research agent that accepts a natural language topic, dynamically selects from Wikipedia, " +
+        "DuckDuckGo, and file-save tools across up to 10 reasoning iterations, and returns a structured summary " +
+        "with cited sources. Supports Claude and GPT-4o as interchangeable reasoning engines.",
       url: "https://github.com/sachined/WikiSurf-AI_Agent",
     },
   ],
@@ -128,6 +130,6 @@ export const resumeData = {
     email: "sachin.nediyanchath@gmail.com",
     linkedin: "https://www.linkedin.com/in/nediyanchath/",
     github: "https://github.com/sachined",
-    website: "https://weather-and-billboard.vercel.app/",
+    website: "",
   },
 };

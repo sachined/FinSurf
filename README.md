@@ -1,4 +1,4 @@
-﻿# FinSurf 🏄‍♂️ https://finsurf.net/
+# FinSurf 🏄‍♂️ https://finsurf.net/
 ![FinSurf_run](https://github.com/user-attachments/assets/535a0a48-c39c-4f8b-b4db-9e4bd15eaf49)
 
 *AI-Powered Stock Analysis Platform*
@@ -20,8 +20,8 @@
 | Sentiment Agent            | ✅ Production      |
 | PDF Export (Standard + HD) | ✅ Production      |
 | React + Vite Frontend      | ✅ Production      |
-| Tax Clock                  | 🔨 In Development |
-| Blind Spot Detector        | 🔨 In Development |
+| Tax Clock                  | 📋 Planned        |
+| Blind Spot Detector        | 📋 Planned        |
 | Sector Health Monitor      | 📋 Planned        |
 
 ---
@@ -48,10 +48,10 @@ Results appear in an interactive dashboard. Click **Download PDF** for a profess
 
 ## ⚙️ How It Works
 
-FinSurf uses a **LangGraph state machine** where each agent is a specialist node in a directed graph. Tax and Sentiment run in parallel after Research completes. The Dividend node fires only when Research signals the ticker pays dividends — saving tokens on every non-dividend query.
+FinSurf uses a **LangGraph state machine** where each agent is a specialist node in a directed graph. Tax+Dividend and Sentiment run in parallel after Research completes. The dividend narration is template-based (zero LLM tokens) and skipped automatically for non-dividend stocks — saving tokens on every non-dividend query.
 
 ```
-User Input → 🛡️ Guardrail → 🔍 Research → ⚖️ Tax ‖ 🗣️ Sentiment → 💰 Dividend (conditional) → Report
+User Input → 🛡️ Guardrail → 🔍 Research → [⚖️ Tax + 💰 Dividends] ‖ 🗣️ Sentiment → 📋 Executive Summary → Report
 ```
 
 ```mermaid
@@ -76,14 +76,13 @@ graph TD
     subgraph AL["AI Layer"]
         G -->|guardrail| GA[Validation]
         GA -->|research| GB[Perplexity / Gemini]
-        GB -->|parallel| GC[Tax: Gemini / Groq]
+        GB -->|parallel| GC[Tax + Dividends: Gemini / Groq]
         GB -->|parallel| GD[Sentiment: Perplexity / Gemini]
-        GB -->|conditional| GE[Dividend: Gemini / Groq]
+        GC --> GE[Executive Summary]
+        GD --> GE
     end
 
-    GC --> J[FinSurfState JSON]
-    GD --> J
-    GE --> J
+    GE --> J[FinSurfState JSON]
     J --> E
     E --> D
 
@@ -191,23 +190,25 @@ For internet-facing deployment with automatic HTTPS, see the [Docker section of 
 
 ## 🔮 Roadmap
 
-| Phase        | Feature                                  | Notes                                                                                                                                                             | Timeline      |
-|--------------|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
-| **Phase 1**  | Historical Profit Analyzer               | P&L, holding period, and cost-basis arithmetic in Python — no LLM guesses                                                                                         | Q2 2026       |
-| **Phase 2**  | Multi-Ticker Batch Analysis (CSV upload) | Sequential processing with SSE progress stream; max 20 tickers per batch; per-request token budget enforced before processing starts                              | Q3–Q4 2026    |
-| **Phase 3a** | Analysis History Database                | Persist `FinSurfState JSON` to SQLite; simple history list UI and re-open-report feature — no LLM involved                                                        | Early 2027    |
-| **Phase 3b** | AI Chat                                  | Single-session "ask about this analysis" chat built on top of 3a using a conversational LangGraph node; cross-analysis RAG deferred                               | Mid–Late 2027 |
-| **Stretch**  | Scenario Planner                         | "If price reaches $X, your gain is Y and your tax status is Z" — informational only, not prescriptive                                                             | TBD           |
-| **Stretch**  | Options Radar                            | Read-only display of top 5 contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins | TBD           |
-| **India**    | India Market Mode (`.NS` / `.BO`)        | Auto-detect NSE/BSE tickers and switch to Indian tax rules, INR display, and India-specific data sources — no user configuration required                         | TBD           |
-| **India**    | Indian Tax Module                        | STCG (20%), LTCG (12.5% above ₹1.25L), STT, April–March fiscal year; reflects post-July 2024 Union Budget rates; DTAA flag for NRI investors                    | TBD           |
-| **India**    | NRI Dual-Currency View                   | Show INR value alongside USD equivalent for each position; surface FX impact separately from stock performance so NRIs see their true USD return                  | TBD           |
-| **India**    | BSE Corporate Announcements              | Equivalent of SEC EDGAR 8-K for Indian-listed companies; material events sourced from BSE disclosure feed                                                         | TBD           |
-| **Japan**    | Japan Market Mode (`.T` tickers)         | Auto-detect TSE tickers and switch to Japanese market context; initial release English-only targeting foreign residents in Japan and international TSE investors   | TBD           |
-| **Japan**    | Japanese Tax Module                      | Flat 20.315% capital gains (income tax + reconstruction tax + local inhabitant tax); NISA account awareness (¥18M lifetime tax-free); no holding-period distinction | TBD           |
-| **Japan**    | J-Quants Data Integration                | JPX's official API for TSE price history, corporate financials, and earnings data; supplements yfinance which thins out on mid/small-cap Japanese names            | TBD           |
-| **Japan**    | EDINET Filings                           | Japan's official securities filing database (FSA/Ministry of Finance); equivalent of SEC EDGAR for TSE-listed companies; no API key required                      | TBD           |
-| **Japan**    | Japanese-Language Product                | Full Japanese UI/UX adaptation including shareholder perks (株主優待) database, density-first layout norms, and Japanese-native copy — separate product decision  | TBD           |
+| Phase        | Feature                                  | Notes                                                                                                                                                                          | Timeline      |
+|--------------|------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
+| ✅ **Done**  | Historical Profit Analyzer               | P&L, holding period, and cost-basis arithmetic in Python — no LLM guesses. Integrated into every analysis run via `pnl_summary`.                                               | Complete      |
+| **Phase 2**  | Watchlist                                | Save tickers for quick one-click re-analysis. Zero cost until the user triggers a run — drives repeat engagement without background LLM calls.                                  | Q2–Q3 2026    |
+| **Phase 3**  | Portfolio P&L Dashboard                  | User enters positions (ticker, shares, cost basis, purchase date); system calculates total P&L, unrealized gains, and short/long-term tax exposure using Python + yfinance only — no LLM calls per stock. | Q3–Q4 2026    |
+| **Phase 4**  | Tax Year Summary                         | Given a set of positions, output realized gains split by short-term and long-term in a clean summary — pure Python arithmetic, no LLM. Especially useful around tax season.    | Q4 2026       |
+| **Phase 5**  | Analysis History Database                | Persist `FinSurfState JSON` to SQLite; simple history list UI and re-open-report feature — no LLM involved                                                                     | Early 2027    |
+| **Phase 6**  | Scenario Planner                         | "If price reaches $X, your gain is $Y and your tax status is Z" — pure Python math, informational only, not prescriptive                                                       | Mid 2027      |
+| **Phase 7**  | AI Chat                                  | Single-session "ask about this analysis" chat built on top of Phase 5 history using a conversational LangGraph node; cross-analysis RAG deferred                               | Late 2027     |
+| **Stretch**  | Options Radar                            | Read-only display of top contracts by open interest; no strategy recommendations; data source (Tradier / Alpaca free tier) must be confirmed before work begins                | TBD           |
+| **India**    | India Market Mode (`.NS` / `.BO`)        | Auto-detect NSE/BSE tickers and switch to Indian tax rules, INR display, and India-specific data sources — no user configuration required                                      | TBD           |
+| **India**    | Indian Tax Module                        | STCG (20%), LTCG (12.5% above ₹1.25L), STT, April–March fiscal year; reflects post-July 2024 Union Budget rates; DTAA flag for NRI investors                                 | TBD           |
+| **India**    | NRI Dual-Currency View                   | Show INR value alongside USD equivalent for each position; surface FX impact separately from stock performance so NRIs see their true USD return                               | TBD           |
+| **India**    | BSE Corporate Announcements              | Equivalent of SEC EDGAR 8-K for Indian-listed companies; material events sourced from BSE disclosure feed                                                                      | TBD           |
+| **Japan**    | Japan Market Mode (`.T` tickers)         | Auto-detect TSE tickers and switch to Japanese market context; initial release English-only targeting foreign residents in Japan and international TSE investors                | TBD           |
+| **Japan**    | Japanese Tax Module                      | Flat 20.315% capital gains (income tax + reconstruction tax + local inhabitant tax); NISA account awareness (¥18M lifetime tax-free); no holding-period distinction            | TBD           |
+| **Japan**    | J-Quants Data Integration                | JPX's official API for TSE price history, corporate financials, and earnings data; supplements yfinance which thins out on mid/small-cap Japanese names                        | TBD           |
+| **Japan**    | EDINET Filings                           | Japan's official securities filing database (FSA/Ministry of Finance); equivalent of SEC EDGAR for TSE-listed companies; no API key required                                   | TBD           |
+| **Japan**    | Japanese-Language Product                | Full Japanese UI/UX adaptation including shareholder perks (株主優待) database, density-first layout norms, and Japanese-native copy — separate product decision               | TBD           |
 
 ---
 
