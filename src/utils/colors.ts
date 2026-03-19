@@ -62,3 +62,15 @@ export const agentColors = {
     violet:  { header: 'text-violet-500 dark:text-violet-700', border: 'border-violet-50 dark:border-violet-900/30', link: 'bg-violet-50/50 dark:bg-slate-800 border-violet-100 dark:border-violet-900 text-violet-700 dark:text-violet-400'   },
   },
 } as const;
+
+/** Status-state colors for AgentProgressStrip badges (loading / done / inactive). */
+export const statusColors = {
+  loading:  'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 border-lime-100 dark:border-lime-900/50',
+  done:     'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-900/50',
+  inactive: 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700/50',
+} as const;
+
+export const statusIconColors = {
+  loading: 'animate-spin text-lime-600 dark:text-lime-400',
+  done:    'text-amber-600 dark:text-amber-400',
+} as const;
