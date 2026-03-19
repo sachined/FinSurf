@@ -10,7 +10,7 @@ interface HeaderProps {
   onUpgradeClick: () => void;
 }
 
-export function Header({ theme, toggleTheme, onAboutClick }: HeaderProps) {
+export function Header({ theme, toggleTheme, onAboutClick, onUpgradeClick }: HeaderProps) {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-20">
       <div className="flex items-center gap-3">
@@ -29,9 +29,9 @@ export function Header({ theme, toggleTheme, onAboutClick }: HeaderProps) {
 
       <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
         <button
-          disabled
-          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold uppercase tracking-wide cursor-not-allowed opacity-50 bg-amber-500 text-white shadow-sm shadow-amber-500/30"
-          title="Coming soon"
+          onClick={onUpgradeClick}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-xs font-semibold uppercase tracking-wide transition-all bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/30 hover:shadow-amber-500/50"
+          title="Join the waitlist for premium features"
         >
           <Zap size={16} />
           <span className="hidden sm:inline">Upgrade</span>

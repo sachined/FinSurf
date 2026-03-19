@@ -6,7 +6,7 @@ import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,10 +53,19 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
   return new Promise((resolve, reject) => {
     // execFile avoids shell injection — args are passed as an array, never interpolated
     // 120 s timeout prevents hung Python processes from blocking the event loop indefinitely
-    execFile(pythonCommand, ["backend/agents.py", mode, ...argStrings], { env, maxBuffer: 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
+    execFile(pythonCommand, ["backend/agents.py", mode, ...argStrings], { env, maxBuffer: 4 * 1024 * 1024, timeout: 120_000 }, (error, stdout, stderr) => {
+      // Python scripts write debug logs to stderr even on success
+      // Only fail if there was an error AND we got no valid JSON output
       if (error) {
-        console.error(`Exec error: ${error}`);
-        reject(stderr || error.message);
+        // If we have stdout despite error, Python succeeded (stderr debug logs trigger "error")
+        if (stdout && stdout.trim().startsWith('{')) {
+          resolve(stdout);
+        } else {
+          console.error(`Python agent failed: ${error.message}`);
+          if (stderr) console.error(`Stderr: ${stderr}`);
+          // Attach stderr so the route handler can surface it in dev mode
+          reject(Object.assign(new Error(error.message), { pythonStderr: stderr || "" }));
+        }
       } else {
         resolve(stdout);
       }
@@ -65,12 +74,37 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
 }
 
 async function startServer() {
+  // Validate environment before starting server
+  console.log("Validating environment...");
+  try {
+    const validationResult = await new Promise<string>((resolve, reject) => {
+      execFile(pythonCommand, ["backend/validate_env.py"], { timeout: 5000 }, (error, stdout, stderr) => {
+        if (error) {
+          reject(stderr || error.message);
+        } else {
+          resolve(stderr); // validation script writes to stderr
+        }
+      });
+    });
+    console.log(validationResult);
+  } catch (err) {
+    console.error("Environment validation failed:", err);
+    process.exit(1);
+  }
+
   const app = express();
   // Trust the reverse proxy (Caddy) so express-rate-limit reads the real
   // client IP from X-Forwarded-For instead of the internal container IP.
   app.set("trust proxy", 1);
   const PORT = parseInt(process.env.PORT || "3000", 10);
   const isProd = process.env.NODE_ENV === "production";
+
+  // Fail fast if the production build is missing — avoids a mysterious 404
+  // on every page load instead of a clear startup error.
+  if (isProd && !existsSync(path.join(__dirname, "dist", "index.html"))) {
+    console.error("❌ Production build not found. Run `npm run build` before starting the server.");
+    process.exit(1);
+  }
 
   // Load secrets from files (Docker Secrets) or environment variables
   const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
@@ -81,6 +115,7 @@ async function startServer() {
   const REDDIT_CLIENT_ID      = getSecret("REDDIT_CLIENT_ID",      "REDDIT_CLIENT_ID_FILE");
   const REDDIT_CLIENT_SECRET  = getSecret("REDDIT_CLIENT_SECRET",  "REDDIT_CLIENT_SECRET_FILE");
   const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
+  const FINNHUB_API_KEY       = getSecret("FINNHUB_API_KEY",       "FINNHUB_API_KEY_FILE");
   const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
   const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
 
@@ -92,6 +127,7 @@ async function startServer() {
   if (REDDIT_CLIENT_ID)      process.env.REDDIT_CLIENT_ID      = REDDIT_CLIENT_ID;
   if (REDDIT_CLIENT_SECRET)  process.env.REDDIT_CLIENT_SECRET  = REDDIT_CLIENT_SECRET;
   if (ALPHA_VANTAGE_API_KEY) process.env.ALPHA_VANTAGE_API_KEY = ALPHA_VANTAGE_API_KEY;
+  if (FINNHUB_API_KEY)       process.env.FINNHUB_API_KEY       = FINNHUB_API_KEY;
 
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);
@@ -156,22 +192,23 @@ async function startServer() {
   });
 
 
-  // Rate limiting to prevent abuse
+  // Rate limiting to prevent abuse — VIP pass holders are exempt.
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 100, // Limit each IP to 100 requests per window
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    message: { error: "Too many requests from this IP, please try again after 15 minutes." }
+    skip: (req) => {
+      const pass = req.headers["x-finsurf-pass"];
+      return typeof pass === "string" && VALID_VIP_PASSES.has(pass);
+    },
+    message: { error: "Rate limit exceeded. Too many requests from your IP address. Please wait 15 minutes before trying again." }
   });
   app.use("/api/", limiter);
 
   // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
   if (APP_SECRET) {
     app.use("/api/", (req, res, next) => {
-      // Skip auth for health check
-      if (req.path === "/health") return next();
-      
       const authHeader = req.headers.authorization;
       if (!authHeader || authHeader !== `Bearer ${APP_SECRET}`) {
         return res.status(401).json({ error: "Unauthorized — Invalid or missing API secret" });
@@ -253,6 +290,9 @@ async function startServer() {
         setGuardrailCache(ticker, !!graphData.is_safe);
       }
 
+      // Timestamp for all responses (Unix ms)
+      const timestamp = Date.now();
+
       // Map the LangGraph state back to the frontend
       const resRaw = graphData.research_output ? JSON.parse(graphData.research_output) : null;
       const research = resRaw ? {
@@ -262,27 +302,31 @@ async function startServer() {
         priceHistory: graphData.price_history || [],
         currentPrice: graphData.current_price ?? null,
         pnlSummary:   graphData.pnl_summary   ?? null,
+        timestamp,
       } : null;
 
       const taxRaw = graphData.tax_output ? JSON.parse(graphData.tax_output) : null;
-      const tax = taxRaw ? { 
-        agentName: "Tax Strategist", 
-        content: taxRaw.content, 
-        sources: parseCitations(taxRaw.citations) 
+      const tax = taxRaw ? {
+        agentName: "Tax Strategist",
+        content: taxRaw.content,
+        sources: parseCitations(taxRaw.citations),
+        timestamp,
       } : null;
 
       const sentRaw = graphData.sentiment_output ? JSON.parse(graphData.sentiment_output) : null;
-      const sentiment = sentRaw ? { 
-        agentName: "Social Sentiment Analyst", 
-        content: sentRaw.content, 
-        sources: parseCitations(sentRaw.citations) 
+      const sentiment = sentRaw ? {
+        agentName: "Social Sentiment Analyst",
+        content: sentRaw.content,
+        sources: parseCitations(sentRaw.citations),
+        timestamp,
       } : null;
 
       const sumRaw = graphData.executive_summary_output ? JSON.parse(graphData.executive_summary_output) : null;
-      const summary = sumRaw ? { 
-        agentName: "Executive Summary", 
-        content: sumRaw.content, 
-        sources: parseCitations(sumRaw.citations) 
+      const summary = sumRaw ? {
+        agentName: "Executive Summary",
+        content: sumRaw.content,
+        sources: parseCitations(sumRaw.citations),
+        timestamp,
       } : null;
 
       // Extract dividend data if present
@@ -296,14 +340,49 @@ async function startServer() {
           content: div.analysis || "Dividend analysis unavailable.",
           stats: div.stats || null,
           sources: parseCitations(div.citations),
+          timestamp,
         };
       }
 
       res.json({ research, tax, sentiment, dividend, summary });
     } catch (error) {
       console.error("Unified graph error:", error);
-      res.status(500).json({ error: "Analysis failed." });
+
+      // Provide more specific error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const pythonStderr = (error as any)?.pythonStderr as string | undefined;
+
+      if (errorMessage.toLowerCase().includes('ticker') || errorMessage.toLowerCase().includes('not found')) {
+        return res.status(404).json({
+          error: `Ticker "${ticker}" not found. Please verify the stock symbol is correct.`
+        });
+      }
+
+      if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('quota')) {
+        return res.status(429).json({
+          error: "API rate limit reached. Please try again in a few minutes."
+        });
+      }
+
+      // In development, surface the Python stderr so it appears in the browser console / network tab
+      if (!isProd && pythonStderr) {
+        return res.status(500).json({
+          error: "Analysis failed (dev mode — see details below).",
+          details: pythonStderr.slice(-2000), // last 2000 chars to keep response reasonable
+        });
+      }
+
+      // Generic fallback
+      res.status(500).json({
+        error: "Analysis failed. Some data sources may be temporarily unavailable. Please try again."
+      });
     }
+  });
+
+  // Stripe payment intent — not yet implemented; returns 501 so the frontend
+  // gets a clear error instead of a generic 404 / HTML fallback.
+  app.post("/api/stripe/create-payment-intent", (_req, res) => {
+    res.status(501).json({ error: "Stripe integration coming soon." });
   });
 
   // Vite middleware for development

@@ -116,6 +116,52 @@ class TestSentimentNode(unittest.TestCase):
         self.assertEqual(result["sentiment_output"], _SENTIMENT_RESPONSE)
 
 
+class TestExecutiveSummaryNode(unittest.TestCase):
+    def test_returns_summary_when_safe(self):
+        from backend.graph import executive_summary_node, FinSurfState
+        state: FinSurfState = _make_state("AAPL", is_safe=True, research_output=_RESEARCH_DIVIDEND)
+        summary = json.dumps({"content": "Overall bullish.", "citations": []})
+        with patch(f"{GRAPH_MODULE}.executive_summary_agent", return_value=summary):
+            result = executive_summary_node(state)
+        self.assertEqual(result["executive_summary_output"], summary)
+
+    def test_returns_research_output_when_not_safe(self):
+        from backend.graph import executive_summary_node, FinSurfState
+        state: FinSurfState = _make_state("BADTICKER", is_safe=False, research_output=_RESEARCH_DIVIDEND)
+        result = executive_summary_node(state)
+        self.assertEqual(result["executive_summary_output"], _RESEARCH_DIVIDEND)
+
+    def test_exception_records_error(self):
+        from backend.graph import executive_summary_node, FinSurfState
+        state: FinSurfState = _make_state("AAPL", is_safe=True)
+        with patch(f"{GRAPH_MODULE}.executive_summary_agent", side_effect=Exception("LLM down")):
+            result = executive_summary_node(state)
+        self.assertTrue(len(result.get("errors", [])) > 0)
+
+
+class TestRoutingFunctions(unittest.TestCase):
+    def test_route_after_guardrail_safe(self):
+        from backend.graph import route_after_guardrail, FinSurfState
+        state: FinSurfState = _make_state("AAPL", is_safe=True)
+        self.assertEqual(route_after_guardrail(state), "research")
+
+    def test_route_after_guardrail_blocked(self):
+        from backend.graph import route_after_guardrail, FinSurfState
+        state: FinSurfState = _make_state("BLOCKED", is_safe=False)
+        self.assertEqual(route_after_guardrail(state), "executive_summary")
+
+    def test_fan_out_returns_two_send_objects(self):
+        from backend.graph import fan_out_after_research, FinSurfState
+        from langgraph.types import Send
+        state: FinSurfState = _make_state("AAPL", is_safe=True)
+        result = fan_out_after_research(state)
+        self.assertEqual(len(result), 2)
+        self.assertIsInstance(result[0], Send)
+        self.assertIsInstance(result[1], Send)
+        node_names = {r.node for r in result}
+        self.assertIn("tax_dividend", node_names)
+        self.assertIn("sentiment", node_names)
+
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -136,6 +182,15 @@ def _make_state(ticker: str, **kwargs) -> dict:
         "tax_output": None,
         "sentiment_output": None,
         "dividend_output": None,
+        "sentiment_data": None,
+        "price_history": None,
+        "buy_price": None,
+        "sell_price": None,
+        "current_price": None,
+        "dividend_data": None,
+        "pnl_summary": None,
+        "executive_summary_output": None,
+        "token_summary": None,
         "errors": [],
     }
     defaults.update(kwargs)

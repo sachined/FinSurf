@@ -24,7 +24,7 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 export function AboutPage({ onBack }: AboutPageProps) {
   const d = resumeData;
 
-  const card = "bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-[2rem] border border-white dark:border-slate-800 shadow-sm p-8";
+  const card = "bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-[2rem] border border-white dark:border-slate-800 shadow-sm p-8";
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
@@ -131,7 +131,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
           <SectionTitle icon={Globe} label="About" />
           <div className="space-y-3">
             {d.bio.map((para, i) => (
-              <p key={i} className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+              <p key={i} className="text-slate-800 dark:text-slate-100 leading-relaxed text-sm">
                 {para}
               </p>
             ))}
@@ -194,7 +194,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
                 </div>
                 <ul className="space-y-1">
                   {job.bullets.map((b, j) => (
-                    <li key={j} className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed flex gap-2">
+                    <li key={j} className="text-slate-800 dark:text-slate-100 text-xs leading-relaxed flex gap-2">
                       <span className="mt-1.5 w-1 h-1 rounded-full shrink-0 bg-amber-500" />
                       {b}
                     </li>
@@ -256,7 +256,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
                     </a>
                   )}
                 </div>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">{proj.description}</p>
+                <p className="text-slate-800 dark:text-slate-100 text-xs leading-relaxed">{proj.description}</p>
               </div>
             ))}
           </div>
@@ -272,7 +272,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
           className={cn(card, "text-center")}
         >
           <Quote size={20} className="mx-auto mb-4 text-amber-400/60" />
-          <blockquote className="text-slate-600 dark:text-slate-300 italic text-sm leading-relaxed max-w-lg mx-auto">
+          <blockquote className="text-slate-800 dark:text-slate-100 italic text-sm leading-relaxed max-w-lg mx-auto">
             "{d.cta.quote}"
           </blockquote>
           <p className="text-xs font-bold text-amber-500 dark:text-amber-400 mt-2">— {d.cta.attribution}</p>

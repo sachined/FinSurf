@@ -3,7 +3,8 @@ Tests for backend/financial_agents — agent logic with mocked LLM providers.
 No real API calls are made; all provider functions are patched.
 
 Patch targets use the submodule where each symbol is actually called:
-  HELPERS_MODULE   — _groq_with_gemini_fallback, _perplexity_with_gemini_fallback
+  HELPERS_MODULE   — _perplexity_with_gemini_fallback
+  RESEARCH_MODULE  — _groq_with_gemini_fallback (imported directly into research namespace)
   GUARDRAIL_MODULE — security_guardrail (definition site)
   RESEARCH_MODULE  — research_agent call site (call_gemini, fetch_research_data, …)
   SENTIMENT_MODULE — social_sentiment_agent call site
@@ -157,28 +158,26 @@ class TestResearchAgent(unittest.TestCase):
         sell_price, current_price} envelope with yfinance data forwarded."""
         from backend.financial_agents import research_agent
         with patch(f"{RESEARCH_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
-            with patch(f"{RESEARCH_MODULE}.call_gemini", return_value="Stock looks great."):
-                with patch(f"{RESEARCH_MODULE}.call_groq", side_effect=Exception("no groq")):
-                    result = research_agent("AAPL", skip_guardrail=True)
-                    data = json.loads(result)
-                    self.assertEqual(data["content"], "Stock looks great.")
-                    self.assertEqual(data["citations"], [])
-                    self.assertEqual(data["price_history"], MOCK_RESEARCH_DATA["price_history"])
-                    self.assertIsNone(data["buy_price"])
-                    self.assertIsNone(data["sell_price"])
-                    self.assertAlmostEqual(data["current_price"], 182.50, places=1)
+            with patch(f"{RESEARCH_MODULE}._groq_with_gemini_fallback", return_value="Stock looks great.") as mock_helper:
+                result = research_agent("AAPL", skip_guardrail=True)
+                data = json.loads(result)
+                self.assertEqual(data["content"], "Stock looks great.")
+                self.assertEqual(data["citations"], [])
+                self.assertEqual(data["price_history"], MOCK_RESEARCH_DATA["price_history"])
+                self.assertIsNone(data["buy_price"])
+                self.assertIsNone(data["sell_price"])
+                self.assertAlmostEqual(data["current_price"], 182.50, places=1)
 
     def test_price_history_empty_when_yfinance_unavailable(self):
         """When fetch_research_data returns None, price_history must be an
         empty list so the frontend chart renders nothing gracefully."""
         from backend.financial_agents import research_agent
         with patch(f"{RESEARCH_MODULE}.fetch_research_data", return_value=None):
-            with patch(f"{RESEARCH_MODULE}.call_gemini", return_value="Fallback content."):
-                with patch(f"{RESEARCH_MODULE}.call_groq", side_effect=Exception("no groq")):
-                    result = research_agent("AAPL", skip_guardrail=True)
-                    data = json.loads(result)
-                    self.assertEqual(data["content"], "Fallback content.")
-                    self.assertEqual(data["price_history"], [])
+            with patch(f"{RESEARCH_MODULE}._groq_with_gemini_fallback", return_value="Fallback content."):
+                result = research_agent("AAPL", skip_guardrail=True)
+                data = json.loads(result)
+                self.assertEqual(data["content"], "Fallback content.")
+                self.assertEqual(data["price_history"], [])
 
     def test_buy_sell_prices_returned_when_dates_supplied(self):
         """When purchase_date and sell_date are provided and _price_from_history
@@ -188,22 +187,20 @@ class TestResearchAgent(unittest.TestCase):
         with patch(f"{RESEARCH_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
             with patch(f"{RESEARCH_MODULE}._price_from_history", return_value=None):
                 with patch(f"{RESEARCH_MODULE}.fetch_price_on_date", side_effect=[150.00, 182.50]) as mock_fpod:
-                    with patch(f"{RESEARCH_MODULE}.call_gemini", return_value="Analysis."):
-                        with patch(f"{RESEARCH_MODULE}.call_groq", side_effect=Exception("no groq")):
-                            result = research_agent("AAPL", purchase_date="2023-01-15", sell_date="2025-01-15", skip_guardrail=True)
-                            data = json.loads(result)
-                            self.assertAlmostEqual(data["buy_price"], 150.00, places=2)
-                            self.assertAlmostEqual(data["sell_price"], 182.50, places=2)
-                            self.assertEqual(mock_fpod.call_count, 2)
+                    with patch(f"{RESEARCH_MODULE}._groq_with_gemini_fallback", return_value="Analysis."):
+                        result = research_agent("AAPL", purchase_date="2023-01-15", sell_date="2025-01-15", skip_guardrail=True)
+                        data = json.loads(result)
+                        self.assertAlmostEqual(data["buy_price"], 150.00, places=2)
+                        self.assertAlmostEqual(data["sell_price"], 182.50, places=2)
+                        self.assertEqual(mock_fpod.call_count, 2)
 
     def test_uses_gemini_not_perplexity_for_research(self):
-        """research_agent uses Gemini directly — Perplexity must never be called."""
+        """research_agent routes through _groq_with_gemini_fallback — Perplexity must never be called."""
         from backend.financial_agents import research_agent
         with patch(f"{RESEARCH_MODULE}.fetch_research_data", return_value=MOCK_RESEARCH_DATA):
-            with patch(f"{RESEARCH_MODULE}.call_gemini", return_value="Gemini content.") as mock_gemini:
-                with patch(f"{RESEARCH_MODULE}.call_groq", side_effect=Exception("no groq")):
-                    research_agent("AAPL", skip_guardrail=True)
-                    mock_gemini.assert_called_once()
+            with patch(f"{RESEARCH_MODULE}._groq_with_gemini_fallback", return_value="Gemini content.") as mock_helper:
+                research_agent("AAPL", skip_guardrail=True)
+                self.assertTrue(mock_helper.called)
 
 
 

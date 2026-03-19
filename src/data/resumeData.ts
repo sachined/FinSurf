@@ -15,8 +15,8 @@ export const resumeData = {
 
   // ── Stats strip (shown below hero) ────────────────────────────────────────
   stats: [
-    { value: "5", label: "AI Agents" },
-    { value: "4 yrs", label: "Enterprise AI" },
+    { value: "4", label: "AI Agents" },
+    { value: "3 yrs", label: "Enterprise AI" },
     { value: "Worldpay · Fidelity", label: "Enterprise Clients" },
     { value: "Live", label: "finsurf.net" },
   ],
@@ -28,7 +28,7 @@ export const resumeData = {
     "positioning, SEC filing review, market sentiment — has always been locked behind Bloomberg terminals and " +
     "expensive advisors. I built the platform I wished existed.",
 
-    "My path here was unconventional. A Geography degree from UCLA gave me a systems-thinking lens; four years " +
+    "My path here was unconventional. A Geography degree from UCLA gave me a systems-thinking lens; three years " +
     "at eGain managing Fortune 500 deployments for clients like Worldpay and Fidelity Investments gave me " +
     "firsthand experience with enterprise AI at scale. When I left to build independently, FinSurf was the " +
     "first project I designed, built, and shipped entirely on my own — from blank repo to live production.",

@@ -40,5 +40,15 @@ __pycache__/
 # Captured output artifacts
 .output.txt
 
-# Private strategy notes
-GLOBAL_EXPANSION.md
+# Private business strategy & expansion plans
+Seireitei/MARKETS_EXPANSION.md
+
+# Personal notes and TODO files (if you create them)
+NOTES.md
+TODO.md
+PRIVATE.md
+
+# Any local testing or scratch files
+scratch/
+temp/
+test-data/

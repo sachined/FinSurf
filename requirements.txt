@@ -7,3 +7,4 @@ pandas==3.0.1
 curl-cffi==0.13.0
 tzdata
 langsmith
+requests>=2.31.0

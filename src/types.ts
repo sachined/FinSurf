@@ -10,6 +10,7 @@ export interface AgentResponse {
   agentName: string;
   content: string;
   sources?: { title: string; uri: string }[];
+  timestamp?: number; // Unix timestamp (ms) when analysis was performed
 }
 
 export interface PricePoint {

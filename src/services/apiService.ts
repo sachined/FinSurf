@@ -12,17 +12,9 @@ async function apiPost<T>(
   if (userKeys?.perplexityKey) headers["X-User-Perplexity-Key"] = userKeys.perplexityKey;
   if (userKeys?.groqKey)      headers["X-User-Groq-Key"]       = userKeys.groqKey;
 
-  // Retrieve the VIP pass from localStorage if it exists
+  // Send the active VIP pass so the server can exempt it from rate limiting.
   const activePass = localStorage.getItem('finsurf_active_pass');
-  if (activePass) {
-    headers["X-FinSurf-Pass"] = activePass;
-  }
-  
-  // Forward optional GPS coordinates if the user has enabled location tracking
-  const lat = localStorage.getItem('finsurf_lat');
-  const lon = localStorage.getItem('finsurf_lon');
-  if (lat) headers["X-Lat"] = lat;
-  if (lon) headers["X-Lon"] = lon;
+  if (activePass) headers["X-FinSurf-Pass"] = activePass;
 
   // Include the Bearer token for server-side API authentication.
   // This is baked into the frontend bundle at build time.

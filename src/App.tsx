@@ -2,15 +2,17 @@ import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
-import { downloadPDF } from './utils/pdfGenerator';
 import { Header } from './components/layout/Header';
 import { SearchForm } from './components/forms/SearchForm';
 import { ResultsGrid } from './components/results/ResultsGrid';
+import { CompareBar } from './components/ui/CompareBar';
 import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
 import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
+import { ErrorDisplay } from './components/ui/ErrorDisplay';
+import { ComingSoonModal } from './components/modals/ComingSoonModal';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
@@ -89,15 +91,21 @@ export default function App() {
   const {
     loading,
     responses,
-    runAll
+    runAll,
+    compareLoading,
+    compareResponses,
+    isComparing,
+    runCompare,
+    clearCompare,
   } = useFinancialAgents();
+
+  const [compareTicker, setCompareTicker] = useState('');
 
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
   const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
-  const [upgradePage, setUpgradePage] = useState<'home' | 'about'>('home');
-
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
 
@@ -142,12 +150,18 @@ export default function App() {
   }, []);
 
   const handleUpgrade = useCallback(() => {
-    setUpgradePage(p => p === 'about' ? 'home' : 'about');
+    setShowComingSoonModal(true);
   }, []);
 
-  const handleDownloadPDF = useCallback(() => {
-    downloadPDF(ticker);
-  }, [ticker]);
+  const handleCompare = useCallback((compareWith: string) => {
+    setCompareTicker(compareWith);
+    runCompare(compareWith, setError, userKeys ?? undefined);
+  }, [runCompare, setError, userKeys]);
+
+  const handleClearCompare = useCallback(() => {
+    setCompareTicker('');
+    clearCompare();
+  }, [clearCompare]);
 
   return (
     <div className={cn(
@@ -226,6 +240,19 @@ export default function App() {
             />
           </div>
 
+          {/* Compare bar — appears after first surf completes */}
+          {hasResponses && !isAnyLoading && (
+            <div data-no-print="" className="flex justify-end px-1 mb-2 -mt-2">
+              <CompareBar
+                isComparing={isComparing}
+                compareTicker={compareTicker}
+                isLoading={Object.values(compareLoading).some(v => v)}
+                onCompare={handleCompare}
+                onClear={handleClearCompare}
+              />
+            </div>
+          )}
+
           <div data-no-print="">
             <AgentProgressStrip loading={loading} responses={responses} />
           </div>
@@ -233,15 +260,7 @@ export default function App() {
           <div data-no-print="">
             <AnimatePresence>
               {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="pdf-alert mb-8 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-4xl text-red-600 dark:text-red-400 font-bold text-center shadow-xl shadow-red-900/5 flex items-center justify-center gap-3"
-                >
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  {error}
-                </motion.div>
+                <ErrorDisplay error={error} onDismiss={() => setError(null)} />
               )}
             </AnimatePresence>
           </div>
@@ -264,6 +283,10 @@ export default function App() {
           <ResultsGrid
             responses={responses}
             loading={loading}
+            primaryTicker={ticker}
+            compareResponses={isComparing ? compareResponses : undefined}
+            compareLoading={isComparing ? compareLoading : undefined}
+            compareTicker={isComparing ? compareTicker : undefined}
           />
 
           <Footer />
@@ -271,7 +294,7 @@ export default function App() {
         )}
       </div>
       {/* Mascot Integration */}
-      <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
+      <div className="hidden sm:block fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
         <Mascot className="w-24 h-24" isThinking={isAnyLoading} />
       </div>
 
@@ -279,6 +302,13 @@ export default function App() {
       {showApiKeyModal && (
         <ApiKeyModal onSubmit={handleApiKeysSubmit} />
       )}
+
+      {/* Coming Soon Modal — shown when user clicks Upgrade */}
+      <AnimatePresence>
+        {showComingSoonModal && (
+          <ComingSoonModal onClose={() => setShowComingSoonModal(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

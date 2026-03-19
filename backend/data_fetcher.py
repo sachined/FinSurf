@@ -203,6 +203,14 @@ def _extract_last_close(df: "pd.DataFrame") -> float:
 
 
 # ---------------------------------------------------------------------------
+# YFinance caching — avoid redundant API calls for the same ticker
+# ---------------------------------------------------------------------------
+_yfinance_cache: Dict[str, Dict[str, Any]] = {}
+_YFINANCE_TTL = 60 * 15  # 15 minutes for price data
+_YFINANCE_FUNDAMENTALS_TTL = 60 * 60 * 24  # 24 hours for fundamentals
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -385,7 +393,14 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
 
     Returns None on any failure so the research agent can fall back to a
     full Gemini lookup.
+
+    Results are cached for 15 minutes to reduce API load and speed up responses.
     """
+    cache_key = f"research_{ticker.upper()}"
+    cached = _yfinance_cache.get(cache_key)
+    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _YFINANCE_TTL):
+        return {k: v for k, v in cached.items() if k != "_ts"}
+
     try:
         t = yf.Ticker(ticker)
         info = t.info or {}
@@ -483,7 +498,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
         news = _extract_news_data(t)
         recommendations = _extract_recommendations_data(t)
 
-        return {
+        result = {
             "pe_trailing": _fmt_ratio(info.get("trailingPE")),
             "pe_forward": _fmt_ratio(info.get("forwardPE")),
             "revenue_growth_yoy": revenue_growth,
@@ -504,6 +519,8 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
             "news": news,
             "recommendations": recommendations,
         }
+        _yfinance_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        return result
     except Exception as exc:
         print(f"data_fetcher: fetch_research_data({ticker}) failed: {exc}", file=sys.stderr)
         return None

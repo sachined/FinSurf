@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  if (mode === 'production' && !process.env.VITE_APP_SECRET) {
+    console.warn('\n⚠️  VITE_APP_SECRET is not set — the frontend build will make unauthenticated API requests.\n');
+  }
   return {
     plugins: [react(), tailwindcss()],
     resolve: {

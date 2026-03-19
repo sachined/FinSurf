@@ -39,7 +39,7 @@ def call_gemini(
         data["generation_config"]["response_schema"] = response_schema
 
     t0 = time.time()
-    res = http_post(url, data, {"Content-Type": "application/json"}, timeout=60, max_retries=max_retries)
+    res = http_post(url, data, {"Content-Type": "application/json"}, timeout=60, max_retries=max_retries, retry_429=False)
     latency_ms = (time.time() - t0) * 1000
 
     usage_meta = res.get("usageMetadata", {})

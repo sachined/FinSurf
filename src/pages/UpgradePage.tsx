@@ -18,7 +18,7 @@ const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : 
 
 const FEATURES = [
   { icon: <Infinity size={16} />, text: 'Unlimited analyses — no daily cap' },
-  { icon: <Zap size={16} />, text: 'All 5 AI agents: Research, Tax, Dividend, Sentiment & Summary' },
+  { icon: <Zap size={16} />, text: 'All 4 AI agents: Research, Tax & Dividend, Sentiment & Summary' },
   { icon: <Key size={16} />, text: 'Use your own API keys (Gemini, Perplexity, Groq)' },
   { icon: <Check size={16} />, text: 'One-time payment — never expires' },
 ];

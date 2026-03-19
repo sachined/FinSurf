@@ -4,6 +4,7 @@ import {
   Loader2,
   ExternalLink,
   Info,
+  Coins,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -11,19 +12,23 @@ import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
 import { type AgentResponse, type DividendResponse, type ResearchResponse, type DividendStats } from '../../types';
 import { PriceChart } from '../charts/PriceChart';
+import { TimestampBadge } from '../ui/TimestampBadge';
 
 interface AgentCardProps {
   title: string;
   icon: React.ReactNode;
   loading: boolean;
   response: AgentResponse | DividendResponse | null;
+  dividendResponse?: DividendResponse | null;
   color: 'cyan' | 'emerald' | 'amber' | 'violet';
   isDividendAgent?: boolean;
   emptyDescription?: string;
   isCompact?: boolean;
+  staticSources?: string[];
+  loadingLabel?: string;
 }
 
-export function AgentCard({ title, icon, loading, response, color, isDividendAgent, emptyDescription, isCompact }: AgentCardProps) {
+export function AgentCard({ title, icon, loading, response, dividendResponse, color, isDividendAgent, emptyDescription, isCompact, staticSources, loadingLabel }: AgentCardProps) {
   const colorClasses = {
     cyan:    'bg-lime-50 text-lime-700 border-lime-100 dark:bg-lime-900/20 dark:text-lime-400 dark:border-lime-900',
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
@@ -73,6 +78,20 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
     violet:  'bg-violet-50/50 dark:bg-violet-900/10',
   };
 
+  const skeletonClasses = {
+    cyan:    'bg-lime-100 dark:bg-lime-900/30',
+    emerald: 'bg-emerald-100 dark:bg-emerald-900/30',
+    amber:   'bg-amber-100 dark:bg-amber-900/30',
+    violet:  'bg-violet-100 dark:bg-violet-900/30',
+  };
+
+  const sourcesBadgeClasses = {
+    cyan:    'bg-lime-50 dark:bg-lime-900/20 text-lime-600 dark:text-lime-500 border-lime-100 dark:border-lime-900/40',
+    emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-500 border-emerald-100 dark:border-emerald-900/40',
+    amber:   'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 border-amber-100 dark:border-amber-900/40',
+    violet:  'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-500 border-violet-100 dark:border-violet-900/40',
+  };
+
   const sourcesClasses = {
     cyan:    { header: 'text-lime-500 dark:text-lime-700', border: 'border-lime-50 dark:border-lime-900/30', link: 'bg-lime-50/50 dark:bg-slate-800 border-lime-100 dark:border-lime-900 text-lime-700 dark:text-lime-400' },
     emerald: { header: 'text-emerald-500 dark:text-emerald-700', border: 'border-emerald-50 dark:border-emerald-900/30', link: 'bg-emerald-50/50 dark:bg-slate-800 border-emerald-100 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400' },
@@ -80,7 +99,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
     violet:  { header: 'text-violet-500 dark:text-violet-700', border: 'border-violet-50 dark:border-violet-900/30', link: 'bg-violet-50/50 dark:bg-slate-800 border-violet-100 dark:border-violet-900 text-violet-700 dark:text-violet-400' },
   };
 
-  const divResponse = isDividendAgent ? (response as DividendResponse) : null;
+  const divResponse = isDividendAgent ? (response as DividendResponse) : dividendResponse;
 
   const statLabels: { key: keyof DividendStats; label: string; icon: string }[] = [
     { key: 'currentYield',          label: 'Current Yield',      icon: '📈' },
@@ -94,7 +113,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
 
   return (
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
-      "flex flex-col transition-all min-h-[400px] min-w-[280px] h-full",
+      "flex flex-col transition-all min-h-[400px] h-full",
       "bg-white dark:bg-slate-900",
       isCompact ? "rounded-none shadow-none border-none" : "rounded-2xl shadow-sm",
       `shadow-slate-900/5 dark:shadow-black/20 border ${cardBorderClasses[color]}`
@@ -110,8 +129,11 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
           )}>
             {icon}
           </div>
-          <div>
-            <h2 className="font-black tracking-tight text-slate-800 dark:text-white">{title}</h2>
+          <div className="flex-1">
+            <h2 className="font-black tracking-tight text-slate-950 dark:text-slate-950">{title}</h2>
+            {response?.timestamp && !loading && (
+              <TimestampBadge timestamp={response.timestamp} className="mt-1" />
+            )}
           </div>
         </div>
         {loading && <Loader2 className={cn("animate-spin", spinnerClasses[color])} size={18} />}
@@ -141,10 +163,18 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               animate={{ opacity: 1 }}
               className="space-y-4"
             >
-              <div className="h-4 bg-amber-50 dark:bg-slate-800 rounded-full w-3/4 animate-pulse" />
-              <div className="h-4 bg-amber-50 dark:bg-slate-800 rounded-full w-full animate-pulse" />
-              <div className="h-4 bg-amber-50 dark:bg-slate-800 rounded-full w-5/6 animate-pulse" />
-              <div className="h-4 bg-amber-50 dark:bg-slate-800 rounded-full w-2/3 animate-pulse" />
+              <div className="flex items-center gap-3 mb-5">
+                <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center opacity-40", colorClasses[color])}>
+                  {icon}
+                </div>
+                <span className="text-xs font-semibold text-slate-400 dark:text-slate-600 animate-pulse">
+                  {loadingLabel ?? 'Fetching analysis…'}
+                </span>
+              </div>
+              <div className={cn("h-3 rounded-full w-3/4 animate-pulse", skeletonClasses[color])} />
+              <div className={cn("h-3 rounded-full w-full animate-pulse", skeletonClasses[color])} />
+              <div className={cn("h-3 rounded-full w-5/6 animate-pulse", skeletonClasses[color])} />
+              <div className={cn("h-3 rounded-full w-2/3 animate-pulse", skeletonClasses[color])} />
             </motion.div>
           ) : (
             <motion.div
@@ -152,17 +182,17 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               animate={{ opacity: 1, y: 0 }}
               className="prose prose-sm prose-slate dark:prose-invert max-w-none"
             >
-              {isDividendAgent && divResponse && !divResponse.isDividendStock ? (
+              {divResponse && !divResponse.isDividendStock ? (
                 <div className="pdf-alert border rounded-2xl p-4 text-xs flex gap-3 mb-4 bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30 text-red-800 dark:text-red-400">
                   <Info size={16} className="shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-black uppercase tracking-tight">No Projection</p>
-                    <p className="opacity-80 font-medium">This asset is not currently paying dividends. Historical context provided below.</p>
+                    <p className="font-black uppercase tracking-tight">No Dividend Income</p>
+                    <p className="opacity-80 font-medium">This asset is not currently paying dividends.</p>
                   </div>
                 </div>
               ) : null}
 
-              {isDividendAgent && divResponse?.stats && (
+              {divResponse?.stats && (
                 <div className="mb-5 rounded-2xl border overflow-hidden border-amber-100 dark:border-amber-900/40">
                   <div className="pdf-stat-header px-4 py-2 text-xs font-semibold uppercase tracking-wider bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
                     📊 Key Dividend Stats
@@ -194,12 +224,23 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                 </div>
               )}
 
-              <div className={cn(
-                "markdown-body dark:text-slate-300 overflow-x-auto",
-                isDividendAgent && divResponse && !divResponse.isDividendStock && "opacity-60 grayscale"
-              )}>
+              <div className="markdown-body dark:text-slate-300 overflow-x-auto">
                 <Markdown remarkPlugins={[remarkGfm]}>{response?.content}</Markdown>
               </div>
+
+              {divResponse && divResponse.content && (
+                <div className="mt-6 pt-6 border-t border-emerald-100 dark:border-emerald-900/30">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                    <Coins size={14} /> Dividend Analysis
+                  </h4>
+                  <div className={cn(
+                    "markdown-body dark:text-slate-300 overflow-x-auto text-sm",
+                    divResponse && !divResponse.isDividendStock && "opacity-60 grayscale"
+                  )}>
+                    <Markdown remarkPlugins={[remarkGfm]}>{divResponse.content}</Markdown>
+                  </div>
+                </div>
+              )}
 
               {!!(response as ResearchResponse)?.priceHistory?.length && (
                 <PriceChart
@@ -224,6 +265,22 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                       </a>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {staticSources && staticSources.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-600 mr-1">
+                    Data
+                  </span>
+                  {staticSources.map(src => (
+                    <span
+                      key={src}
+                      className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", sourcesBadgeClasses[color])}
+                    >
+                      {src}
+                    </span>
+                  ))}
                 </div>
               )}
             </motion.div>
