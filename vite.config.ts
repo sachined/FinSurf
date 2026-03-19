@@ -16,9 +16,6 @@ export default defineConfig(() => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('motion')) {
-                return 'motion';
-              }
               if (id.includes('react-markdown') || id.includes('remark-gfm')) {
                 return 'markdown';
               }
