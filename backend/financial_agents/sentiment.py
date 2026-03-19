@@ -2,6 +2,7 @@
 Social sentiment agent — market sentiment analysis grounded by yfinance data.
 """
 import json
+import sys
 from typing import Dict, Any, Optional
 from ..llm_providers import call_gemini
 from ..data_fetcher import (
@@ -150,5 +151,5 @@ Rules:
             content = call_gemini(prompt, system, max_tokens=1200, agent="sentiment")
             return _error_json(content)
         except Exception as e:
-            print(f"Gemini sentiment failed, trying Perplexity: {e}")
+            print(f"Gemini sentiment failed, trying Perplexity: {e}", file=sys.stderr)
             return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200, agent="sentiment")
