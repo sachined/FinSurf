@@ -19,7 +19,6 @@ import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
 const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
-const UpgradePage = lazy(() => import('./pages/UpgradePage').then(m => ({ default: m.UpgradePage })));
 
 // localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
@@ -105,7 +104,7 @@ export default function App() {
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'home' | 'about' | 'upgrade'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
 
@@ -186,10 +185,6 @@ export default function App() {
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
             <AboutPage onBack={() => setCurrentPage('home')} />
-          </Suspense>
-        ) : currentPage === 'upgrade' ? (
-          <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
-            <UpgradePage onBack={() => setCurrentPage('home')} onActivated={() => setCurrentPage('home')} />
           </Suspense>
         ) : (
             <main id="report-container">
