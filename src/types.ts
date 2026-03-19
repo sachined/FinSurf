@@ -5,7 +5,6 @@ export interface UserApiKeys {
   perplexityKey?: string;  // optional
   groqKey?: string;        // optional
 }
-export type AccessMode = 'default' | 'colorblind' | 'tropical';
 
 export interface AgentResponse {
   agentName: string;

@@ -57,7 +57,7 @@ function incrementSurfCount(): number {
 }
 
 export default function App() {
-  const { theme, toggleTheme, accessMode, setAccessMode } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -151,87 +151,56 @@ export default function App() {
 
   return (
     <div className={cn(
-      "min-h-screen transition-colors duration-0 font-sans selection:bg-cyan-500 selection:text-white p-4 md:p-8 lg:p-12 overflow-x-hidden relative",
-      accessMode === 'tropical'
-        ? "bg-orange-50/30 dark:bg-teal-950"
-        : accessMode === 'colorblind'
-        ? "bg-blue-50 dark:bg-[#050810]"
-        : "bg-transparent dark:bg-[#0c1310]"
+      "min-h-screen transition-colors duration-0 font-sans selection:bg-amber-500 selection:text-white p-4 md:p-8 lg:p-12 overflow-x-hidden relative",
+      "bg-[#f8f5f0] dark:bg-[#070B14]"
     )}>
       {/* Background Decorations */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {accessMode === 'tropical' ? (
-          <>
-            {/* Teal — tropical ocean */}
-            <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] bg-teal-400/25 dark:bg-teal-500/8 blur-[140px] rounded-full animate-pulse" />
-            {/* Rose/coral — hibiscus */}
-            <div className="absolute top-[10%] right-[-10%] w-[45%] h-[45%] bg-rose-400/20 dark:bg-rose-500/6 blur-[110px] rounded-full" />
-            {/* Fuchsia — bougainvillea */}
-            <div className="absolute bottom-[-5%] left-[5%] w-[40%] h-[40%] bg-fuchsia-400/15 dark:bg-fuchsia-500/5 blur-[130px] rounded-full" />
-            {/* Yellow — golden sunshine */}
-            <div className="absolute bottom-[15%] right-[-5%] w-[35%] h-[35%] bg-yellow-300/25 dark:bg-yellow-500/8 blur-[100px] rounded-full animate-pulse" />
-            {/* Dot pattern */}
-            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none"
-                 style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-          </>
-        ) : accessMode === 'colorblind' ? (
-          <>
-            <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-blue-600/10 dark:bg-blue-400/5 blur-[100px] rounded-full" />
-            <div className="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-yellow-500/10 dark:bg-yellow-400/5 blur-[100px] rounded-full" />
-            
-            {/* Grid Pattern for Structure */}
-            <div className="absolute inset-0 opacity-[0.08] dark:opacity-[0.1] pointer-events-none" 
-                 style={{ backgroundImage: 'linear-gradient(#2563eb 1px, transparent 1px), linear-gradient(90deg, #2563eb 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          </>
-        ) : (
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-lime-500/20 to-transparent" />
-        )}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <Header 
-          theme={theme} 
-          toggleTheme={toggleTheme} 
-          accessMode={accessMode} 
-          setAccessMode={setAccessMode}
+        <Header
+          theme={theme}
+          toggleTheme={toggleTheme}
           onAboutClick={handleAbout}
           onUpgradeClick={handleUpgrade}
         />
 
         {currentPage === 'about' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
-            <AboutPage accessMode={accessMode} onBack={() => setCurrentPage('home')} />
+            <AboutPage onBack={() => setCurrentPage('home')} />
           </Suspense>
         ) : currentPage === 'upgrade' ? (
           <Suspense fallback={<div className="min-h-100 flex items-center justify-center animate-pulse" />}>
-            <UpgradePage accessMode={accessMode} onBack={() => setCurrentPage('home')} onActivated={() => setCurrentPage('home')} />
+            <UpgradePage onBack={() => setCurrentPage('home')} onActivated={() => setCurrentPage('home')} />
           </Suspense>
         ) : (
             <main id="report-container">
             {/* PDF-only Header (Hidden in UI) */}
-          <div 
+          <div
             data-no-print=""
-            data-pdf-chunk="pdf-header" 
-            className="hidden flex-col items-center justify-center text-center p-12 mb-12 bg-white dark:bg-slate-900 rounded-[3rem] border-4 border-cyan-500 shadow-2xl"
+            data-pdf-chunk="pdf-header"
+            className="hidden flex-col items-center justify-center text-center p-12 mb-12 bg-white dark:bg-slate-900 rounded-[3rem] border-4 border-amber-500 shadow-2xl"
           >
             <div className="flex items-center gap-6 mb-6">
-              <Mascot mode={accessMode} className="w-24 h-24" isThinking={false} />
+              <Mascot className="w-24 h-24" isThinking={false} />
               <div className="text-left">
                 <h1 className="text-6xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">
-                  FinSurf<span className="text-cyan-500">.ai</span>
+                  FinSurf<span className="text-amber-500">.ai</span>
                 </h1>
-                <p className="text-sm font-bold uppercase tracking-[0.4em] text-cyan-600 mt-2">
+                <p className="text-sm font-bold uppercase tracking-[0.4em] text-amber-600 mt-2">
                   Market Analysis Report
                 </p>
               </div>
             </div>
-            <div className="w-full h-1 bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-30" />
+            <div className="w-full h-1 bg-linear-to-r from-transparent via-amber-500 to-transparent opacity-30" />
           </div>
 
           <div data-no-print="">
             <AnimatePresence>
               {!hasSurfed && (
-                <WelcomeHero accessMode={accessMode} />
+                <WelcomeHero />
               )}
             </AnimatePresence>
           </div>
@@ -249,7 +218,6 @@ export default function App() {
               onSearch={handleSearch}
               isLoading={isAnyLoading}
               hasSurfed={hasSurfed}
-              accessMode={accessMode}
               isCompact={hasResponses && !isAnyLoading}
               isDataAvailable={hasResponses && !isAnyLoading}
               onAboutClick={handleAbout}
@@ -257,7 +225,7 @@ export default function App() {
           </div>
 
           <div data-no-print="">
-            <AgentProgressStrip loading={loading} responses={responses} accessMode={accessMode} />
+            <AgentProgressStrip loading={loading} responses={responses} />
           </div>
 
           <div data-no-print="">
@@ -285,7 +253,6 @@ export default function App() {
               shares={parseFloat(shares) || 0}
               purchaseDate={purchaseDate}
               sellDate={sellDate}
-              accessMode={accessMode}
             />
           ) : isAnyLoading ? (
               <div className="w-full h-22 animate-pulse bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800" />
@@ -295,16 +262,15 @@ export default function App() {
           <ResultsGrid
             responses={responses}
             loading={loading}
-            accessMode={accessMode}
           />
 
-          <Footer accessMode={accessMode} />
+          <Footer />
         </main>
         )}
       </div>
       {/* Mascot Integration */}
       <div className="fixed bottom-8 right-8 z-50 pointer-events-none sm:pointer-events-auto">
-        <Mascot mode={accessMode} className="w-24 h-24" isThinking={isAnyLoading} />
+        <Mascot className="w-24 h-24" isThinking={isAnyLoading} />
       </div>
 
       {/* API Key Modal — production only, shown after free tries are exhausted */}

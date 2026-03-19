@@ -8,13 +8,13 @@
 
 @layer base {
   body {
-    @apply bg-[#fdfaf6] dark:bg-[#0a1114] text-slate-900 dark:text-slate-100 transition-colors duration-300;
+    @apply bg-[#f8f5f0] dark:bg-[#070B14] text-slate-900 dark:text-slate-100 transition-colors duration-300;
   }
 }
 
 /* Markdown Styles */
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-  @apply font-black text-cyan-900 dark:text-cyan-400 mt-6 mb-3 tracking-tight;
+  @apply font-black text-amber-900 dark:text-amber-400 mt-6 mb-3 tracking-tight;
 }
 
 .markdown-body h1 { @apply text-xl; }
@@ -29,41 +29,41 @@
   @apply mb-4 pl-5 list-outside;
 }
 
-.markdown-body ul { @apply list-disc marker:text-cyan-400 dark:marker:text-cyan-600; }
-.markdown-body ol { @apply list-decimal marker:text-cyan-400 dark:marker:text-cyan-600; }
+.markdown-body ul { @apply list-disc marker:text-amber-400 dark:marker:text-amber-600; }
+.markdown-body ol { @apply list-decimal marker:text-amber-400 dark:marker:text-amber-600; }
 
 .markdown-body li {
   @apply mb-1;
 }
 
 .markdown-body strong {
-  @apply font-black text-cyan-950 dark:text-cyan-100;
+  @apply font-black text-amber-950 dark:text-amber-100;
 }
 
 .markdown-body blockquote {
-  @apply border-l-4 border-cyan-100 dark:border-cyan-900/50 pl-4 italic text-cyan-600/80 dark:text-cyan-400/80 my-4 bg-cyan-50/30 dark:bg-cyan-900/10 py-2 rounded-r-xl;
+  @apply border-l-4 border-amber-100 dark:border-amber-900/50 pl-4 italic text-amber-600/80 dark:text-amber-400/80 my-4 bg-amber-50/30 dark:bg-amber-900/10 py-2 rounded-r-xl;
 }
 
 .markdown-body code {
-  @apply bg-cyan-50 dark:bg-cyan-900/20 px-1.5 py-0.5 rounded text-[0.85em] font-mono text-cyan-700 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-900;
+  @apply bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded text-[0.85em] font-mono text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900;
 }
 
 .markdown-body table {
-  @apply w-full border-collapse mb-6 text-[0.85em] overflow-hidden rounded-xl border border-cyan-100 dark:border-cyan-900/50;
+  @apply w-full border-collapse mb-6 text-[0.85em] overflow-hidden rounded-xl border border-amber-100 dark:border-amber-900/50;
 }
 
 .markdown-body th, .markdown-body td {
-  @apply border border-cyan-50 dark:border-cyan-900/30 p-3 text-left;
+  @apply border border-amber-50 dark:border-amber-900/30 p-3 text-left;
 }
 
 .markdown-body th {
-  @apply bg-cyan-50/50 dark:bg-cyan-900/30 font-black text-cyan-900 dark:text-cyan-100 uppercase tracking-wider text-[0.7em];
+  @apply bg-amber-50/50 dark:bg-amber-900/30 font-black text-amber-900 dark:text-amber-100 uppercase tracking-wider text-[0.7em];
 }
 
 .markdown-body tr:nth-child(even) {
-  @apply bg-cyan-50/20 dark:bg-cyan-900/10;
+  @apply bg-amber-50/20 dark:bg-amber-900/10;
 }
 
 .markdown-body tr:hover {
-  @apply bg-cyan-50/40 dark:bg-cyan-900/20 transition-colors;
+  @apply bg-amber-50/40 dark:bg-amber-900/20 transition-colors;
 }

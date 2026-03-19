@@ -10,7 +10,6 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { cn } from '../utils/cn';
-import { type AccessMode } from '../types';
 import { createPaymentIntent, validatePass } from '../services/apiService';
 
 // Initialize outside component — avoids re-creation on re-renders.
@@ -59,7 +58,7 @@ function PaymentForm({
       <button
         type="submit"
         disabled={!stripe || submitting}
-        className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-cyan-500 hover:bg-cyan-400 text-white transition-colors shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest bg-amber-500 hover:bg-amber-400 text-white transition-colors shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {submitting ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : 'Pay $15 →'}
       </button>
@@ -69,12 +68,11 @@ function PaymentForm({
 
 // ── Main UpgradePage ──────────────────────────────────────────────────────────
 interface UpgradePageProps {
-  accessMode: AccessMode;
   onBack: () => void;
   onActivated: () => void;
 }
 
-export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProps) {
+export function UpgradePage({ onBack, onActivated }: UpgradePageProps) {
   type Step = 'email' | 'payment' | 'success';
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -142,23 +140,9 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
   const stripeAppearance: Parameters<typeof Elements>[0]['options'] = {
     appearance: {
       theme: 'stripe',
-      variables: { colorPrimary: '#06b6d4', borderRadius: '12px' },
+      variables: { colorPrimary: '#f59e0b', borderRadius: '12px' },
     },
   };
-
-  const accentClass =
-    accessMode === 'tropical'
-      ? 'text-orange-500'
-      : accessMode === 'colorblind'
-      ? 'text-blue-700 dark:text-blue-400'
-      : 'text-cyan-500';
-
-  const btnClass =
-    accessMode === 'tropical'
-      ? 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20'
-      : accessMode === 'colorblind'
-      ? 'bg-blue-700 hover:bg-blue-600 shadow-blue-700/20'
-      : 'bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/20';
 
   return (
     <div className="max-w-lg mx-auto py-8 space-y-6">
@@ -172,9 +156,9 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
 
       {/* Success state */}
       {step === 'success' && (
-        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl p-10 text-center space-y-4 border border-cyan-100 dark:border-cyan-900/30">
-          <div className="w-20 h-20 rounded-full bg-cyan-50 dark:bg-cyan-900/20 flex items-center justify-center mx-auto">
-            <Check size={40} className="text-cyan-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl p-10 text-center space-y-4 border border-amber-100 dark:border-amber-900/30">
+          <div className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mx-auto">
+            <Check size={40} className="text-amber-500" />
           </div>
           <h2 className="text-2xl font-black text-slate-800 dark:text-white">Payment Confirmed!</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
@@ -184,10 +168,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
           </p>
           <button
             onClick={onBack}
-            className={cn(
-              'mt-4 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-colors shadow-lg',
-              btnClass
-            )}
+            className="mt-4 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-colors shadow-lg bg-amber-500 hover:bg-amber-400 shadow-amber-500/20"
           >
             Back to FinSurf
           </button>
@@ -198,9 +179,9 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
       {step !== 'success' && (
         <>
           {/* Pricing card */}
-          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-cyan-100 dark:border-cyan-900/30 overflow-hidden">
-            <div className={cn('px-8 py-6 text-white', accessMode === 'tropical' ? 'bg-orange-500' : accessMode === 'colorblind' ? 'bg-blue-800' : 'bg-gradient-to-br from-cyan-500 to-cyan-600')}>
-              <p className="text-xs font-black uppercase tracking-widest opacity-80 mb-1">FinSurf Pro</p>
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-amber-100 dark:border-amber-900/30 overflow-hidden">
+            <div className="px-8 py-6 text-white bg-gradient-to-br from-amber-500 to-amber-600">
+              <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">FinSurf Pro</p>
               <div className="flex items-end gap-2">
                 <span className="text-5xl font-black">$15</span>
                 <span className="text-base opacity-80 mb-1">one-time</span>
@@ -210,7 +191,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
             <ul className="px-8 py-6 space-y-3">
               {FEATURES.map((f, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <span className={cn('mt-0.5 shrink-0', accentClass)}>{f.icon}</span>
+                  <span className="mt-0.5 shrink-0 text-amber-500 dark:text-amber-400">{f.icon}</span>
                   {f.text}
                 </li>
               ))}
@@ -219,7 +200,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
 
           {/* Step: email */}
           {step === 'email' && (
-            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-cyan-100 dark:border-cyan-900/30 p-8 space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-amber-100 dark:border-amber-900/30 p-8 space-y-4">
               {!stripePublishableKey ? (
                 <p className="text-amber-600 dark:text-amber-400 text-sm font-bold text-center">
                   Payments are not yet available in this environment.
@@ -227,7 +208,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
               ) : (
                 <form onSubmit={handleEmailSubmit} className="space-y-4">
                   <label className="block">
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5 block">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 block">
                       Your email address
                     </span>
                     <input
@@ -236,7 +217,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-400 dark:focus:ring-cyan-600 transition"
+                      className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 dark:focus:ring-amber-600 transition"
                     />
                     <p className="text-[11px] text-slate-400 mt-1.5">
                       Your access code will be emailed here after payment.
@@ -250,10 +231,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
                   <button
                     type="submit"
                     disabled={loading}
-                    className={cn(
-                      'w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2',
-                      btnClass
-                    )}
+                    className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 shadow-amber-500/20"
                   >
                     {loading ? <><Loader2 size={16} className="animate-spin" /> Loading…</> : 'Continue to Payment →'}
                   </button>
@@ -264,8 +242,8 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
 
           {/* Step: payment */}
           {step === 'payment' && clientSecret && stripePromise && (
-            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-cyan-100 dark:border-cyan-900/30 p-8 space-y-4">
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+            <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-amber-100 dark:border-amber-900/30 p-8 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Paying as <span className="text-slate-700 dark:text-slate-200">{email}</span>
               </p>
               {paymentError && (
@@ -303,7 +281,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
                   value={codeInput}
                   onChange={e => setCodeInput(e.target.value.toUpperCase())}
                   placeholder="PAID-XXXX-XXXX or FINSURF-XXXX-XXXX"
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-400 dark:focus:ring-cyan-600 transition"
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400 dark:focus:ring-amber-600 transition"
                 />
                 {codeError && (
                   <p className="flex items-center gap-2 text-red-500 text-sm font-medium">
@@ -315,7 +293,7 @@ export function UpgradePage({ accessMode, onBack, onActivated }: UpgradePageProp
                   disabled={loading}
                   className={cn(
                     'w-full py-3 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-2',
-                    btnClass
+                    'bg-amber-500 hover:bg-amber-400 shadow-amber-500/20'
                   )}
                 >
                   {loading ? <><Loader2 size={14} className="animate-spin" /> Checking…</> : 'Activate Code'}

@@ -8,11 +8,10 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { type PricePoint, type AccessMode } from '../../types';
+import { type PricePoint } from '../../types';
 
 interface PriceChartProps {
   data: PricePoint[];
-  accessMode: AccessMode;
 }
 
 interface TooltipPayloadEntry {
@@ -28,7 +27,7 @@ interface CustomTooltipProps {
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-white dark:bg-slate-800 border border-cyan-100 dark:border-cyan-900 rounded-xl px-3 py-2 shadow-lg text-xs">
+    <div className="bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-900 rounded-xl px-3 py-2 shadow-lg text-xs">
       <p className="text-slate-500 dark:text-slate-400">{label}</p>
       <p className="font-bold text-slate-800 dark:text-white">
         ${payload[0].value.toFixed(2)}
@@ -37,7 +36,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-export function PriceChart({ data, accessMode }: PriceChartProps) {
+export function PriceChart({ data }: PriceChartProps) {
   const [period, setPeriod] = useState<'1y' | '2y'>('2y');
 
   if (!data || data.length === 0) return null;
@@ -57,10 +56,7 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
     return filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1);
   }, [filtered]);
 
-  const strokeColor =
-    accessMode === 'colorblind' ? '#1d4ed8'
-    : accessMode === 'tropical' ? '#0d9488'
-    : '#0891b2';
+  const strokeColor = '#d97706'; // amber-600
 
   const fillId = 'priceAreaGradient';
 
@@ -74,7 +70,7 @@ export function PriceChart({ data, accessMode }: PriceChartProps) {
   };
 
   const btnBase = "px-2 py-0.5 rounded-md text-[10px] font-bold transition-colors";
-  const btnActive = "bg-cyan-600 text-white";
+  const btnActive = "bg-amber-600 text-white";
   const btnInactive = "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300";
 
   return (

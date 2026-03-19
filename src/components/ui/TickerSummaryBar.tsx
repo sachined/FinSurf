@@ -2,7 +2,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Minus, DollarSign, Landmark } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
-import { AccessMode, PnLSummary } from '../../types';
+import { PnLSummary } from '../../types';
 
 interface TickerSummaryBarProps {
   ticker: string;
@@ -11,7 +11,6 @@ interface TickerSummaryBarProps {
   shares: number;
   purchaseDate: string;
   sellDate: string;
-  accessMode: AccessMode;
 }
 
 function fmt(value: number | null, prefix = '$'): string {
@@ -32,7 +31,6 @@ export function TickerSummaryBar({
   shares,
   purchaseDate,
   sellDate,
-  accessMode,
 }: TickerSummaryBarProps) {
   const hasDates = purchaseDate && sellDate;
 
@@ -53,9 +51,7 @@ export function TickerSummaryBar({
   const isNeutral  = activePnl === null;
 
   const accentColor =
-    accessMode === 'colorblind'
-      ? isNeutral ? 'text-blue-600 dark:text-blue-400' : isPositive ? 'text-blue-700 dark:text-blue-300' : 'text-yellow-600 dark:text-yellow-400'
-      : isNeutral ? 'text-lime-700 dark:text-lime-400' : isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+    isNeutral ? 'text-amber-700 dark:text-amber-400' : isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 
   const PnLIcon = isNeutral ? Minus : isPositive ? TrendingUp : TrendingDown;
 
@@ -73,11 +69,7 @@ export function TickerSummaryBar({
       className={cn(
         'rounded-2xl border px-6 py-4 mb-6 flex flex-wrap gap-6 items-center justify-between',
         'bg-white dark:bg-slate-900',
-        accessMode === 'tropical'
-          ? 'border-orange-200 dark:border-orange-900'
-          : accessMode === 'colorblind'
-          ? 'border-blue-200 dark:border-blue-900'
-          : 'border-lime-100 dark:border-lime-900/40',
+        'border-amber-100 dark:border-amber-900/40',
       )}
     >
       {/* Ticker label */}

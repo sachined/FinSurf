@@ -2,43 +2,16 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
 import { resumeData } from '../data/resumeData';
-import { AccessMode } from '../types';
 import { cn } from '../utils/cn';
 
 interface AboutPageProps {
-  accessMode: AccessMode;
   onBack: () => void;
 }
 
-// Accent color helper — mirrors the existing Header pattern
-function accent(mode: AccessMode) {
-  if (mode === 'tropical') return 'text-orange-500';
-  if (mode === 'colorblind') return 'text-blue-700 dark:text-blue-400';
-  return 'text-cyan-500';
-}
-
-function accentBg(mode: AccessMode) {
-  if (mode === 'tropical') return 'bg-orange-500';
-  if (mode === 'colorblind') return 'bg-blue-700 dark:bg-blue-600';
-  return 'bg-cyan-500';
-}
-
-function accentBorder(mode: AccessMode) {
-  if (mode === 'tropical') return 'border-orange-400/30';
-  if (mode === 'colorblind') return 'border-blue-600/30';
-  return 'border-cyan-400/30';
-}
-
-function accentBadge(mode: AccessMode) {
-  if (mode === 'tropical') return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-  if (mode === 'colorblind') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-  return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300';
-}
-
-function SectionTitle({ icon: Icon, label, mode }: { icon: React.ElementType; label: string; mode: AccessMode }) {
+function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
   return (
     <div className="flex items-center gap-3 mb-6">
-      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0', accentBg(mode))}>
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-amber-500">
         <Icon size={16} className="text-white" />
       </div>
       <h2 className="text-lg font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-200">
@@ -48,7 +21,7 @@ function SectionTitle({ icon: Icon, label, mode }: { icon: React.ElementType; la
   );
 }
 
-export function AboutPage({ accessMode, onBack }: AboutPageProps) {
+export function AboutPage({ onBack }: AboutPageProps) {
   const d = resumeData;
 
   const card = "bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-[2rem] border border-white dark:border-slate-800 shadow-sm p-8";
@@ -85,10 +58,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
             className="w-20 h-20 rounded-3xl object-cover shrink-0 shadow-lg"
           />
         ) : (
-          <div className={cn(
-            "w-20 h-20 rounded-3xl flex items-center justify-center text-white text-2xl font-black shrink-0 shadow-lg",
-            accentBg(accessMode)
-          )}>
+          <div className="w-20 h-20 rounded-3xl flex items-center justify-center text-white text-2xl font-black shrink-0 shadow-lg bg-amber-500">
             {d.avatarInitials}
           </div>
         )}
@@ -97,7 +67,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           <h1 className="text-3xl font-black tracking-tighter text-slate-800 dark:text-white leading-tight">
             {d.name}
           </h1>
-          <p className={cn("text-sm font-bold mt-1", accent(accessMode))}>
+          <p className="text-sm font-bold mt-1 text-amber-500 dark:text-amber-400">
             {d.title}
           </p>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-2 leading-relaxed">
@@ -138,7 +108,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           transition={{ delay: 0.1 }}
           className={card}
         >
-          <SectionTitle icon={Globe} label="About" mode={accessMode} />
+          <SectionTitle icon={Globe} label="About" />
           <div className="space-y-3">
             {d.bio.map((para, i) => (
               <p key={i} className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
@@ -157,18 +127,18 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           transition={{ delay: 0.15 }}
           className={card}
         >
-          <SectionTitle icon={Code2} label="Skills" mode={accessMode} />
+          <SectionTitle icon={Code2} label="Skills" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {d.skills.map((group) => (
               <div key={group.category}>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
                   {group.category}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {group.items.map((skill) => (
                     <span
                       key={skill}
-                      className={cn("px-2.5 py-1 rounded-xl text-xs font-bold", accentBadge(accessMode))}
+                      className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                     >
                       {skill}
                     </span>
@@ -188,23 +158,23 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           transition={{ delay: 0.2 }}
           className={card}
         >
-          <SectionTitle icon={Briefcase} label="Experience" mode={accessMode} />
+          <SectionTitle icon={Briefcase} label="Experience" />
           <div className="space-y-6">
             {d.experience.map((job, i) => (
-              <div key={i} className={cn("pl-4 border-l-2", accentBorder(accessMode))}>
+              <div key={i} className="pl-4 border-l-2 border-amber-400/30">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
                   <div>
                     <span className="font-black text-slate-800 dark:text-white text-sm">{job.role}</span>
                     <span className="text-slate-400 dark:text-slate-500 text-sm"> · {job.company}</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 shrink-0">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
                     {job.period}
                   </span>
                 </div>
                 <ul className="space-y-1">
                   {job.bullets.map((b, j) => (
                     <li key={j} className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed flex gap-2">
-                      <span className={cn("mt-1.5 w-1 h-1 rounded-full shrink-0", accentBg(accessMode))} />
+                      <span className="mt-1.5 w-1 h-1 rounded-full shrink-0 bg-amber-500" />
                       {b}
                     </li>
                   ))}
@@ -223,7 +193,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           transition={{ delay: 0.25 }}
           className={card}
         >
-          <SectionTitle icon={GraduationCap} label="Education" mode={accessMode} />
+          <SectionTitle icon={GraduationCap} label="Education" />
           <div className="space-y-3">
             {d.education.map((edu, i) => (
               <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
@@ -231,7 +201,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
                   <span className="font-black text-slate-800 dark:text-white text-sm">{edu.degree}</span>
                   <span className="text-slate-400 dark:text-slate-500 text-sm"> · {edu.school}</span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {edu.year}
                 </span>
               </div>
@@ -248,10 +218,10 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
           transition={{ delay: 0.3 }}
           className={card}
         >
-          <SectionTitle icon={Rocket} label="Projects" mode={accessMode} />
+          <SectionTitle icon={Rocket} label="Projects" />
           <div className="space-y-4">
             {d.projects.map((proj, i) => (
-              <div key={i} className={cn("pl-4 border-l-2", accentBorder(accessMode))}>
+              <div key={i} className="pl-4 border-l-2 border-amber-400/30">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-black text-slate-800 dark:text-white text-sm">{proj.name}</span>
                   {proj.url && (
@@ -259,7 +229,7 @@ export function AboutPage({ accessMode, onBack }: AboutPageProps) {
                       href={proj.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={cn("text-[10px] font-bold uppercase tracking-widest hover:underline", accent(accessMode))}
+                      className="text-xs font-semibold uppercase tracking-wider hover:underline text-amber-500 dark:text-amber-400"
                     >
                       ↗ Visit
                     </a>

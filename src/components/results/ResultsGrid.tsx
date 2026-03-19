@@ -1,16 +1,14 @@
 import React from 'react';
 import { Search, Receipt, Coins, MessageSquare, Sparkles } from 'lucide-react';
 import { AgentCard } from '../cards/AgentCard';
-import { FinancialAgentsState, LoadingState, AccessMode } from '../../types';
-import { cn } from '../../utils/cn';
+import { FinancialAgentsState, LoadingState } from '../../types';
 
 interface ResultsGridProps {
   responses: FinancialAgentsState;
   loading: LoadingState;
-  accessMode: AccessMode;
 }
 
-export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps) {
+export function ResultsGrid({ responses, loading }: ResultsGridProps) {
   const isDone = !Object.values(loading).some(v => v) && Object.values(responses).some(r => r !== null);
 
   return (
@@ -22,12 +20,11 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
       <div className="col-span-1 md:col-span-2 mb-4">
         <AgentCard
           title="Executive Summary"
-          icon={<Sparkles size={24} className="text-cyan-500" />}
+          icon={<Sparkles size={24} className="text-amber-500" />}
           loading={loading.summary}
           response={responses.summary}
           color="cyan"
           emptyDescription="A cohesive narrative synthesising all specialist findings into one plain-English investment brief."
-          accessMode={accessMode}
           isCompact={isDone}
         />
       </div>
@@ -39,7 +36,6 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
           response={responses.research}
           color="cyan"
           emptyDescription="Analyzes fundamentals: P/E ratios, revenue growth & institutional ownership."
-          accessMode={accessMode}
           isCompact={isDone}
         />
       </div>
@@ -51,7 +47,6 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
           response={responses.tax}
           color="emerald"
           emptyDescription="Calculates your capital gains tax based on your holding period (short vs. long term)."
-          accessMode={accessMode}
           isCompact={isDone}
         />
       </div>
@@ -63,7 +58,6 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         color="amber"
         isDividendAgent
         emptyDescription="Projects dividend income on your shares including yield, payout ratio & growth rate."
-        accessMode={accessMode}
         isCompact={isDone}
       />
       <AgentCard
@@ -73,7 +67,6 @@ export function ResultsGrid({ responses, loading, accessMode }: ResultsGridProps
         response={responses.sentiment}
         color="violet"
         emptyDescription="Scans Reddit, X, StockTwits & news for real-time investor mood."
-        accessMode={accessMode}
         isCompact={isDone}
       />
     </div>
