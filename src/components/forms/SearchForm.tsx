@@ -60,13 +60,13 @@ export function SearchForm({
       <div className="lg:col-span-12 flex flex-wrap items-center gap-2">
         {/* Benefit pills */}
         {[
-          { icon: <Check size={11} />,    text: 'Free · 3 analyses per day'     },
-          { icon: <Zap size={11} />,      text: '5 AI agents · One search'      },
-          { icon: <BookOpen size={11} />, text: 'Plain English · No jargon'     },
-        ].map(({ icon, text }) => (
+          { icon: <Check size={11} />,    text: 'Free · 3 analyses per day', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
+          { icon: <Zap size={11} />,      text: '5 AI agents · One search',  cls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-800/60' },
+          { icon: <BookOpen size={11} />, text: 'Plain English · No jargon', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
+        ].map(({ icon, text, cls }) => (
           <div
             key={text}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-800/60"
+            className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border", cls)}
           >
             {icon}
             {text}
@@ -81,7 +81,7 @@ export function SearchForm({
             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors",
             emailCopied
               ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
-              : "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 border-violet-100 dark:border-violet-800/60 hover:bg-violet-100 dark:hover:bg-violet-900/40"
+              : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
           )}
         >
           {emailCopied ? <Check size={11} /> : <Mail size={11} />}
@@ -110,8 +110,8 @@ export function SearchForm({
               className={cn(
                 "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide transition-all border",
                 ticker === t
-                  ? "bg-amber-500 text-slate-900 border-amber-500"
-                  : "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
+                  ? "bg-lime-500 text-white border-lime-500"
+                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700 hover:dark:bg-slate-800"
               )}
             >
               {t}

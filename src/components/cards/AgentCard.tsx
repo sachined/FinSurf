@@ -25,17 +25,59 @@ interface AgentCardProps {
 
 export function AgentCard({ title, icon, loading, response, color, isDividendAgent, emptyDescription, isCompact }: AgentCardProps) {
   const colorClasses = {
-    cyan:    'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
+    cyan:    'bg-lime-50 text-lime-700 border-lime-100 dark:bg-lime-900/20 dark:text-lime-400 dark:border-lime-900',
     emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900',
     amber:   'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900',
     violet:  'bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-900',
   };
 
   const accentClasses = {
-    cyan:    'bg-amber-500',
+    cyan:    'bg-lime-500',
     emerald: 'bg-emerald-600',
-    amber:   'bg-amber-600',
+    amber:   'bg-amber-500',
     violet:  'bg-violet-600',
+  };
+
+  const cardBorderClasses = {
+    cyan:    'border-lime-50 dark:border-lime-900/50',
+    emerald: 'border-emerald-50 dark:border-emerald-900/50',
+    amber:   'border-amber-50 dark:border-amber-900/50',
+    violet:  'border-violet-50 dark:border-violet-900/50',
+  };
+
+  const headerBorderClasses = {
+    cyan:    'border-lime-50 dark:border-lime-900/30',
+    emerald: 'border-emerald-50 dark:border-emerald-900/30',
+    amber:   'border-amber-50 dark:border-amber-900/30',
+    violet:  'border-violet-50 dark:border-violet-900/30',
+  };
+
+  const spinnerClasses = {
+    cyan:    'text-lime-400',
+    emerald: 'text-emerald-400',
+    amber:   'text-amber-400',
+    violet:  'text-violet-400',
+  };
+
+  const emptyStateClasses = {
+    cyan:    'text-lime-200 dark:text-lime-900',
+    emerald: 'text-emerald-200 dark:text-emerald-900',
+    amber:   'text-amber-200 dark:text-amber-900',
+    violet:  'text-violet-200 dark:text-violet-900',
+  };
+
+  const emptyBgClasses = {
+    cyan:    'bg-lime-50/50 dark:bg-lime-900/10',
+    emerald: 'bg-emerald-50/50 dark:bg-emerald-900/10',
+    amber:   'bg-amber-50/50 dark:bg-amber-900/10',
+    violet:  'bg-violet-50/50 dark:bg-violet-900/10',
+  };
+
+  const sourcesClasses = {
+    cyan:    { header: 'text-lime-500 dark:text-lime-700', border: 'border-lime-50 dark:border-lime-900/30', link: 'bg-lime-50/50 dark:bg-slate-800 border-lime-100 dark:border-lime-900 text-lime-700 dark:text-lime-400' },
+    emerald: { header: 'text-emerald-500 dark:text-emerald-700', border: 'border-emerald-50 dark:border-emerald-900/30', link: 'bg-emerald-50/50 dark:bg-slate-800 border-emerald-100 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400' },
+    amber:   { header: 'text-amber-400 dark:text-amber-800', border: 'border-amber-50 dark:border-amber-900/30', link: 'bg-amber-50/50 dark:bg-slate-800 border-amber-100 dark:border-amber-900 text-amber-700 dark:text-amber-400' },
+    violet:  { header: 'text-violet-500 dark:text-violet-700', border: 'border-violet-50 dark:border-violet-900/30', link: 'bg-violet-50/50 dark:bg-slate-800 border-violet-100 dark:border-violet-900 text-violet-700 dark:text-violet-400' },
   };
 
   const divResponse = isDividendAgent ? (response as DividendResponse) : null;
@@ -55,11 +97,11 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
       "flex flex-col transition-all min-h-[400px] min-w-[280px] h-full",
       "bg-white dark:bg-slate-900",
       isCompact ? "rounded-none shadow-none border-none" : "rounded-2xl shadow-sm",
-      "shadow-amber-900/5 dark:shadow-black/20 border border-amber-50 dark:border-amber-900/50"
+      `shadow-slate-900/5 dark:shadow-black/20 border ${cardBorderClasses[color]}`
     )}>
       <div className={cn(
         "p-6 border-b flex items-center justify-between sticky top-0 z-10",
-        "bg-white dark:bg-slate-900 border-amber-50 dark:border-amber-900/30"
+        `bg-white dark:bg-slate-900 ${headerBorderClasses[color]}`
       )}>
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -72,7 +114,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
             <h2 className="font-black tracking-tight text-slate-800 dark:text-white">{title}</h2>
           </div>
         </div>
-        {loading && <Loader2 className="animate-spin text-amber-400" size={18} />}
+        {loading && <Loader2 className={cn("animate-spin", spinnerClasses[color])} size={18} />}
       </div>
 
       <div className="p-6">
@@ -81,9 +123,9 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="h-full flex flex-col items-center justify-center text-amber-200 dark:text-amber-900 text-center space-y-4 py-12"
+              className={cn("h-full flex flex-col items-center justify-center text-center space-y-4 py-12", emptyStateClasses[color])}
             >
-              <div className="w-16 h-16 rounded-full bg-amber-50/50 dark:bg-amber-900/10 flex items-center justify-center">
+              <div className={cn("w-16 h-16 rounded-full flex items-center justify-center", emptyBgClasses[color])}>
                 <TrendingUp size={32} />
               </div>
               <div className="space-y-1.5">
@@ -166,8 +208,8 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
               )}
 
               {response?.sources && response.sources.length > 0 && (
-                <div className="pdf-sources mt-8 pt-6 border-t border-amber-50 dark:border-amber-900/30">
-                  <h4 className="text-xs font-semibold text-amber-400 dark:text-amber-800 uppercase tracking-wider mb-4">Sources</h4>
+                <div className={cn("pdf-sources mt-8 pt-6 border-t", sourcesClasses[color].border)}>
+                  <h4 className={cn("text-xs font-semibold uppercase tracking-wider mb-4", sourcesClasses[color].header)}>Sources</h4>
                   <div className="flex flex-wrap gap-2">
                     {response.sources.map((source, i) => (
                       <a
@@ -175,7 +217,7 @@ export function AgentCard({ title, icon, loading, response, color, isDividendAge
                         href={source.uri}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="pdf-source-link inline-flex items-center gap-1.5 px-3 py-2 bg-amber-50/50 dark:bg-slate-800 border border-amber-100 dark:border-amber-900 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400 transition-colors"
+                        className={cn("pdf-source-link inline-flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-bold transition-colors", sourcesClasses[color].link)}
                       >
                         <ExternalLink size={10} />
                         <span>{source.title}</span>

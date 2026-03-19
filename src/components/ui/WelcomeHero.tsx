@@ -4,17 +4,17 @@ import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
 
 const TRUST_BADGES = [
-  { icon: <RotateCcw size={16} />, title: 'Real-time Data', desc: 'Synced with live market feeds' },
-  { icon: <HelpCircle size={16} />, title: 'AI-Powered', desc: '5 specialized financial agents' },
-  { icon: <Info size={16} />, title: 'Tax Ready', desc: 'Short & long-term gain analysis' },
+  { icon: <RotateCcw size={16} />, title: 'Real-time Data', desc: 'Synced with live market feeds',    iconCls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400',         borderCls: 'border-lime-100 dark:border-lime-900/40' },
+  { icon: <HelpCircle size={16} />, title: 'AI-Powered',   desc: '5 specialized financial agents',  iconCls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',     borderCls: 'border-amber-100 dark:border-amber-900/40' },
+  { icon: <Info size={16} />,       title: 'Tax Ready',    desc: 'Short & long-term gain analysis', iconCls: 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400', borderCls: 'border-violet-100 dark:border-violet-900/40' },
 ];
 
 const AGENTS = [
-  { icon: <Sparkles size={18} />, title: 'Executive Summary',   desc: 'A plain-English brief combining all findings — great starting point for any investor.' },
-  { icon: <Search size={18} />,   title: 'Research Analyst',    desc: 'Is the company healthy? Earnings growth, valuation, and who the big investors are.' },
-  { icon: <Receipt size={18} />,  title: 'Tax Strategist',      desc: 'Know your tax bill before you sell — short-term vs. long-term rates, explained simply.' },
-  { icon: <Coins size={18} />,    title: 'Dividend Specialist',  desc: 'How much cash will this stock pay you? Income projections on your exact share count.' },
-  { icon: <MessageSquare size={18} />, title: 'Sentiment Analyst', desc: "What is everyone saying? Reddit, X, StockTwits & news — the crowd's mood right now." },
+  { icon: <Sparkles size={18} />,      title: 'Executive Summary',   desc: 'A plain-English brief combining all findings — great starting point for any investor.',  iconCls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',         borderCls: 'border-amber-100 dark:border-amber-900/40' },
+  { icon: <Search size={18} />,        title: 'Research Analyst',    desc: 'Is the company healthy? Earnings growth, valuation, and who the big investors are.',    iconCls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400',             borderCls: 'border-lime-100 dark:border-lime-900/40' },
+  { icon: <Receipt size={18} />,       title: 'Tax Strategist',      desc: 'Know your tax bill before you sell — short-term vs. long-term rates, explained simply.', iconCls: 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400',     borderCls: 'border-violet-100 dark:border-violet-900/40' },
+  { icon: <Coins size={18} />,         title: 'Dividend Specialist', desc: 'How much cash will this stock pay you? Income projections on your exact share count.',   iconCls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',         borderCls: 'border-amber-100 dark:border-amber-900/40' },
+  { icon: <MessageSquare size={18} />, title: 'Sentiment Analyst',   desc: "What is everyone saying? Reddit, X, StockTwits & news — the crowd's mood right now.",   iconCls: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400', borderCls: 'border-emerald-100 dark:border-emerald-900/40' },
 ];
 
 export function WelcomeHero() {
@@ -42,15 +42,15 @@ export function WelcomeHero() {
 
       {/* Trust badges */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        {TRUST_BADGES.map(({ icon, title, desc }, i) => (
+        {TRUST_BADGES.map(({ icon, title, desc, iconCls, borderCls }, i) => (
           <motion.div
             key={title}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 + i * 0.06, duration: 0.35 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-amber-100 dark:border-amber-900/40 bg-white/60 dark:bg-slate-900/60"
+            className={cn("flex items-center gap-3 px-4 py-3 rounded-2xl border bg-white/60 dark:bg-slate-900/60", borderCls)}
           >
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+            <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", iconCls)}>
               {icon}
             </div>
             <div>
@@ -63,15 +63,15 @@ export function WelcomeHero() {
 
       {/* Agent cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {AGENTS.map(({ icon, title, desc }, i) => (
+        {AGENTS.map(({ icon, title, desc, iconCls, borderCls }, i) => (
           <motion.div
             key={title}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.07, duration: 0.4 }}
-            className="flex items-start gap-3 p-4 rounded-2xl border transition-all border-amber-100 dark:border-amber-900/40 bg-white/60 dark:bg-slate-900/60"
+            className={cn("flex items-start gap-3 p-4 rounded-2xl border transition-all bg-white/60 dark:bg-slate-900/60", borderCls)}
           >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border border-transparent bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 border border-transparent", iconCls)}>
               {icon}
             </div>
             <div>

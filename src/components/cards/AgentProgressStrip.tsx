@@ -42,14 +42,14 @@ export function AgentProgressStrip({ loading, responses }: AgentProgressStripPro
               isDone
                 ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-900/50"
                 : isLoading
-                ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/50"
+                ? "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-400 border-lime-100 dark:border-lime-900/50"
                 : "bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700/50"
             )}
           >
             {isDone ? (
               <CheckCircle2 size={13} className="text-amber-600 dark:text-amber-400" />
             ) : isLoading ? (
-              <Loader2 size={13} className="animate-spin" />
+              <Loader2 size={13} className="animate-spin text-lime-600 dark:text-lime-400" />
             ) : (
               icon
             )}

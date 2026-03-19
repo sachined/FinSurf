@@ -14,14 +14,14 @@ export function Header({ theme, toggleTheme, onAboutClick }: HeaderProps) {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 relative z-20">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-amber-500 dark:bg-amber-400">
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-amber-500 to-lime-500 dark:from-amber-400 dark:to-lime-400">
           <Waves className="text-white" size={22} />
         </div>
         <div>
           <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter leading-none mb-0.5">
             FinSurf<span className="text-amber-500 dark:text-amber-400">.ai</span>
           </h1>
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-60 text-amber-700 dark:text-amber-400">
+          <p className="text-xs font-semibold uppercase tracking-wide opacity-60 text-lime-700 dark:text-lime-400">
             Ride the market waves
           </p>
         </div>

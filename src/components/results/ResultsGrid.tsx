@@ -23,7 +23,7 @@ export function ResultsGrid({ responses, loading }: ResultsGridProps) {
           icon={<Sparkles size={24} className="text-amber-500" />}
           loading={loading.summary}
           response={responses.summary}
-          color="cyan"
+          color="amber"
           emptyDescription="A cohesive narrative synthesising all specialist findings into one plain-English investment brief."
           isCompact={isDone}
         />

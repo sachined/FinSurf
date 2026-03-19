@@ -157,6 +157,8 @@ export default function App() {
       {/* Background Decorations */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+        <div className="absolute -top-60 -right-60 w-[500px] h-[500px] rounded-full bg-amber-500/[0.04] dark:bg-amber-400/[0.04] blur-3xl" />
+        <div className="absolute -bottom-60 -left-60 w-[600px] h-[600px] rounded-full bg-lime-500/[0.04] dark:bg-lime-400/[0.04] blur-3xl" />
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
