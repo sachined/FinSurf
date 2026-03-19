@@ -2,6 +2,7 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Minus, DollarSign, Landmark } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
+import { fmtUsd, fmtPct } from '../../utils/formatting';
 import { PnLSummary } from '../../types';
 
 interface TickerSummaryBarProps {
@@ -11,17 +12,6 @@ interface TickerSummaryBarProps {
   shares: number;
   purchaseDate: string;
   sellDate: string;
-}
-
-function fmt(value: number | null, prefix = '$'): string {
-  if (value === null || value === undefined) return 'N/A';
-  return `${prefix}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function fmtPct(value: number | null): string {
-  if (value === null || value === undefined) return 'N/A';
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
 }
 
 export function TickerSummaryBar({
@@ -82,7 +72,7 @@ export function TickerSummaryBar({
       {/* Current price */}
       <Stat
         label="Current Price"
-        value={fmt(currentPrice)}
+        value={fmtUsd(currentPrice)}
         icon={<DollarSign size={15} />}
         valueClass="text-slate-800 dark:text-white"
       />
@@ -91,7 +81,7 @@ export function TickerSummaryBar({
       {hasDates && (
         <Stat
           label={`Buy Price${purchaseDate ? ` (${purchaseDate})` : ''}`}
-          value={fmt(buyPrice)}
+          value={fmtUsd(buyPrice)}
           valueClass="text-slate-700 dark:text-slate-300"
           note={buyPrice === null ? 'Date outside available history' : undefined}
         />
@@ -101,7 +91,7 @@ export function TickerSummaryBar({
       {hasDates && (
         <Stat
           label={`Sell Price${sellDate ? ` (${sellDate})` : ''}`}
-          value={fmt(sellPrice)}
+          value={fmtUsd(sellPrice)}
           valueClass="text-slate-700 dark:text-slate-300"
           note={sellPrice === null ? 'Date outside available history' : undefined}
         />
@@ -111,7 +101,7 @@ export function TickerSummaryBar({
       {shares > 0 && (
         <Stat
           label={pnlLabel}
-          value={activePnl !== null ? fmt(activePnl) : 'N/A'}
+          value={activePnl !== null ? fmtUsd(activePnl) : 'N/A'}
           valueClass={accentColor}
           icon={<PnLIcon size={15} />}
           subValue={fmtPct(activePnlPct)}
@@ -122,7 +112,7 @@ export function TickerSummaryBar({
       {totalDividends !== null && (
         <Stat
           label="Est. Total Dividends"
-          value={fmt(totalDividends)}
+          value={fmtUsd(totalDividends)}
           icon={<Landmark size={15} />}
           valueClass="text-violet-600 dark:text-violet-400"
           note="Conservative projection"

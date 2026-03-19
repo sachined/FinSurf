@@ -17,6 +17,11 @@ def _blocked_json() -> str:
     return json.dumps({"content": _BLOCKED_MSG, "citations": []})
 
 
+def _error_json(message: str) -> str:
+    """Return a standard error/content response as a JSON string (content plus empty citations)."""
+    return json.dumps({"content": message, "citations": []})
+
+
 def _groq_with_gemini_fallback(prompt: str, system: str, max_tokens: int, agent: str = "unknown") -> str:
     """
     Call Groq (free cloud API); on any failure fall back to Gemini.

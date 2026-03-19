@@ -210,6 +210,19 @@ _YFINANCE_TTL = 60 * 15  # 15 minutes for price data
 _YFINANCE_FUNDAMENTALS_TTL = 60 * 60 * 24  # 24 hours for fundamentals
 
 
+def _cache_get(cache: Dict[str, Dict[str, Any]], key: str, ttl: float) -> Optional[Dict[str, Any]]:
+    """Return cached entry if present and within TTL, else None."""
+    entry = cache.get(key)
+    if entry and (datetime.datetime.utcnow().timestamp() - entry["_ts"] < ttl):
+        return {k: v for k, v in entry.items() if k != "_ts"}
+    return None
+
+
+def _cache_set(cache: Dict[str, Dict[str, Any]], key: str, data: Dict[str, Any]) -> None:
+    """Store data in cache with the current timestamp."""
+    cache[key] = {**data, "_ts": datetime.datetime.utcnow().timestamp()}
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -397,9 +410,9 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
     Results are cached for 15 minutes to reduce API load and speed up responses.
     """
     cache_key = f"research_{ticker.upper()}"
-    cached = _yfinance_cache.get(cache_key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _YFINANCE_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_yfinance_cache, cache_key, _YFINANCE_TTL)
+    if cached:
+        return cached
 
     try:
         t = yf.Ticker(ticker)
@@ -519,7 +532,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
             "news": news,
             "recommendations": recommendations,
         }
-        _yfinance_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        _cache_set(_yfinance_cache, cache_key, result)
         return result
     except Exception as exc:
         print(f"data_fetcher: fetch_research_data({ticker}) failed: {exc}", file=sys.stderr)
@@ -577,9 +590,9 @@ def fetch_stocktwits_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
     Returns None on any failure so the sentiment agent degrades gracefully.
     """
     key = ticker.upper()
-    cached = _stocktwits_cache.get(key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _STOCKTWITS_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_stocktwits_cache, key, _STOCKTWITS_TTL)
+    if cached:
+        return cached
 
     try:
         url = f"https://api.stocktwits.com/api/2/streams/symbol/{key}.json"
@@ -625,7 +638,7 @@ def fetch_stocktwits_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
             "total_with_sentiment": total,
             "posts": posts,
         }
-        _stocktwits_cache[key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        _cache_set(_stocktwits_cache, key, result)
         return result
     except Exception as exc:
         print(f"StockTwits fetch failed for {ticker}: {exc}", file=sys.stderr)
@@ -652,9 +665,9 @@ def fetch_alphavantage_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
     Returns None on any failure so the sentiment agent degrades gracefully.
     """
     key = ticker.upper()
-    cached = _av_cache.get(key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _AV_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_av_cache, key, _AV_TTL)
+    if cached:
+        return cached
 
     api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
     if not api_key:
@@ -732,7 +745,7 @@ def fetch_alphavantage_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
             "bearish_pct":    round(bearish / total * 100) if total else None,
             "articles":       articles,
         }
-        _av_cache[key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        _cache_set(_av_cache, key, result)
         return result
 
     except Exception as exc:
@@ -759,9 +772,9 @@ def fetch_finnhub_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
         return None
 
     cache_key = f"fh_news_{ticker.upper()}"
-    cached = _finnhub_cache.get(cache_key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _FINNHUB_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_finnhub_cache, cache_key, _FINNHUB_TTL)
+    if cached:
+        return cached
 
     today = datetime.date.today()
     from_date = (today - datetime.timedelta(days=30)).isoformat()
@@ -793,7 +806,7 @@ def fetch_finnhub_sentiment(ticker: str) -> Optional[Dict[str, Any]]:
             ],
             "total": len(articles),
         }
-        _finnhub_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        _cache_set(_finnhub_cache, cache_key, result)
         return result
 
     except Exception as exc:
@@ -815,9 +828,9 @@ def fetch_finnhub_research(ticker: str) -> Optional[Dict[str, Any]]:
         return None
 
     cache_key = f"fh_research_{ticker.upper()}"
-    cached = _finnhub_cache.get(cache_key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _FINNHUB_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_finnhub_cache, cache_key, _FINNHUB_TTL)
+    if cached:
+        return cached
 
     result: Dict[str, Any] = {}
 
@@ -875,7 +888,7 @@ def fetch_finnhub_research(ticker: str) -> Optional[Dict[str, Any]]:
     if not result:
         return None
 
-    _finnhub_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+    _cache_set(_finnhub_cache, cache_key, result)
     return result
 
 
@@ -921,9 +934,9 @@ def fetch_edgar_filings(ticker: str) -> Optional[Dict[str, Any]]:
     Returns None on any failure so agents degrade gracefully.
     """
     cache_key = ticker.upper()
-    cached = _edgar_cache.get(cache_key)
-    if cached and (datetime.datetime.utcnow().timestamp() - cached["_ts"] < _EDGAR_TTL):
-        return {k: v for k, v in cached.items() if k != "_ts"}
+    cached = _cache_get(_edgar_cache, cache_key, _EDGAR_TTL)
+    if cached:
+        return cached
 
     cik = _get_edgar_cik(ticker)
     if not cik:
@@ -964,7 +977,7 @@ def fetch_edgar_filings(ticker: str) -> Optional[Dict[str, Any]]:
             return None
 
         result = {"company": data.get("name", ticker.upper()), "filings": filings}
-        _edgar_cache[cache_key] = {**result, "_ts": datetime.datetime.utcnow().timestamp()}
+        _cache_set(_edgar_cache, cache_key, result)
         return result
 
     except Exception as exc:

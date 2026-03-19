@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { AlertCircle, Clock, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { EXAMPLE_TICKERS } from '../../constants';
 
 interface ErrorDisplayProps {
   error: string;
@@ -104,7 +105,7 @@ export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
 
           {isNotFound && (
             <div className={cn('mt-3 text-xs', style.text)}>
-              💡 Try: <span className="font-mono font-bold">AAPL, TSLA, MSFT, NVDA, GOOG</span>
+              💡 Try: <span className="font-mono font-bold">{EXAMPLE_TICKERS.join(', ')}</span>
             </div>
           )}
         </div>

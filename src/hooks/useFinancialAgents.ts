@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { analyzeAgent } from '../services/apiService';
 import { FinancialAgentsState, LoadingState, UserApiKeys } from '../types';
-
-const EMPTY_LOADING: LoadingState = { research: false, tax: false, dividend: false, sentiment: false, summary: false };
-const EMPTY_RESPONSES: FinancialAgentsState = { research: null, tax: null, dividend: null, sentiment: null, summary: null };
+import { EMPTY_LOADING, EMPTY_RESPONSES } from '../constants';
 
 export function useFinancialAgents() {
   const [loading, setLoading] = useState<LoadingState>(EMPTY_LOADING);

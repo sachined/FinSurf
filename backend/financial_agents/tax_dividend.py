@@ -5,7 +5,7 @@ import json
 from typing import Dict, Any, Optional
 from ..data_fetcher import calculate_pnl, fetch_price_on_date
 from ..utils import calculate_holding_status
-from ._helpers import _BLOCKED_MSG, _blocked_json, _groq_with_gemini_fallback
+from ._helpers import _BLOCKED_MSG, _blocked_json, _error_json, _groq_with_gemini_fallback
 from .guardrail import security_guardrail
 
 
@@ -171,7 +171,7 @@ One sentence: what does this mean in plain English for this investor?
             tax_content = _groq_with_gemini_fallback(tax_prompt, tax_system, max_tokens=1024, agent="tax")
             tax_output = json.dumps({"content": tax_content, "citations": []})
         except Exception as e:
-            tax_output = json.dumps({"content": f"Tax analysis temporarily unavailable: {e}", "citations": []})
+            tax_output = _error_json(f"Tax analysis temporarily unavailable: {e}")
     else:
         tax_output = json.dumps({
             "content": (

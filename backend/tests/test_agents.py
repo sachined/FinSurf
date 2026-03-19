@@ -144,7 +144,7 @@ class TestBlockedResponseFormat(unittest.TestCase):
 
     def test_research_agent_blocked_is_json(self):
         from backend.financial_agents import research_agent
-        with patch(f"{RESEARCH_MODULE}.security_guardrail", return_value=False):
+        with patch("backend.financial_agents.guardrail.security_guardrail", return_value=False):
             raw = research_agent("INJECTION", skip_guardrail=False)
             data = json.loads(raw)
             self.assertIn("content", data)

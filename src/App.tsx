@@ -18,16 +18,14 @@ import { useFormState } from './hooks/useFormState';
 import { useFinancialAgents } from './hooks/useFinancialAgents';
 import { validatePass } from './services/apiService';
 import { UserApiKeys } from './types';
+import { FREE_TRIES, LS_KEYS } from './constants';
 const AboutPage = lazy(() => import('./pages/AboutPage').then(m => ({ default: m.AboutPage })));
 
-// localStorage keys
 const LS_SURF_COUNT = 'finsurf_surf_count';
-const LS_USER_KEYS  = 'finsurf_user_keys';
-const FREE_TRIES    = 3;
 
 function loadUserKeys(): UserApiKeys | null {
   try {
-    const raw = localStorage.getItem(LS_USER_KEYS);
+    const raw = localStorage.getItem(LS_KEYS.userKeys);
     return raw ? (JSON.parse(raw) as UserApiKeys) : null;
   } catch {
     return null;
@@ -68,7 +66,7 @@ export default function App() {
       validatePass(pass).then(data => {
         if (data.valid && data.expiry) {
           localStorage.setItem('finsurf_vip_expiry', data.expiry.toString());
-          localStorage.setItem('finsurf_active_pass', pass);
+          localStorage.setItem(LS_KEYS.activePass, pass);
           window.history.replaceState({}, '', window.location.pathname);
           alert("VIP Early Access Activated! You have unlimited analyses for 15 days.");
         }
@@ -137,7 +135,7 @@ export default function App() {
   }, [validateAll, isProd, userKeys, executeSearch]);
 
   const handleApiKeysSubmit = useCallback(async (keys: UserApiKeys) => {
-    localStorage.setItem(LS_USER_KEYS, JSON.stringify(keys));
+    localStorage.setItem(LS_KEYS.userKeys, JSON.stringify(keys));
     setUserKeys(keys);
     setShowApiKeyModal(false);
     // Run the search immediately with the newly provided keys.

@@ -1,4 +1,5 @@
 import { UserApiKeys, FinancialAgentsState } from '../types';
+import { LS_KEYS } from '../constants';
 
 /** Shared POST helper — DRY wrapper for all API calls. */
 async function apiPost<T>(
@@ -13,7 +14,7 @@ async function apiPost<T>(
   if (userKeys?.groqKey)      headers["X-User-Groq-Key"]       = userKeys.groqKey;
 
   // Send the active VIP pass so the server can exempt it from rate limiting.
-  const activePass = localStorage.getItem('finsurf_active_pass');
+  const activePass = localStorage.getItem(LS_KEYS.activePass);
   if (activePass) headers["X-FinSurf-Pass"] = activePass;
 
   // Include the Bearer token for server-side API authentication.

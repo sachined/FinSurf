@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Receipt, MessageSquare, Sparkles } from 'lucide-react';
 import { AgentCard } from '../cards/AgentCard';
 import { FinancialAgentsState, LoadingState } from '../../types';
+import { EMPTY_LOADING } from '../../constants';
 
 interface ResultsGridProps {
   responses: FinancialAgentsState;
@@ -11,8 +12,6 @@ interface ResultsGridProps {
   compareLoading?: LoadingState;
   compareTicker?: string;
 }
-
-const EMPTY_LOADING: LoadingState = { research: false, tax: false, dividend: false, sentiment: false, summary: false };
 
 export function ResultsGrid({
   responses,

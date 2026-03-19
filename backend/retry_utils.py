@@ -3,6 +3,7 @@ Unified retry logic with exponential backoff and provider fallback support.
 
 This module centralizes retry patterns used across LLM providers and data fetchers.
 """
+import functools
 import time
 import sys
 from typing import Callable, TypeVar, Optional, List, Any
@@ -100,6 +101,32 @@ def with_fallback(
 
         return wrapper
     return decorator
+
+
+def with_guardrail(func: Callable) -> Callable:
+    """Decorator that runs the security guardrail before a financial agent function.
+
+    Wraps any agent whose first positional arg is `ticker` and whose kwargs
+    include `skip_guardrail`.  When the ticker is blocked the decorated function
+    returns the standard _blocked_json() string immediately.
+
+    Uses lazy imports to avoid circular dependencies with the financial_agents
+    package (which itself imports from retry_utils).
+
+    Example:
+        @with_guardrail
+        def research_agent(ticker, ..., skip_guardrail=False, ...):
+            ...
+    """
+    @functools.wraps(func)
+    def wrapper(ticker: str, *args: Any, skip_guardrail: bool = False, **kwargs: Any) -> Any:
+        if not skip_guardrail:
+            from .financial_agents.guardrail import security_guardrail  # lazy import
+            from .financial_agents._helpers import _blocked_json         # lazy import
+            if not security_guardrail(ticker):
+                return _blocked_json()
+        return func(ticker, *args, skip_guardrail=skip_guardrail, **kwargs)
+    return wrapper
 
 
 def retry_with_fallback(

@@ -36,6 +36,7 @@ from .financial_agents import (
     social_sentiment_agent,
     executive_summary_agent,
 )
+from .financial_agents._helpers import _error_json
 
 # ---------------------------------------------------------------------------
 # Pre-compiled keyword sets for dividend detection
@@ -97,8 +98,7 @@ def guardrail_node(state: FinSurfState) -> Dict[str, Any]:
     try:
         safe = security_guardrail(ticker)
         if not safe:
-            blocked = json.dumps({"content": f"Ticker '{ticker}' is blocked.", "citations": []})
-            return {"is_safe": False, "research_output": blocked}
+            return {"is_safe": False, "research_output": _error_json(f"Ticker '{ticker}' is blocked.")}
         return {"is_safe": True}
     except Exception as exc:
         return {"is_safe": False, "errors": [f"guardrail error: {exc}"]}
@@ -124,8 +124,7 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
     try:
         # 2. Check guardrail BEFORE the expensive agent call
         if not state.get("is_safe", False):
-            blocked = json.dumps({"content": "Ticker Not Found", "citations": []})
-            return {"research_output": blocked, "is_dividend_stock": False}
+            return {"research_output": _error_json("Ticker Not Found"), "is_dividend_stock": False}
 
         raw = research_agent(ticker, purchase_date=purchase_date, sell_date=sell_date, skip_guardrail=True, shares=shares)
 
@@ -172,7 +171,7 @@ def research_node(state: FinSurfState) -> Dict[str, Any]:
     except Exception as exc:
         # Properly capture and return the error
         return {
-            "research_output": json.dumps({"content": f"Research failed: {exc}", "citations": []}),
+            "research_output": _error_json(f"Research failed: {exc}"),
             "is_dividend_stock": False,
             "errors": [f"research error: {exc}"],
         }
@@ -205,7 +204,7 @@ def tax_dividend_node(state: FinSurfState) -> Dict[str, Any]:
             out["pnl_summary"] = updated_pnl
         return out
     except Exception as exc:
-        skip_tax = json.dumps({"content": f"### Tax Analysis Unavailable\n\nReason: {exc}", "citations": []})
+        skip_tax = _error_json(f"### Tax Analysis Unavailable\n\nReason: {exc}")
         return {
             "tax_output": skip_tax,
             "dividend_output": {"isDividendStock": False, "hasDividendHistory": False, "analysis": f"Dividend analysis unavailable: {exc}"},
@@ -221,7 +220,7 @@ def sentiment_node(state: FinSurfState) -> Dict[str, Any]:
         return {"sentiment_output": result}
     except Exception as exc:
         return {
-            "sentiment_output": json.dumps({"content": f"Sentiment failed: {exc}", "citations": []}),
+            "sentiment_output": _error_json(f"Sentiment failed: {exc}"),
             "errors": [f"sentiment error: {exc}"],
         }
 
@@ -244,7 +243,7 @@ def executive_summary_node(state: FinSurfState) -> Dict[str, Any]:
         return {"executive_summary_output": result}
     except Exception as exc:
         return {
-            "executive_summary_output": json.dumps({"content": f"Executive summary failed: {exc}", "citations": []}),
+            "executive_summary_output": _error_json(f"Executive summary failed: {exc}"),
             "errors": [f"executive_summary error: {exc}"],
         }
 

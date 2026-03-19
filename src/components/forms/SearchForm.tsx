@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Hash, ArrowRight, Download, Check, Zap, BookOpen, ShieldAlert, Mail, Clock } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { downloadPDF } from '../../utils/pdfGenerator';
+import { LS_KEYS } from '../../constants';
 
 const EXAMPLE_TICKERS = ['AAPL', 'NVDA', 'GOOG', 'TSLA', 'AVGO', 'META', 'PLTR', 'AMD', 'RKLB', 'GME'];
-const LS_RECENT_SEARCHES = 'finsurf_recent_searches';
 const MAX_RECENT = 5;
 
 interface SearchFormProps {
@@ -49,7 +49,7 @@ export function SearchForm({
   // Load recent searches from localStorage
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(LS_RECENT_SEARCHES);
+      const stored = localStorage.getItem(LS_KEYS.recentSearches);
       if (stored) {
         const parsed = JSON.parse(stored);
         setRecentSearches(Array.isArray(parsed) ? parsed.slice(0, MAX_RECENT) : []);
@@ -68,7 +68,7 @@ export function SearchForm({
       // Remove if already exists, then add to front
       const filtered = prev.filter(t => t !== upper);
       const updated = [upper, ...filtered].slice(0, MAX_RECENT);
-      localStorage.setItem(LS_RECENT_SEARCHES, JSON.stringify(updated));
+      localStorage.setItem(LS_KEYS.recentSearches, JSON.stringify(updated));
       return updated;
     });
   };

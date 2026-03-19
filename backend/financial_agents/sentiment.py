@@ -11,10 +11,11 @@ from ..data_fetcher import (
     fetch_finnhub_sentiment,
     fetch_edgar_filings,
 )
-from ._helpers import _blocked_json, _perplexity_with_gemini_fallback
-from .guardrail import security_guardrail
+from ._helpers import _error_json, _perplexity_with_gemini_fallback
+from ..retry_utils import with_guardrail
 
 
+@with_guardrail
 def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched_data: Optional[Dict[str, Any]] = None) -> str:
     """Agent that analyzes market sentiment, grounded by yfinance data first.
 
@@ -28,9 +29,6 @@ def social_sentiment_agent(ticker: str, skip_guardrail: bool = False, prefetched
 
     Returns a JSON string: {content, citations}.
     """
-    if not skip_guardrail and not security_guardrail(ticker):
-        return _blocked_json()
-
     yf_data = prefetched_data if prefetched_data else fetch_sentiment_data(ticker)
     stocktwits  = fetch_stocktwits_sentiment(ticker)
     av_news     = fetch_alphavantage_sentiment(ticker)
@@ -150,7 +148,7 @@ Rules:
     else:
         try:
             content = call_gemini(prompt, system, max_tokens=1200, agent="sentiment")
-            return json.dumps({"content": content, "citations": []})
+            return _error_json(content)
         except Exception as e:
             print(f"Gemini sentiment failed, trying Perplexity: {e}")
             return _perplexity_with_gemini_fallback(prompt, system, max_tokens=1200, agent="sentiment")

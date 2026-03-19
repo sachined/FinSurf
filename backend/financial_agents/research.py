@@ -11,10 +11,11 @@ from ..data_fetcher import (
     fetch_finnhub_research,
     _price_from_history,
 )
-from ._helpers import _blocked_json, _groq_with_gemini_fallback
-from .guardrail import security_guardrail
+from ._helpers import _groq_with_gemini_fallback
+from ..retry_utils import with_guardrail
 
 
+@with_guardrail
 def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", skip_guardrail: bool = False, shares: float = 0.0) -> str:
     """Agent that performs general equity research using Gemini, grounded by yfinance data.
 
@@ -27,9 +28,6 @@ def research_agent(ticker: str, purchase_date: str = "", sell_date: str = "", sk
     agents can consume it from FinSurfState without re-fetching or duplicating arithmetic.
     Returns a JSON string: {content, citations, price_history, buy_price, sell_price, current_price, pnl_summary}.
     """
-    if not skip_guardrail and not security_guardrail(ticker):
-        return _blocked_json()
-
     fetched  = fetch_research_data(ticker)
     finnhub  = fetch_finnhub_research(ticker)
     price_history = fetched.get("price_history", []) if fetched else []
