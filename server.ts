@@ -74,7 +74,48 @@ async function runPythonAgent(mode: string, args: (string | number)[], skipGuard
 }
 
 async function startServer() {
-  // Validate environment before starting server
+  const app = express();
+  // Trust the reverse proxy (Caddy) so express-rate-limit reads the real
+  // client IP from X-Forwarded-For instead of the internal container IP.
+  app.set("trust proxy", 1);
+  const PORT = parseInt(process.env.PORT || "3000", 10);
+  const isProd = process.env.NODE_ENV === "production";
+
+  // Fail fast if the production build is missing — avoids a mysterious 404
+  // on every page load instead of a clear startup error.
+  if (isProd && !existsSync(path.join(__dirname, "dist", "index.html"))) {
+    console.error("❌ Production build not found. Run `npm run build` before starting the server.");
+    process.exit(1);
+  }
+
+  // Load secrets from files (Docker Secrets) or environment variables.
+  // This MUST happen before validate_env.py is called so the child process
+  // inherits GEMINI_API_KEY / GROQ_API_KEY from process.env.
+  const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
+  const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
+  const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
+  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
+  const LANGCHAIN_API_KEY    = getSecret("LANGCHAIN_API_KEY",    "LANGCHAIN_API_KEY_FILE");
+  const REDDIT_CLIENT_ID      = getSecret("REDDIT_CLIENT_ID",      "REDDIT_CLIENT_ID_FILE");
+  const REDDIT_CLIENT_SECRET  = getSecret("REDDIT_CLIENT_SECRET",  "REDDIT_CLIENT_SECRET_FILE");
+  const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
+  const FINNHUB_API_KEY       = getSecret("FINNHUB_API_KEY",       "FINNHUB_API_KEY_FILE");
+  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
+  const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
+
+  // Inject secrets into process.env so all child processes (Python agents,
+  // validate_env.py) inherit them without any further plumbing.
+  process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
+  process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
+  process.env.GROQ_API_KEY = GROQ_API_KEY || "";
+  if (LANGCHAIN_API_KEY)    process.env.LANGCHAIN_API_KEY    = LANGCHAIN_API_KEY;
+  if (REDDIT_CLIENT_ID)      process.env.REDDIT_CLIENT_ID      = REDDIT_CLIENT_ID;
+  if (REDDIT_CLIENT_SECRET)  process.env.REDDIT_CLIENT_SECRET  = REDDIT_CLIENT_SECRET;
+  if (ALPHA_VANTAGE_API_KEY) process.env.ALPHA_VANTAGE_API_KEY = ALPHA_VANTAGE_API_KEY;
+  if (FINNHUB_API_KEY)       process.env.FINNHUB_API_KEY       = FINNHUB_API_KEY;
+
+  // Validate environment — runs after secrets are loaded so the child process
+  // sees GEMINI_API_KEY / GROQ_API_KEY in its environment.
   console.log("Validating environment...");
   try {
     const validationResult = await new Promise<string>((resolve, reject) => {
@@ -91,43 +132,6 @@ async function startServer() {
     console.error("Environment validation failed:", err);
     process.exit(1);
   }
-
-  const app = express();
-  // Trust the reverse proxy (Caddy) so express-rate-limit reads the real
-  // client IP from X-Forwarded-For instead of the internal container IP.
-  app.set("trust proxy", 1);
-  const PORT = parseInt(process.env.PORT || "3000", 10);
-  const isProd = process.env.NODE_ENV === "production";
-
-  // Fail fast if the production build is missing — avoids a mysterious 404
-  // on every page load instead of a clear startup error.
-  if (isProd && !existsSync(path.join(__dirname, "dist", "index.html"))) {
-    console.error("❌ Production build not found. Run `npm run build` before starting the server.");
-    process.exit(1);
-  }
-
-  // Load secrets from files (Docker Secrets) or environment variables
-  const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
-  const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
-  const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
-  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
-  const LANGCHAIN_API_KEY    = getSecret("LANGCHAIN_API_KEY",    "LANGCHAIN_API_KEY_FILE");
-  const REDDIT_CLIENT_ID      = getSecret("REDDIT_CLIENT_ID",      "REDDIT_CLIENT_ID_FILE");
-  const REDDIT_CLIENT_SECRET  = getSecret("REDDIT_CLIENT_SECRET",  "REDDIT_CLIENT_SECRET_FILE");
-  const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
-  const FINNHUB_API_KEY       = getSecret("FINNHUB_API_KEY",       "FINNHUB_API_KEY_FILE");
-  const VIP_PASSES_STR = getSecret("VIP_PASSES", "VIP_PASSES_FILE") || "FINSURF_BETA_2026,REDDIT_INVESTOR_VIP";
-  const VALID_VIP_PASSES = new Set(VIP_PASSES_STR.split(",").map(p => p.trim()).filter(Boolean));
-
-  // Make secrets available to child processes (Python agents)
-  process.env.GEMINI_API_KEY = GEMINI_API_KEY || "";
-  process.env.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY || "";
-  process.env.GROQ_API_KEY = GROQ_API_KEY || "";
-  if (LANGCHAIN_API_KEY)    process.env.LANGCHAIN_API_KEY    = LANGCHAIN_API_KEY;
-  if (REDDIT_CLIENT_ID)      process.env.REDDIT_CLIENT_ID      = REDDIT_CLIENT_ID;
-  if (REDDIT_CLIENT_SECRET)  process.env.REDDIT_CLIENT_SECRET  = REDDIT_CLIENT_SECRET;
-  if (ALPHA_VANTAGE_API_KEY) process.env.ALPHA_VANTAGE_API_KEY = ALPHA_VANTAGE_API_KEY;
-  if (FINNHUB_API_KEY)       process.env.FINNHUB_API_KEY       = FINNHUB_API_KEY;
 
   // Security Middlewares
   // CSP is disabled in dev (Vite HMR requires relaxed policy);
