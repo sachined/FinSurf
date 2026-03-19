@@ -5,7 +5,6 @@ import { cn } from './utils/cn';
 import { Header } from './components/layout/Header';
 import { SearchForm } from './components/forms/SearchForm';
 import { ResultsGrid } from './components/results/ResultsGrid';
-import { CompareBar } from './components/ui/CompareBar';
 import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
@@ -85,18 +84,7 @@ export default function App() {
     validateAll
   } = useFormState();
 
-  const {
-    loading,
-    responses,
-    runAll,
-    compareLoading,
-    compareResponses,
-    isComparing,
-    runCompare,
-    clearCompare,
-  } = useFinancialAgents();
-
-  const [compareTicker, setCompareTicker] = useState('');
+  const { loading, responses, runAll } = useFinancialAgents();
 
   const [hasSurfed, setHasSurfed] = useState(false);
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
@@ -149,16 +137,6 @@ export default function App() {
   const handleUpgrade = useCallback(() => {
     setShowComingSoonModal(true);
   }, []);
-
-  const handleCompare = useCallback((compareWith: string) => {
-    setCompareTicker(compareWith);
-    runCompare(compareWith, setError, userKeys ?? undefined);
-  }, [runCompare, setError, userKeys]);
-
-  const handleClearCompare = useCallback(() => {
-    setCompareTicker('');
-    clearCompare();
-  }, [clearCompare]);
 
   return (
     <div className={cn(
@@ -233,19 +211,6 @@ export default function App() {
             />
           </div>
 
-          {/* Compare bar — appears after first surf completes */}
-          {hasResponses && !isAnyLoading && (
-            <div data-no-print="" className="flex justify-end px-1 mb-2 -mt-2">
-              <CompareBar
-                isComparing={isComparing}
-                compareTicker={compareTicker}
-                isLoading={Object.values(compareLoading).some(v => v)}
-                onCompare={handleCompare}
-                onClear={handleClearCompare}
-              />
-            </div>
-          )}
-
           <div data-no-print="">
             <AgentProgressStrip loading={loading} responses={responses} />
           </div>
@@ -277,9 +242,6 @@ export default function App() {
             responses={responses}
             loading={loading}
             primaryTicker={ticker}
-            compareResponses={isComparing ? compareResponses : undefined}
-            compareLoading={isComparing ? compareLoading : undefined}
-            compareTicker={isComparing ? compareTicker : undefined}
           />
 
           <Footer />
