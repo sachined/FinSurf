@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft } from 'lucide-react';
+import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft, Quote } from 'lucide-react';
 import { resumeData } from '../data/resumeData';
 import { cn } from '../utils/cn';
 
@@ -100,6 +100,26 @@ export function AboutPage({ onBack }: AboutPageProps) {
         </div>
       </motion.div>
 
+      {/* ── Stat Strip ────────────────────────────────────────────────────── */}
+      {d.stats && d.stats.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        >
+          {d.stats.map((s) => (
+            <div
+              key={s.label}
+              className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm rounded-2xl border border-white dark:border-slate-800 shadow-sm px-4 py-4 text-center"
+            >
+              <p className="text-lg font-black text-amber-500 dark:text-amber-400 leading-none">{s.value}</p>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider">{s.label}</p>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
       {/* ── Bio ───────────────────────────────────────────────────────────── */}
       {d.bio.length > 0 && (
         <motion.div
@@ -116,6 +136,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
               </p>
             ))}
           </div>
+
         </motion.div>
       )}
 
@@ -241,6 +262,48 @@ export function AboutPage({ onBack }: AboutPageProps) {
           </div>
         </motion.div>
       )}
+
+      {/* ── Closing CTA ───────────────────────────────────────────────────── */}
+      {d.cta && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className={cn(card, "text-center")}
+        >
+          <Quote size={20} className="mx-auto mb-4 text-amber-400/60" />
+          <blockquote className="text-slate-600 dark:text-slate-300 italic text-sm leading-relaxed max-w-lg mx-auto">
+            "{d.cta.quote}"
+          </blockquote>
+          <p className="text-xs font-bold text-amber-500 dark:text-amber-400 mt-2">— {d.cta.attribution}</p>
+
+          <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <p className="font-black text-slate-800 dark:text-white text-base">{d.cta.headline}</p>
+            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">{d.cta.sub}</p>
+            <div className="flex flex-wrap justify-center gap-3 mt-5">
+              {d.contact.email && (
+                <a
+                  href={`mailto:${d.contact.email}`}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-white transition-colors shadow-sm"
+                >
+                  <Mail size={14} /> Get in touch
+                </a>
+              )}
+              {d.contact.linkedin && (
+                <a
+                  href={d.contact.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Linkedin size={14} /> LinkedIn
+                </a>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
     </div>
   );
 }

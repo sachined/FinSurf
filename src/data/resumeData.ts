@@ -13,15 +13,25 @@ export const resumeData = {
   avatarInitials: "SN", // shown when no photo is provided
   photo: "/GPJaTh.webp",  // place your photo in the public/ folder and set the filename here; set to "" to use initials instead
 
+  // ── Stats strip (shown below hero) ────────────────────────────────────────
+  stats: [
+    { value: "5", label: "AI Agents" },
+    { value: "4 yrs", label: "Enterprise AI" },
+    { value: "Worldpay · Fidelity", label: "Enterprise Clients" },
+    { value: "Live", label: "finsurf.net" },
+  ],
+
   // ── Bio ───────────────────────────────────────────────────────────────────
   bio: [
-    "I build AI-powered tools that solve real problems for real people. FinSurf started from a simple observation: " +
-    "the kind of financial analysis available to institutional investors has always been out of reach for retail investors — " +
-    "locked behind expensive advisors, opaque tools, or a finance degree. I built FinSurf to close that gap.",
+    "I build AI tools that close the gap between institutional and retail investing. FinSurf grew from a simple " +
+    "frustration: the kind of deep financial analysis available to fund managers — earnings research, tax-aware " +
+    "positioning, SEC filing review, market sentiment — has always been locked behind Bloomberg terminals and " +
+    "expensive advisors. I built the platform I wished existed.",
 
-    "My background spans enterprise software implementation, cloud infrastructure, and full-stack development. " +
-    "I spent four years at eGain managing Fortune 500 deployments — working at the intersection of AI, knowledge management, " +
-    "and large-scale technical rollouts — before transitioning into independent software development.",
+    "My path here was unconventional. A Geography degree from UCLA gave me a systems-thinking lens; four years " +
+    "at eGain managing Fortune 500 deployments for clients like Worldpay and Fidelity Investments gave me " +
+    "firsthand experience with enterprise AI at scale. When I left to build independently, FinSurf was the " +
+    "first project I designed, built, and shipped entirely on my own — from blank repo to live production.",
   ],
 
   // ── Skills ────────────────────────────────────────────────────────────────
@@ -36,7 +46,7 @@ export const resumeData = {
     },
     {
       category: "Data & AI",
-      items: ["Gemini API", "Perplexity", "Groq", "yfinance", "SQLite"],
+      items: ["Gemini API", "Perplexity", "Groq", "yfinance", "FinnHub", "AlphaVantage", "SEC EDGAR", "SQLite"],
     },
     {
       category: "DevOps",
@@ -46,6 +56,17 @@ export const resumeData = {
 
   // ── Experience ────────────────────────────────────────────────────────────
   experience: [
+    {
+      role: "Independent Software Developer",
+      company: "Self-employed",
+      period: "2024 – Present",
+      bullets: [
+        "Designed and shipped FinSurf — a multi-agent AI platform for retail stock analysis — solo, end-to-end: " +
+        "architecture, backend, frontend, data integrations, and production deployment.",
+        "Built a LangGraph state machine orchestrating five specialist AI agents, pulling live data from Yahoo Finance, " +
+        "FinnHub, AlphaVantage, and SEC EDGAR to deliver institutional-grade research in seconds.",
+      ],
+    },
     {
       role: "Implementation Solutions Engineer",
       company: "eGain Corp",
@@ -57,41 +78,6 @@ export const resumeData = {
         "configuration, content normalization, production deployment, and ongoing optimization.",
         "Automated recurring Excel reporting workflows using AI-generated action scripts, reducing task completion " +
         "time from 1 hour to 15 minutes — a 75% efficiency gain.",
-      ],
-    },
-    {
-      role: "Account Manager",
-      company: "v12Software",
-      period: "2018",
-      bullets: [
-        "Conducted SaaS win-back engagements for automotive dealerships, recovering dormant accounts through " +
-        "consultative product demonstrations.",
-        "Gained first exposure to SaaS product cycles and Agile development methodology in a commercial environment.",
-      ],
-    },
-    {
-      role: "IT Field Support Technician",
-      company: "MMA & TPG",
-      period: "2017 – 2019",
-      bullets: [
-        "Delivered enterprise tech deployments and workspace migrations at Apple, Broadcom, Salesforce, and " +
-        "other Bay Area campuses.",
-      ],
-    },
-    {
-      role: "Technical Contributor (volunteer)",
-      company: "NeuroLeap",
-      period: "2017",
-      bullets: [
-        "C++ development and Linux diagnostics for an educational technology prototype.",
-      ],
-    },
-    {
-      role: "Hardware Diagnostic Technician (contract)",
-      company: "Apple",
-      period: "2016",
-      bullets: [
-        "Diagnostic testing of next-generation mobile devices at AppleCare.",
       ],
     },
   ],
@@ -110,9 +96,10 @@ export const resumeData = {
     {
       name: "FinSurf",
       description:
-        "Multi-agent AI platform for retail stock analysis. A LangGraph state machine orchestrates five specialist " +
-        "agents — research, tax strategy, market sentiment, dividend analysis, and executive summary — delivering " +
-        "professional-grade reports in seconds. Built solo, end-to-end.",
+        "Multi-agent AI platform for retail stock research. A LangGraph state machine orchestrates five specialist " +
+        "agents — fundamental research, tax strategy, market sentiment, dividend analysis, and executive summary — " +
+        "pulling live data from Yahoo Finance, FinnHub, AlphaVantage, and SEC EDGAR. Delivers institutional-grade " +
+        "analysis in seconds. Designed, built, and deployed solo.",
       url: "https://finsurf.net",
     },
     {
@@ -125,11 +112,19 @@ export const resumeData = {
     },
   ],
 
+  // ── Closing CTA ───────────────────────────────────────────────────────────
+  cta: {
+    quote: "I made it by being tougher than the toughies and smarter than the smarties, and I made it square!",
+    attribution: "Scrooge McDuck",
+    headline: "Available for freelance & contract work",
+    sub: "Full-stack development, AI systems, and technical consulting.",
+  },
+
   // ── Contact ───────────────────────────────────────────────────────────────
   contact: {
     email: "sachin.nediyanchath@gmail.com",
     linkedin: "https://www.linkedin.com/in/nediyanchath/",
     github: "https://github.com/sachined",
-    website: "",
+    website: "https://weather-and-billboard.vercel.app/",
   },
 };
