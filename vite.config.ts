@@ -15,31 +15,36 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('react-markdown') || id.includes('remark-gfm')) {
-                return 'markdown';
+              if (id.includes('node_modules')) {
+                // 1. React Core (Must be solid)
+                if (
+                  id.includes('react/') ||
+                  id.includes('react-dom/') ||
+                  id.includes('scheduler/') ||
+                  id.includes('jsx-runtime')
+                ) {
+                  return 'react-vendor';
+                }
+                // 2. Heavy hitters
+                if (id.includes('react-markdown') || id.includes('remark-gfm')) {
+                  return 'markdown';
+                }
+                if (id.includes('recharts') || id.includes('d3-')) {
+                  return 'charts';
+                }
+                if (id.includes('@stripe')) {
+                  return 'stripe';
+                }
+                // 3. Everything else node_modules
+                return 'vendor';
               }
-              if (id.includes('lucide-react')) {
-                return 'icons';
-              }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
-                return 'react-vendor';
-              }
-              if (id.includes('@stripe')) {
-                return 'stripe';
-              }
-              if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-')) {
-                return 'charts';
-              }
-              return 'vendor';
-            }
-          },
+            },
         },
       },
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
