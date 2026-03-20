@@ -17,7 +17,12 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: undefined,
+          manualChunks: {
+            'vendor-charts': ['recharts'],
+            'vendor-motion': ['motion'],
+            'vendor-markdown': ['react-markdown', 'remark-gfm'],
+            'vendor-stripe': ['@stripe/react-stripe-js', '@stripe/stripe-js'],
+          },
         },
       },
     },

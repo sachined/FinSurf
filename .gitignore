@@ -36,6 +36,7 @@ __pycache__/
 
 # Claude Code internal directory (settings, memory, worktrees)
 .claude/
+CLAUDE.md
 
 # Captured output artifacts
 .output.txt
