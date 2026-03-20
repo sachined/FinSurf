@@ -23,6 +23,7 @@ interface SearchFormProps {
   isDataAvailable?: boolean;
   onTickerSelect?: (ticker: string) => void;
   onAboutClick?: () => void;
+  onContactClick?: () => void;
   triesLeft?: number;
 }
 
@@ -42,9 +43,9 @@ export function SearchForm({
   isDataAvailable,
   onTickerSelect,
   onAboutClick,
+  onContactClick,
   triesLeft,
 }: SearchFormProps) {
-  const [emailCopied, setEmailCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -72,13 +73,6 @@ export function SearchForm({
       const updated = [upper, ...filtered].slice(0, MAX_RECENT);
       localStorage.setItem(LS_KEYS.recentSearches, JSON.stringify(updated));
       return updated;
-    });
-  };
-
-  const handleCopyEmail = () => {
-    navigator.clipboard.writeText('sachin.nediyanchath@gmail.com').then(() => {
-      setEmailCopied(true);
-      setTimeout(() => setEmailCopied(false), 2000);
     });
   };
 
@@ -137,17 +131,11 @@ export function SearchForm({
 
         {/* Email CTA pill */}
         <button
-          onClick={handleCopyEmail}
-          title="Click to copy email address"
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors",
-            emailCopied
-              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
-              : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-          )}
+          onClick={() => onContactClick?.()}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
         >
-          {emailCopied ? <Check size={11} /> : <Mail size={11} />}
-          {emailCopied ? 'Email copied!' : 'Want your own tool? Email me'}
+          <Mail size={11} />
+          Want your own tool? Email me
         </button>
 
         {/* Disclaimer pill — links to About */}

@@ -9,6 +9,7 @@ import { Footer } from './components/layout/Footer';
 import { WelcomeHero } from './components/ui/WelcomeHero';
 import { AgentProgressStrip } from './components/cards/AgentProgressStrip';
 import { ApiKeyModal } from './components/modals/ApiKeyModal';
+import { ContactModal } from './components/modals/ContactModal';
 import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
 import { ErrorDisplay } from './components/ui/ErrorDisplay';
 import { CompareBar } from './components/ui/CompareBar';
@@ -93,6 +94,7 @@ export default function App() {
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [currentPage, setCurrentPage] = useState<'home' | 'about'>('home');
   const isAnyLoading = Object.values(loading).some(v => v);
   const hasResponses = Object.values(responses).some(r => r !== null);
@@ -226,6 +228,7 @@ export default function App() {
               isCompact={hasResponses && !isAnyLoading}
               isDataAvailable={hasResponses && !isAnyLoading}
               onAboutClick={handleAbout}
+              onContactClick={() => setShowContactModal(true)}
               triesLeft={triesLeft}
             />
           </div>
@@ -291,6 +294,11 @@ export default function App() {
       {/* API Key Modal — production only, shown after free tries are exhausted */}
       {showApiKeyModal && (
         <ApiKeyModal onSubmit={handleApiKeysSubmit} />
+      )}
+
+      {/* Contact Modal */}
+      {showContactModal && (
+        <ContactModal onClose={() => setShowContactModal(false)} />
       )}
 
       {/* Coming Soon Modal — shown when user clicks Upgrade */}
