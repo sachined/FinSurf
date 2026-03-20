@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
 import { agentColors } from '../../utils/colors';
 import { type AgentResponse, type DividendResponse, type ResearchResponse, type DividendStats } from '../../types';
+import { fmtUsd } from '../../utils/formatting';
 import { PriceChart } from '../charts/PriceChart';
 import { TimestampBadge } from '../ui/TimestampBadge';
 
@@ -27,9 +28,10 @@ interface AgentCardProps {
   isCompact?: boolean;
   staticSources?: string[];
   loadingLabel?: string;
+  currentPrice?: number | null;
 }
 
-export function AgentCard({ title, icon, loading, response, dividendResponse, color, isDividendAgent, emptyDescription, isCompact, staticSources, loadingLabel }: AgentCardProps) {
+export function AgentCard({ title, icon, loading, response, dividendResponse, color, isDividendAgent, emptyDescription, isCompact, staticSources, loadingLabel, currentPrice }: AgentCardProps) {
   const colorClasses    = agentColors.badge;
   const accentClasses   = agentColors.accent;
   const cardBorderClasses   = agentColors.cardBorder;
@@ -163,6 +165,13 @@ export function AgentCard({ title, icon, loading, response, dividendResponse, co
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {currentPrice != null && (
+                <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  <span className="text-amber-500">●</span>
+                  Current Price: <span className="font-black">{fmtUsd(currentPrice)}</span>
                 </div>
               )}
 

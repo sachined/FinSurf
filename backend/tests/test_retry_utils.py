@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch, call
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.retry_utils import exponential_backoff_retry, with_fallback, retry_with_fallback
+from backend.retry_utils import exponential_backoff_retry, with_fallback, with_guardrail, retry_with_fallback
 
 
 class TestExponentialBackoffRetry(unittest.TestCase):
@@ -106,6 +106,50 @@ class TestRetryWithFallback(unittest.TestCase):
             with self.assertRaises(Exception) as ctx:
                 combined()
         self.assertEqual(str(ctx.exception), "fallback fails")
+
+
+class TestWithGuardrail(unittest.TestCase):
+    """Tests for the with_guardrail decorator in retry_utils."""
+
+    def _make_agent(self):
+        """Return a simple @with_guardrail-decorated function for testing."""
+        @with_guardrail
+        def mock_agent(ticker, skip_guardrail=False):
+            return f"result:{ticker}"
+        return mock_agent
+
+    def test_skip_guardrail_true_calls_through_without_guardrail_check(self):
+        """When skip_guardrail=True the wrapped function runs directly — no
+        security_guardrail call should occur."""
+        agent = self._make_agent()
+        # No patch needed — if security_guardrail were called it would make
+        # a real LLM call and this test would fail/error.
+        with patch("backend.financial_agents.guardrail.security_guardrail") as mock_guard:
+            result = agent("AAPL", skip_guardrail=True)
+        self.assertEqual(result, "result:AAPL")
+        mock_guard.assert_not_called()
+
+    def test_skip_guardrail_false_safe_ticker_calls_through(self):
+        """When skip_guardrail=False and guardrail approves, the wrapped
+        function is called and its return value is passed back."""
+        agent = self._make_agent()
+        with patch("backend.financial_agents.guardrail.security_guardrail", return_value=True):
+            result = agent("AAPL", skip_guardrail=False)
+        self.assertEqual(result, "result:AAPL")
+
+    def test_skip_guardrail_false_blocked_ticker_returns_blocked_json(self):
+        """When skip_guardrail=False and guardrail blocks, _blocked_json() is
+        returned and the wrapped function is never called."""
+        import json
+        inner = MagicMock(return_value="should not be returned")
+        inner.__name__ = "inner"
+        decorated = with_guardrail(inner)
+        with patch("backend.financial_agents.guardrail.security_guardrail", return_value=False):
+            result = decorated("BADTICKER", skip_guardrail=False)
+        data = json.loads(result)
+        self.assertIn("Blocked", data["content"])
+        self.assertEqual(data["citations"], [])
+        inner.assert_not_called()
 
 
 if __name__ == "__main__":

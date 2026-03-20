@@ -139,6 +139,26 @@ class TestSecurityGuardrail(unittest.TestCase):
                 self.assertFalse(result)
 
 
+class TestErrorJson(unittest.TestCase):
+    """_error_json must produce the same {content, citations:[]} envelope as
+    _blocked_json, but with an arbitrary message instead of the fixed block text."""
+
+    def test_returns_valid_json_envelope(self):
+        from backend.financial_agents._helpers import _error_json
+        import json
+        result = _error_json("Something went wrong.")
+        data = json.loads(result)
+        self.assertEqual(data["content"], "Something went wrong.")
+        self.assertEqual(data["citations"], [])
+
+    def test_empty_message_still_valid(self):
+        from backend.financial_agents._helpers import _error_json
+        import json
+        data = json.loads(_error_json(""))
+        self.assertEqual(data["content"], "")
+        self.assertIsInstance(data["citations"], list)
+
+
 class TestBlockedResponseFormat(unittest.TestCase):
     """Verify all agents return consistent output when the guardrail blocks."""
 
@@ -236,6 +256,24 @@ class TestSentimentAgent(unittest.TestCase):
                             data = json.loads(result)
                             self.assertEqual(data["content"], "Perplexity sentiment.")
                             mock_perplexity.assert_called_once()
+
+    def test_falls_back_to_perplexity_when_gemini_fails_with_rich_data(self):
+        """When data is rich (>=3 headlines + recs) Gemini is tried first.
+        If Gemini raises, the agent must fall back to Perplexity and still
+        return a valid JSON envelope — not corrupt stdout with a print."""
+        from backend.financial_agents import social_sentiment_agent
+        perplexity_response = json.dumps({"content": "Perplexity fallback.", "citations": []})
+        with patch(f"{SENTIMENT_MODULE}.fetch_sentiment_data", return_value=MOCK_SENTIMENT_DATA):
+            with patch(f"{SENTIMENT_MODULE}.fetch_stocktwits_sentiment", return_value=None):
+                with patch(f"{SENTIMENT_MODULE}.fetch_alphavantage_sentiment", return_value=None):
+                    with patch(f"{SENTIMENT_MODULE}.fetch_finnhub_sentiment", return_value=None):
+                        with patch(f"{SENTIMENT_MODULE}.fetch_edgar_filings", return_value=None):
+                            with patch(f"{SENTIMENT_MODULE}.call_gemini", side_effect=Exception("quota")):
+                                with patch(f"{HELPERS_MODULE}.call_perplexity", return_value=perplexity_response) as mock_perplexity:
+                                    result = social_sentiment_agent("AAPL", skip_guardrail=True)
+                                    data = json.loads(result)
+                                    self.assertEqual(data["content"], "Perplexity fallback.")
+                                    mock_perplexity.assert_called_once()
 
     def test_falls_back_to_gemini_when_perplexity_fails(self):
         """When data is thin and Perplexity raises, Gemini must be used as the
