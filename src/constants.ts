@@ -10,7 +10,7 @@ export const EMPTY_RESPONSES: FinancialAgentsState = {
 
 export const EXAMPLE_TICKERS = ['AAPL', 'TSLA', 'MSFT', 'NVDA', 'GOOG'] as const;
 
-export const FREE_TRIES = 3;
+export const FREE_TRIES = 5;
 
 export const LS_KEYS = {
   activePass:     'finsurf_active_pass',

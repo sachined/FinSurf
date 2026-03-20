@@ -57,7 +57,7 @@ export function AgentCard({ title, icon, loading, response, dividendResponse, co
 
   return (
     <div data-pdf-chunk="card" data-pdf-title={title} className={cn(
-      "flex flex-col transition-all min-h-[400px] h-full",
+      "flex flex-col transition-all h-full",
       "bg-white dark:bg-slate-900",
       isCompact ? "rounded-none shadow-none border-none" : "rounded-2xl shadow-sm",
       `shadow-slate-900/5 dark:shadow-black/20 border ${cardBorderClasses[color]}`

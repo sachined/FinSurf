@@ -75,18 +75,6 @@ export function ResultsGrid({
             loadingLabel="Analysing fundamentals…"
           />
           <AgentCard
-            title="Tax & Dividend Analysis"
-            icon={<Receipt size={20} />}
-            loading={loading.tax || loading.dividend}
-            response={responses.tax}
-            dividendResponse={responses.dividend}
-            color="emerald"
-            emptyDescription="Calculates capital gains tax and projects dividend income on your position."
-            isCompact={isDone}
-            staticSources={['Yahoo Finance', 'IRS']}
-            loadingLabel="Calculating tax & dividends…"
-          />
-          <AgentCard
             title="Sentiment Analyst"
             icon={<MessageSquare size={20} />}
             loading={loading.sentiment}

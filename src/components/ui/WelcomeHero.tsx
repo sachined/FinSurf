@@ -47,9 +47,9 @@ export function WelcomeHero() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 + i * 0.06, duration: 0.35 }}
-            className={cn("flex items-center gap-3 px-4 py-3 rounded-2xl border bg-white/60 dark:bg-slate-900/60", borderCls)}
+            className={cn("flex flex-col items-center text-center gap-2 px-4 py-3 rounded-2xl border bg-white/60 dark:bg-slate-900/60", borderCls)}
           >
-            <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center shrink-0", iconCls)}>
+            <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center", iconCls)}>
               {icon}
             </div>
             <div>

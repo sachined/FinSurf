@@ -32,7 +32,7 @@ export function ApiKeyModal({ onSubmit }: ApiKeyModalProps) {
           Enter Your API Keys
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mb-6">
-          You've used your 3 free analyses. To continue, please provide your
+          You've used your 5 free analyses. To continue, please provide your
           own API keys. Keys are stored locally in your browser and never sent
           to our servers except to make analysis requests on your behalf.
         </p>

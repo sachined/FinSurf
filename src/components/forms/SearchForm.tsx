@@ -99,7 +99,7 @@ export function SearchForm({
       <div className="lg:col-span-12 flex flex-wrap items-center gap-2">
         {/* Benefit pills */}
         {[
-          { icon: <Check size={11} />,    text: 'Free · 3 analyses per day', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
+          { icon: <Check size={11} />,    text: 'Free · 5 analyses per day', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
           { icon: <Zap size={11} />,      text: '4 AI agents · One search',  cls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-800/60' },
           { icon: <BookOpen size={11} />, text: 'Plain English · No jargon', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
         ].map(({ icon, text, cls }) => (

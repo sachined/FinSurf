@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { GitCompareArrows, X, ArrowRight } from 'lucide-react';
+import { GitCompareArrows, X, ArrowRight, Info, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
 
@@ -11,9 +11,17 @@ interface CompareBarProps {
   onClear: () => void;
 }
 
+const COMPARE_HINTS = [
+      'Runs a lite analysis — research, sentiment & summary only.',
+      'No tax or dividend calculation (no dates or shares needed).',
+      'Comparison is complimentary — it does not count as a separate use.',
+      'Starting a new primary search clears the comparison.',
+];
+
 export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, onClear }: CompareBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [input, setInput] = useState('');
+  const [showHints, setShowHints] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -59,7 +67,8 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
       <AnimatePresence mode="wait">
         {!expanded ? (
           <motion.button
@@ -120,6 +129,36 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
               <X size={14} />
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!expanded && (
+        <button
+          onClick={() => setShowHints(h => !h)}
+          className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
+        >
+          <Info size={11} />
+          How does this work?
+          <ChevronDown size={11} className={cn("transition-transform", showHints && "rotate-180")} />
+        </button>
+      )}
+      </div>
+
+      <AnimatePresence>
+        {showHints && !expanded && (
+          <motion.ul
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden ml-1 space-y-0.5"
+          >
+            {COMPARE_HINTS.map((hint, i) => (
+              <li key={i} className="flex items-start gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+                <span className="text-amber-400 mt-px">·</span>
+                {hint}
+              </li>
+            ))}
+          </motion.ul>
         )}
       </AnimatePresence>
     </div>
