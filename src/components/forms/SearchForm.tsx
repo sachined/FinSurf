@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, Hash, ArrowRight, Download, Check, Zap, BookOpen, ShieldAlert, Mail, Clock } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { downloadPDF } from '../../utils/pdfGenerator';
-import { LS_KEYS } from '../../constants';
+import { LS_KEYS, FREE_TRIES } from '../../constants';
 
 const EXAMPLE_TICKERS = ['AAPL', 'NVDA', 'GOOG', 'TSLA', 'AVGO', 'META', 'PLTR', 'AMD', 'RKLB', 'GME'];
 const MAX_RECENT = 5;
@@ -23,6 +23,7 @@ interface SearchFormProps {
   isDataAvailable?: boolean;
   onTickerSelect?: (ticker: string) => void;
   onAboutClick?: () => void;
+  triesLeft?: number;
 }
 
 export function SearchForm({
@@ -41,6 +42,7 @@ export function SearchForm({
   isDataAvailable,
   onTickerSelect,
   onAboutClick,
+  triesLeft,
 }: SearchFormProps) {
   const [emailCopied, setEmailCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -99,7 +101,6 @@ export function SearchForm({
       <div className="lg:col-span-12 flex flex-wrap items-center gap-2">
         {/* Benefit pills */}
         {[
-          { icon: <Check size={11} />,    text: 'Free · 5 analyses per day', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
           { icon: <Zap size={11} />,      text: '4 AI agents · One search',  cls: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-800/60' },
           { icon: <BookOpen size={11} />, text: 'Plain English · No jargon', cls: 'bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60'     },
         ].map(({ icon, text, cls }) => (
@@ -111,6 +112,28 @@ export function SearchForm({
             {text}
           </div>
         ))}
+
+        {/* Tries countdown — shows remaining uses when limit is enforced */}
+        {triesLeft !== undefined ? (
+          <div
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
+              triesLeft === 0
+                ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-100 dark:border-red-800/60"
+                : triesLeft <= 2
+                ? "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 border-orange-100 dark:border-orange-800/60"
+                : "bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60"
+            )}
+          >
+            <Check size={11} />
+            {triesLeft} of {FREE_TRIES} free analyses left today
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border bg-lime-50 dark:bg-lime-900/20 text-lime-700 dark:text-lime-300 border-lime-100 dark:border-lime-800/60">
+            <Check size={11} />
+            Free · {FREE_TRIES} analyses per day
+          </div>
+        )}
 
         {/* Email CTA pill */}
         <button

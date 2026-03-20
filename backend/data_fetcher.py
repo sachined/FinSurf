@@ -220,7 +220,7 @@ def _cache_get(cache: Dict[str, Dict[str, Any]], key: str, ttl: float) -> Option
 
 def _cache_set(cache: Dict[str, Dict[str, Any]], key: str, data: Dict[str, Any]) -> None:
     """Store data in cache with the current timestamp."""
-    cache[key] = {**data, "_ts": datetime.datetime.utcnow().timestamp()}
+    cache[key] = {**data, "_ts": datetime.datetime.now(datetime.UTC).timestamp()}
 
 
 # ---------------------------------------------------------------------------

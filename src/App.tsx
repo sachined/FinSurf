@@ -89,6 +89,7 @@ export default function App() {
   const [compareTicker, setCompareTicker] = useState('');
 
   const [hasSurfed, setHasSurfed] = useState(false);
+  const [surfCount, setSurfCount] = useState(() => getSurfCount());
   const [userKeys, setUserKeys] = useState<UserApiKeys | null>(() => loadUserKeys());
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showComingSoonModal, setShowComingSoonModal] = useState(false);
@@ -99,6 +100,10 @@ export default function App() {
   // isProd is true only in the Vite production build (Docker / CI).
   // In dev (`npm run dev`) import.meta.env.PROD is always false.
   const isProd = import.meta.env.PROD;
+
+  const vipExpiry = localStorage.getItem('finsurf_vip_expiry');
+  const isVipActive = Boolean(vipExpiry && parseInt(vipExpiry, 10) > Date.now());
+  const triesLeft = (isProd && !userKeys && !isVipActive) ? Math.max(0, FREE_TRIES - surfCount) : undefined;
 
   const executeSearch = useCallback(async (keys: UserApiKeys | null) => {
     setHasSurfed(true);
@@ -116,6 +121,7 @@ export default function App() {
     // In production: enforce the limit ONLY if not VIP and no user keys are provided
     if (isProd && !userKeys && !isVip) {
       const count = incrementSurfCount();
+      setSurfCount(count);
       if (count > FREE_TRIES) {
         setShowApiKeyModal(true);
         return;
@@ -220,6 +226,7 @@ export default function App() {
               isCompact={hasResponses && !isAnyLoading}
               isDataAvailable={hasResponses && !isAnyLoading}
               onAboutClick={handleAbout}
+              triesLeft={triesLeft}
             />
           </div>
 
