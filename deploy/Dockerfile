@@ -58,6 +58,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 # ── Application source ────────────────────────────────────────────────────────
 COPY server.ts ./
 COPY tsconfig.json ./
+COPY routes ./routes/
 COPY backend ./backend/
 
 # ── Pre-built frontend from Stage 1 ──────────────────────────────────────────
