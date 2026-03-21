@@ -1,0 +1,15 @@
+name = "finsurf-edge"
+main = "index.ts"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "ff1ec52b56e443e196e7eb93b47b9420"
+preview_id = "c32713f3496a45579baec9b0a485d6e7"
+
+[vars]
+ORIGIN_URL = "https://finsurf.net"
+
+routes = [
+  { pattern = "finsurf.net/*", zone_name = "finsurf.net" }
+]

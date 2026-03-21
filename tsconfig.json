@@ -26,5 +26,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["vitest/globals"]
-  }
+  },
+  "exclude": ["worker"]
 }

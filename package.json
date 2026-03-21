@@ -16,6 +16,8 @@
     "generate-passes": "tsx scripts/generate-passes.ts",
     "view-tracking": "python scripts/view_tracking.py",
     "telemetry-diag": "python scripts/diagnostic.py",
+    "worker:deploy": "wrangler deploy",
+    "worker:dev": "wrangler dev",
     "start": "cross-env NODE_ENV=production tsx server.ts"
   },
   "dependencies": {
@@ -29,7 +31,6 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
@@ -62,7 +63,8 @@
     "jsdom": "^29.0.1",
     "tailwindcss": "^4.1.14",
     "vite": "^6.2.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.76.0"
   },
   "engines": {
     "node": ">=24"

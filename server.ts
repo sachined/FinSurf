@@ -1,7 +1,6 @@
 import express, { Request, Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
-import { rateLimit } from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import { execFile } from "child_process";
 import path from "path";
@@ -95,7 +94,6 @@ async function startServer() {
   const GEMINI_API_KEY = getSecret("GEMINI_API_KEY", "GEMINI_API_KEY_FILE");
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
-  const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
   const ADMIN_SECRET = getSecret("ADMIN_SECRET", "ADMIN_SECRET_FILE");
   const LANGCHAIN_API_KEY    = getSecret("LANGCHAIN_API_KEY",    "LANGCHAIN_API_KEY_FILE");
   const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
@@ -182,25 +180,9 @@ async function startServer() {
     res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
   });
 
-  // Rate limiting to prevent abuse — VIP pass holders are exempt.
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 100,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    skip: (req) => {
-      const pass = req.headers["x-finsurf-pass"];
-      return typeof pass === "string" && VALID_VIP_PASSES.has(pass);
-    },
-    message: { error: "Rate limit exceeded. Too many requests from your IP address. Please wait 15 minutes before trying again." }
-  });
-  app.use("/api/", limiter);
-
   // ── VIP Pass Validation ──────────────────────────────────────────────────
-  // Registered AFTER the rate limiter so brute-force pass enumeration is
-  // throttled. Intentionally placed BEFORE APP_SECRET auth — the frontend
-  // needs to call this endpoint to check whether a pass is valid before it
-  // can know which secret to send.
+  // Auth and rate limiting are handled at the Cloudflare Worker edge layer.
+  // This endpoint remains exempt from edge rate limiting (cheap read, no Python).
   app.get("/api/validate-pass", (req, res) => {
     const pass = req.query.pass;
     if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
@@ -209,17 +191,6 @@ async function startServer() {
     }
     res.json({ valid: false });
   });
-
-  // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
-  if (APP_SECRET) {
-    app.use("/api/", (req, res, next) => {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || authHeader !== `Bearer ${APP_SECRET}`) {
-        return res.status(401).json({ error: "Unauthorized — Invalid or missing API secret" });
-      }
-      next();
-    });
-  }
 
   // Extract user-supplied API keys from request headers (forwarded by the frontend).
   // These override the server's keys, so the user's own quota is consumed.
