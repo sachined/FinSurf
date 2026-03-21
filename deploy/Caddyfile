@@ -8,7 +8,7 @@
 # Example: DOMAIN=finsurf.example.com docker compose -f docker-compose.prod.yml up -d
 # ─────────────────────────────────────────────────────────────────────────────
 
-{$DOMAIN} {
+{$DOMAIN}, origin.{$DOMAIN} {
     # Proxy all requests to the FinSurf Express server
     reverse_proxy finsurf:3000
 
