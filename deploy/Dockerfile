@@ -21,6 +21,8 @@ RUN npm ci
 
 COPY . .
 
+ARG VITE_STRIPE_PUBLISHABLE_KEY
+
 RUN --mount=type=secret,id=vite_app_secret \
     VITE_APP_SECRET=$(cat /run/secrets/vite_app_secret 2>/dev/null || true) \
     npm run build

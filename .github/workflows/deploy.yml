@@ -23,7 +23,7 @@ env:
 #   DEPLOYMENT_USER           — SSH user on the server (e.g. root)
 #   DEPLOYMENT_SSH_KEY        — Private SSH key for that user (PEM format, full contents)
 #   DEPLOYMENT_PORT           — SSH port (usually 22)
-#   STRIPE_PUBLISHABLE_KEY    — Stripe publishable key (pk_live_...) baked into frontend
+#   VITE_STRIPE_PUBLISHABLE_KEY — Stripe publishable key (pk_live_...) baked into frontend bundle
 #   STRIPE_SECRET_KEY         — Stripe secret key (sk_live_...)
 #   STRIPE_WEBHOOK_SECRET     — Stripe webhook signing secret (whsec_...)
 #   RESEND_API_KEY            — Resend API key for transactional emails
@@ -67,6 +67,7 @@ jobs:
             ${{ env.IMAGE }}:${{ github.sha }}
           build-args: |
             BUILD_ID=${{ github.sha }}
+            VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
           secrets: |
             vite_app_secret=${{ secrets.APP_SECRET }}
           cache-from: type=gha
