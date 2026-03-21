@@ -132,11 +132,13 @@ class TestSecurityGuardrail(unittest.TestCase):
             mock_gemini.assert_not_called()
             self.assertFalse(result)
 
-    def test_gemini_failure_returns_false(self):
-        with patch(f"{HELPERS_MODULE}.call_gemini", side_effect=Exception("API error")):
-            with patch(f"{HELPERS_MODULE}.call_groq", side_effect=Exception("API error")):
-                result = self.guardrail("Some Company Name")
-                self.assertFalse(result)
+    def test_non_ticker_input_blocked_without_llm(self):
+        # "Some Company Name" contains spaces — fails the format allowlist.
+        # The LLM branch was removed; validation is purely regex-based now.
+        with patch(f"{HELPERS_MODULE}.call_gemini") as mock_gemini:
+            result = self.guardrail("Some Company Name")
+            mock_gemini.assert_not_called()
+            self.assertFalse(result)
 
 
 class TestErrorJson(unittest.TestCase):
@@ -159,20 +161,15 @@ class TestErrorJson(unittest.TestCase):
         self.assertIsInstance(data["citations"], list)
 
 
-class TestBlockedResponseFormat(unittest.TestCase):
-    """Verify all agents return consistent output when the guardrail blocks."""
-
-    def test_research_agent_blocked_is_json(self):
+class TestResearchAgent(unittest.TestCase):
+    def test_blocked_ticker_returns_json_envelope(self):
         from backend.financial_agents import research_agent
         with patch("backend.financial_agents.guardrail.security_guardrail", return_value=False):
-            raw = research_agent("INJECTION", skip_guardrail=False)
-            data = json.loads(raw)
+            data = json.loads(research_agent("INJECTION", skip_guardrail=False))
             self.assertIn("content", data)
             self.assertIn("citations", data)
             self.assertIn("Blocked", data["content"])
 
-
-class TestResearchAgent(unittest.TestCase):
     def test_returns_json_with_content_citations_and_price_history(self):
         """research_agent must return {content, citations, price_history, buy_price,
         sell_price, current_price} envelope with yfinance data forwarded."""

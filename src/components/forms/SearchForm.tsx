@@ -159,7 +159,7 @@ export function SearchForm({
               key={t}
               onClick={() => { setTicker(t); onTickerSelect?.(t); }}
               className={cn(
-                "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide transition-all border",
+                "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide transition-all border cursor-pointer",
                 ticker === t
                   ? "bg-violet-500 text-white border-violet-500"
                   : "bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-400 dark:border-violet-800 hover:dark:bg-violet-900/40"
@@ -181,7 +181,7 @@ export function SearchForm({
               key={t}
               onClick={() => { setTicker(t); onTickerSelect?.(t); }}
               className={cn(
-                "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide transition-all border",
+                "px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wide transition-all border cursor-pointer",
                 ticker === t
                   ? "bg-lime-500 text-white border-lime-500"
                   : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700 hover:dark:bg-slate-800"
@@ -219,7 +219,8 @@ export function SearchForm({
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full mb-4 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-2"
+          aria-expanded={showAdvanced}
+          className="w-full mb-4 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-2 cursor-pointer"
         >
           {showAdvanced ? '▼' : '►'} Optional: Add dates & shares for tax analysis
         </button>

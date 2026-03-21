@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { AlertCircle, Clock, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -113,7 +113,7 @@ export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className={cn('shrink-0 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors', style.text)}
+            className={cn('shrink-0 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center', style.text)}
             aria-label="Dismiss error"
           >
             <X size={16} />

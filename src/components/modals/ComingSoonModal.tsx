@@ -57,7 +57,7 @@ export function ComingSoonModal({ onClose }: ComingSoonModalProps) {
         <div className="relative bg-gradient-to-br from-amber-500 to-lime-500 dark:from-amber-600 dark:to-lime-600 p-8 text-white">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/20 transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/20 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Close modal"
           >
             <X size={20} />

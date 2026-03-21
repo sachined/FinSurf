@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, Receipt, MessageSquare, Zap, Sparkles, RotateCcw, HelpCircle, Info } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';

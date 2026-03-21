@@ -1,5 +1,6 @@
 import { UserApiKeys, FinancialAgentsState } from '../types';
 import { LS_KEYS } from '../constants';
+import { apiFetch } from '../utils/apiFetch';
 
 /** Shared POST helper — DRY wrapper for all API calls. */
 async function apiPost<T>(
@@ -17,23 +18,11 @@ async function apiPost<T>(
   const activePass = localStorage.getItem(LS_KEYS.activePass);
   if (activePass) headers["X-FinSurf-Pass"] = activePass;
 
-  // Include the Bearer token for server-side API authentication.
-  // This is baked into the frontend bundle at build time.
-  const appSecret = import.meta.env.VITE_APP_SECRET;
-  if (appSecret) {
-    headers["Authorization"] = `Bearer ${appSecret}`;
-  }
-
-  const response = await fetch(endpoint, {
+  return apiFetch<T>(endpoint, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || "Backend error");
-  }
-  return response.json();
 }
 
 export const analyzeAgent = (
@@ -56,11 +45,8 @@ export const createPaymentIntent = (email: string): Promise<{ clientSecret: stri
     return res.json();
   });
 
-export const validatePass = (pass: string): Promise<{ valid: boolean; expiry?: number }> => {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const appSecret = import.meta.env.VITE_APP_SECRET;
-  if (appSecret) headers["Authorization"] = `Bearer ${appSecret}`;
-  
-  return fetch(`/api/validate-pass?pass=${encodeURIComponent(pass)}`, { headers })
-    .then(res => res.json());
-};
+export const validatePass = (pass: string): Promise<{ valid: boolean; expiry?: number }> =>
+  apiFetch<{ valid: boolean; expiry?: number }>(
+    `/api/validate-pass?pass=${encodeURIComponent(pass)}`,
+    { headers: { "Content-Type": "application/json" } },
+  );

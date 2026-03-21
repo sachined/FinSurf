@@ -181,7 +181,7 @@ class TelemetryDB:
                     ts         REAL    NOT NULL
                 )
             """)
-            # Tracking for user access and location (IP/GPS)
+            # Tracking for user access, pass type, and country
             con.execute("""
                 CREATE TABLE IF NOT EXISTS request_events (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,8 +194,13 @@ class TelemetryDB:
                     ts         REAL    NOT NULL
                 )
             """)
+            # Schema migration: add pass_type and country columns if they don't exist
+            for col, typedef in [("pass_type", "TEXT"), ("country", "TEXT")]:
+                try:
+                    con.execute(f"ALTER TABLE request_events ADD COLUMN {col} {typedef}")
+                except sqlite3.OperationalError:
+                    pass  # already exists
             con.commit()
-            print(f"DEBUG: Telemetry DB {self.db_path} schema initialized.", file=sys.stderr)
 
     def write_run(self, run_id: str, ticker: str, usages: List[TokenUsage]) -> None:
         """Persist all TokenUsage records for a single graph run."""
@@ -221,18 +226,18 @@ class TelemetryDB:
             )
             con.commit()
 
-    def write_request(self, run_id: str, ticker: str, user_id: Optional[str] = None,
-                      ip: Optional[str] = None, lat: Optional[float] = None,
-                      lon: Optional[float] = None) -> None:
-        """Persist a high-level request event for tracking access codes and location."""
+    def write_request(self, run_id: str, ticker: str,
+                      pass_type: Optional[str] = None,
+                      country: Optional[str] = None) -> None:
+        """Persist a high-level request event for tracking pass type and country."""
         if self.disabled:
             return
         with sqlite3.connect(self.db_path) as con:
             con.execute(
                 """INSERT INTO request_events
-                   (run_id, ticker, user_id, ip_address, lat, lon, ts)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (run_id, ticker, user_id, ip, lat, lon, time.time()),
+                   (run_id, ticker, pass_type, country, ts)
+                   VALUES (?,?,?,?,?)""",
+                (run_id, ticker, pass_type, country, time.time()),
             )
             con.commit()
 
@@ -271,6 +276,40 @@ class TelemetryDB:
             "total_tokens": row[0] or 0,
             "total_cost_usd": round(row[1] or 0.0, 6),
         }
+
+    def query_recent_requests(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return the most recent requests with per-run agent and cost summaries."""
+        if self.disabled:
+            return []
+        with sqlite3.connect(self.db_path) as con:
+            con.row_factory = sqlite3.Row
+            rows = con.execute("""
+                SELECT r.run_id,
+                       r.ticker,
+                       r.pass_type,
+                       r.country,
+                       r.ts,
+                       GROUP_CONCAT(DISTINCT t.agent) AS agents,
+                       ROUND(SUM(t.cost_usd), 6)      AS total_cost
+                FROM request_events r
+                LEFT JOIN token_events t ON t.run_id = r.run_id
+                GROUP BY r.run_id
+                ORDER BY r.ts DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def query_vip_stats(self) -> Dict[str, int]:
+        """Return run counts grouped by pass_type."""
+        if self.disabled:
+            return {}
+        with sqlite3.connect(self.db_path) as con:
+            rows = con.execute("""
+                SELECT pass_type, COUNT(*) AS cnt
+                FROM request_events
+                GROUP BY pass_type
+            """).fetchall()
+        return {(row[0] or "unknown"): row[1] for row in rows}
 
 
 # Singleton DB instance — imported by graph.py

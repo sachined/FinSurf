@@ -15,6 +15,7 @@ Conditional routing:
 """
 
 import json
+import os
 import sys
 import uuid
 from typing import Any, Annotated, Dict, Optional, TypedDict
@@ -303,19 +304,20 @@ def run_graph(
     shares: float = 1.0,
     years: int = 3,
     skip_guardrail: bool = False,
-    # New parameters for usage tracking
-    user_id: Optional[str] = None,
-    ip_address: Optional[str] = None,
-    lat: Optional[float] = None,
-    lon: Optional[float] = None,
+    pass_type: Optional[str] = None,
+    country: Optional[str] = None,
 ) -> FinSurfState:
     clear_session_usages()
 
     run_id = str(uuid.uuid4())
 
+    # Fall back to env vars injected by server.ts per-request
+    pass_type = pass_type or os.environ.get("FINSURF_PASS_TYPE", "free")
+    country = country or os.environ.get("FINSURF_COUNTRY", "unknown")
+
     # Log the high-level request event before starting the graph
     try:
-        telemetry_db.write_request(run_id, ticker, user_id, ip_address, lat, lon)
+        telemetry_db.write_request(run_id, ticker, pass_type=pass_type, country=country)
     except Exception as exc:
         print(f"TELEMETRY WARNING: could not write request to DB: {exc}", file=sys.stderr)
 

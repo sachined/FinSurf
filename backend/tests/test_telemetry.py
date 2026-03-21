@@ -213,5 +213,133 @@ class TestTelemetryDB(unittest.TestCase):
         self.assertEqual(research["calls"], 3)
 
 
+# ---------------------------------------------------------------------------
+# write_request / query_recent_requests / query_vip_stats
+# ---------------------------------------------------------------------------
+
+class TestWriteRequest(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self._db_path = self._tmp.name
+
+    def tearDown(self):
+        try:
+            os.unlink(self._db_path)
+        except OSError:
+            pass
+
+    def _make_db(self) -> TelemetryDB:
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = False
+        db.db_path = self._db_path
+        db._init_schema()
+        return db
+
+    def test_write_request_stores_pass_type_and_country(self):
+        db = self._make_db()
+        db.write_request("run-w1", "AAPL", pass_type="vip", country="US")
+        stats = db.query_vip_stats()
+        self.assertEqual(stats.get("vip"), 1)
+
+    def test_write_request_defaults_are_nullable(self):
+        db = self._make_db()
+        db.write_request("run-w2", "TSLA")  # no pass_type or country
+        # Should not raise; query returns "unknown" for NULL pass_type
+        stats = db.query_vip_stats()
+        self.assertIsInstance(stats, dict)
+
+    def test_disabled_write_request_is_noop(self):
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = True
+        db.db_path = ":memory:"
+        db.write_request("run-x", "AAPL", pass_type="vip")  # must not raise
+
+
+class TestQueryRecentRequests(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self._db_path = self._tmp.name
+
+    def tearDown(self):
+        try:
+            os.unlink(self._db_path)
+        except OSError:
+            pass
+
+    def _make_db(self) -> TelemetryDB:
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = False
+        db.db_path = self._db_path
+        db._init_schema()
+        return db
+
+    def test_returns_list_with_expected_fields(self):
+        db = self._make_db()
+        db.write_request("run-q1", "AAPL", pass_type="free", country="GB")
+        db.write_run("run-q1", "AAPL", [_usage(agent="research")])
+        rows = db.query_recent_requests(limit=10)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["ticker"], "AAPL")
+        self.assertEqual(row["pass_type"], "free")
+        self.assertEqual(row["country"], "GB")
+        self.assertIn("agents", row)
+        self.assertIn("total_cost", row)
+
+    def test_respects_limit(self):
+        db = self._make_db()
+        for i in range(5):
+            db.write_request(f"run-lim{i}", "MSFT", pass_type="free", country="US")
+        rows = db.query_recent_requests(limit=3)
+        self.assertEqual(len(rows), 3)
+
+    def test_disabled_returns_empty_list(self):
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = True
+        self.assertEqual(db.query_recent_requests(), [])
+
+
+class TestQueryVipStats(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self._db_path = self._tmp.name
+
+    def tearDown(self):
+        try:
+            os.unlink(self._db_path)
+        except OSError:
+            pass
+
+    def _make_db(self) -> TelemetryDB:
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = False
+        db.db_path = self._db_path
+        db._init_schema()
+        return db
+
+    def test_groups_by_pass_type(self):
+        db = self._make_db()
+        db.write_request("r1", "AAPL", pass_type="vip",  country="US")
+        db.write_request("r2", "TSLA", pass_type="free", country="US")
+        db.write_request("r3", "MSFT", pass_type="free", country="CA")
+        stats = db.query_vip_stats()
+        self.assertEqual(stats["vip"], 1)
+        self.assertEqual(stats["free"], 2)
+
+    def test_disabled_returns_empty_dict(self):
+        db = TelemetryDB.__new__(TelemetryDB)
+        db.disabled = True
+        self.assertEqual(db.query_vip_stats(), {})
+
+
 if __name__ == "__main__":
     unittest.main()

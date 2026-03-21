@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { Mascot } from './components/ui/Mascot';
 import { cn } from './utils/cn';
 import { Header } from './components/layout/Header';

@@ -1,6 +1,6 @@
 # FinSurf — Codebase Navigation Guide
 
-> **Last Updated:** March 19, 2026
+> **Last Updated:** March 20, 2026
 
 ## Architecture in One Paragraph
 
@@ -30,7 +30,8 @@ Browser → POST /api/analyze
 ### Root
 | File | What it does |
 |------|-------------|
-| `server.ts` | Express entry point. All API routes, secret loading, Python child process launch, Vite dev middleware |
+| `server.ts` | Express entry point. API routes (admin delegated to `routes/adminRouter.ts`), secret loading, Python child process launch, Vite dev middleware |
+| `routes/adminRouter.ts` | Admin panel routes — dashboard, stats, VIP pass generate/revoke. Mounted by `server.ts` via `createAdminRouter()` |
 | `vite.config.ts` | Vite bundler — warns if `VITE_APP_SECRET` unset at prod build time |
 | `package.json` | Scripts: `dev` (tsx), `build` (vite), `start` (prod — requires `dist/` to exist) |
 | `requirements.txt` | Python deps — LangGraph, yfinance, pandas, curl-cffi, langsmith |
@@ -42,7 +43,8 @@ Browser → POST /api/analyze
 |------|-------------|
 | `App.tsx` | Root. Owns all top-level state: search form, responses, loading, modals, theme, compare mode |
 | `types.ts` | Single source of truth for all TypeScript types — `AgentResponse`, `FinancialAgentsState`, `LoadingState`, `UserApiKeys` |
-| `services/apiService.ts` | All HTTP calls. Attaches Bearer token (`VITE_APP_SECRET`), user-supplied LLM keys, VIP pass header |
+| `utils/apiFetch.ts` | Centralized fetch wrapper — injects `Authorization: Bearer` from `VITE_APP_SECRET` on every request |
+| `services/apiService.ts` | All HTTP calls. Uses `apiFetch` internally. Attaches user-supplied LLM keys, VIP pass header |
 | `hooks/useFinancialAgents.ts` | Calls `analyzeAgent`, fans loading/response state out per agent. Also owns compare-mode state |
 | `hooks/useFormState.ts` | Ticker, purchase date, sell date, shares — with validation |
 | `hooks/useTheme.ts` | Dark/light toggle, persisted to localStorage |
@@ -51,6 +53,8 @@ Browser → POST /api/analyze
 | `components/ui/TimestampBadge.tsx` | Displays relative time ("Just now", "2 minutes ago") with stale data warnings (amber badge for > 1 hour old) |
 | `components/forms/SearchForm.tsx` | Ticker input + optional dates/shares. Example ticker buttons. Recent searches (localStorage, last 5). PDF download |
 | `styles/pdf.css` | Print stylesheet — A4 landscape, forces light mode, hides chrome, controls card layout for PDF |
+| `test/accessibility.test.tsx` | Vitest + jest-axe tests for accessibility (aria-expanded, aria-busy, touch targets, cursor-pointer) |
+| `test/setup.ts` | Vitest setup — jest-dom matchers, axe configured to skip color-contrast in jsdom |
 
 ### Backend (`backend/`)
 | Path | What it does |
@@ -104,7 +108,6 @@ Browser → POST /api/analyze
 | `PERPLEXITY_API_KEY` | Sentiment agent falls back to Gemini only |
 | `ALPHA_VANTAGE_API_KEY` | News sentiment skipped |
 | `FINNHUB_API_KEY` | Insider transactions + news skipped |
-| `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | Reddit sentiment skipped |
 | `LANGCHAIN_API_KEY` | LangSmith tracing disabled |
 
 ### Build-time (must be set before `npm run build`)
@@ -113,7 +116,9 @@ Browser → POST /api/analyze
 | `VITE_APP_SECRET` | Frontend sends unauthenticated requests → 401 if `APP_SECRET` is set server-side |
 
 ### Non-secret (in `.env.nonsecret`)
-`PORT`, `NODE_ENV`, `DOMAIN`, `TELEMETRY_DB`, `TELEMETRY_DISABLED`, `DAILY_BUDGET_USD`, `ALLOWED_PROVIDERS`, `VIP_PASSES`, LangSmith vars
+`PORT`, `NODE_ENV`, `DOMAIN`, `TELEMETRY_DB`, `TELEMETRY_DISABLED`, `ALLOWED_PROVIDERS`, `VIP_PASSES`, LangSmith vars
+
+`DAILY_BUDGET_USD` — **planned, not yet enforced.** The field exists in `.env.example` but is not read by any current code.
 
 ---
 
@@ -150,6 +155,8 @@ To generate new codes: `npm run generate-passes`
 | Production build | `npm run build` |
 | Start production | `npm run build && npm run start` |
 | Run Python tests | `npm run test:backend` |
+| Run frontend tests | `npm run test:frontend` |
+| Run all tests | `npm test` |
 | Validate config | `.\check-config.ps1` |
 | View telemetry | `npm run view-tracking` |
 | Pull prod telemetry | `.\sync-prod.ps1` |

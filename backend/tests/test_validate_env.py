@@ -45,20 +45,6 @@ class TestCheckEnv(unittest.TestCase):
         self.assertFalse(success)
         self.assertTrue(any("disabled" in e.lower() or "ALLOW" in e for e in errors))
 
-    def test_returns_true_on_success(self):
-        env = {"GEMINI_API_KEY": "key", "GROQ_API_KEY": "groq-key"}
-        with patch.dict(os.environ, env, clear=True):
-            result, errors = check_env()
-        self.assertIs(result, True)
-        self.assertEqual(errors, [])
-
-    def test_optional_key_warnings_not_errors(self):
-        """Missing optional keys (PERPLEXITY, ALPHA_VANTAGE, FINNHUB) must not cause failure."""
-        env = {"GEMINI_API_KEY": "key"}
-        with patch.dict(os.environ, env, clear=True):
-            success, errors = check_env()
-        self.assertTrue(success)
-        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

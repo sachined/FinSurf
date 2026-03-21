@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { readFileSync, existsSync } from "fs";
 import "dotenv/config";
+import { createAdminRouter } from "./routes/adminRouter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,6 +96,7 @@ async function startServer() {
   const PERPLEXITY_API_KEY = getSecret("PERPLEXITY_API_KEY", "PERPLEXITY_API_KEY_FILE");
   const GROQ_API_KEY = getSecret("GROQ_API_KEY", "GROQ_API_KEY_FILE");
   const APP_SECRET = getSecret("APP_SECRET", "APP_SECRET_FILE");
+  const ADMIN_SECRET = getSecret("ADMIN_SECRET", "ADMIN_SECRET_FILE");
   const LANGCHAIN_API_KEY    = getSecret("LANGCHAIN_API_KEY",    "LANGCHAIN_API_KEY_FILE");
   const ALPHA_VANTAGE_API_KEY = getSecret("ALPHA_VANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY_FILE");
   const FINNHUB_API_KEY       = getSecret("FINNHUB_API_KEY",       "FINNHUB_API_KEY_FILE");
@@ -115,7 +117,7 @@ async function startServer() {
   console.log("Validating environment...");
   try {
     const validationResult = await new Promise<string>((resolve, reject) => {
-      execFile(pythonCommand, ["backend/validate_env.py"], { timeout: 5000 }, (error, stdout, stderr) => {
+      execFile(pythonCommand, ["backend/validate_env.py"], { timeout: 5000 }, (error, _stdout, stderr) => {
         if (error) {
           reject(stderr || error.message);
         } else {
@@ -180,18 +182,6 @@ async function startServer() {
     res.json({ status: "ok", uptime: Math.floor(process.uptime()) });
   });
 
-  // ── VIP Pass Validation ──────────────────────────────────────────────────
-  app.get("/api/validate-pass", (req, res) => {
-    const pass = req.query.pass;
-    if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
-      // Return 30-day expiry from now
-      const expiry = Date.now() + 15 * 24 * 60 * 60 * 1000;
-      return res.json({ valid: true, expiry });
-    }
-    res.json({ valid: false });
-  });
-
-
   // Rate limiting to prevent abuse — VIP pass holders are exempt.
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -205,6 +195,20 @@ async function startServer() {
     message: { error: "Rate limit exceeded. Too many requests from your IP address. Please wait 15 minutes before trying again." }
   });
   app.use("/api/", limiter);
+
+  // ── VIP Pass Validation ──────────────────────────────────────────────────
+  // Registered AFTER the rate limiter so brute-force pass enumeration is
+  // throttled. Intentionally placed BEFORE APP_SECRET auth — the frontend
+  // needs to call this endpoint to check whether a pass is valid before it
+  // can know which secret to send.
+  app.get("/api/validate-pass", (req, res) => {
+    const pass = req.query.pass;
+    if (typeof pass === 'string' && VALID_VIP_PASSES.has(pass)) {
+      const expiry = Date.now() + 15 * 24 * 60 * 60 * 1000;
+      return res.json({ valid: true, expiry });
+    }
+    res.json({ valid: false });
+  });
 
   // ── Bearer-token auth — protects all /api/ routes if APP_SECRET is configured ──
   if (APP_SECRET) {
@@ -251,9 +255,6 @@ async function startServer() {
     guardrailCache.set(key, { status, timestamp: Date.now() });
   };
 
-  // Log key presence on startup (without exposing the value)
-  console.log("GEMINI_API_KEY present:", !!GEMINI_API_KEY);
-
   // API Routes
   // ── Unified Graph API ──────────────────────────────────────────────────
   app.post("/api/analyze", async (req, res) => {
@@ -262,6 +263,11 @@ async function startServer() {
 
     const { purchaseDate, sellDate, shares, years } = req.body;
     const userEnv = getUserKeyEnv(req);
+
+    const country = (req.headers["cf-ipcountry"] as string) || "unknown";
+    const vipHeader = req.headers["x-finsurf-pass"];
+    const passType = typeof vipHeader === "string" && VALID_VIP_PASSES.has(vipHeader) ? "vip" : "free";
+    const trackingEnv: Record<string, string> = { FINSURF_COUNTRY: country, FINSURF_PASS_TYPE: passType };
 
     const cachedStatus = getCachedGuardrailStatus(ticker);
     const skipGuardrail = cachedStatus === true;
@@ -282,7 +288,7 @@ async function startServer() {
         years || 3
       ];
 
-      const stdout = await runPythonAgent("graph", args, skipGuardrail, userEnv);
+      const stdout = await runPythonAgent("graph", args, skipGuardrail, { ...userEnv, ...trackingEnv });
       const graphData = JSON.parse(stdout);
 
       // Correct the cache entry with the actual guardrail result
@@ -385,6 +391,11 @@ async function startServer() {
     res.status(501).json({ error: "Stripe integration coming soon." });
   });
 
+  // ── Admin panel ──────────────────────────────────────────────────────────
+  // See routes/adminRouter.ts — protected by ADMIN_SECRET Bearer token.
+  // Intended to be accessed via Cloudflare Access + Tunnel at admin.finsurf.ai.
+  app.use(createAdminRouter({ ADMIN_SECRET, VALID_VIP_PASSES, runPythonAgent }));
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -400,7 +411,9 @@ async function startServer() {
         return res.status(404).send('Not found');
       }
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+      res.sendFile(path.join(__dirname, "dist", "index.html"), (err) => {
+        if (err) res.status(500).json({ error: "Failed to serve app" });
+      });
     });
       // If the request looks like an asset (ends in .css, .js, .png, etc.), don't send index.html
   }

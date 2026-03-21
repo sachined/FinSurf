@@ -1,4 +1,4 @@
-﻿"""
+"""
 FinSurf CLI dispatcher — powered by LangGraph.
 
 Usage:
@@ -35,26 +35,22 @@ if __name__ == "__main__":
             sell = sys.argv[4] if len(sys.argv) > 4 else ""
             shares = float(sys.argv[5]) if len(sys.argv) > 5 else 1.0
             years = int(sys.argv[6]) if len(sys.argv) > 6 else 3
-            
-            # Read optional tracking metadata from environment
-            user_id = os.environ.get("USER_ID")
-            ip_addr = os.environ.get("IP_ADDRESS")
-            lat = os.environ.get("LAT")
-            lon = os.environ.get("LON")
-            
-            result = run_graph(
-                ticker, purchase, sell, shares, years, 
-                skip_guardrail=skip_guard,
-                user_id=user_id,
-                ip_address=ip_addr,
-                lat=float(lat) if lat else None,
-                lon=float(lon) if lon else None
-            )
+            # pass_type and country are read from env by run_graph() directly
+            result = run_graph(ticker, purchase, sell, shares, years, skip_guardrail=skip_guard)
             print(json.dumps(result))
         elif mode == "guardrail":
             from backend.financial_agents import security_guardrail
             ticker = sys.argv[2]
             print("SAFE" if security_guardrail(ticker) else "BLOCKED")
+        elif mode == "admin":
+            from backend.telemetry import telemetry_db
+            result = {
+                "recent_requests": telemetry_db.query_recent_requests(50),
+                "by_agent": telemetry_db.query_by_agent(),
+                "total_cost_24h": telemetry_db.query_total_cost(24),
+                "vip_stats": telemetry_db.query_vip_stats(),
+            }
+            print(json.dumps(result))
         else:
             print(f"Unknown mode: {mode}", file=sys.stderr)
             sys.exit(1)

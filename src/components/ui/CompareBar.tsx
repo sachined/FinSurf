@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { GitCompareArrows, X, ArrowRight, Info, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../utils/cn';
@@ -57,7 +57,7 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
         </span>
         <button
           onClick={handleClear}
-          className="ml-1 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+          className="ml-1 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           title="Remove comparison"
         >
           <X size={12} />
@@ -77,6 +77,7 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setExpanded(true)}
+            aria-expanded={expanded}
             className={cn(
               "flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl border transition-all",
               "text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700",
@@ -124,7 +125,7 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
             </button>
             <button
               onClick={() => { setExpanded(false); setInput(''); }}
-              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+              className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <X size={14} />
             </button>
@@ -135,6 +136,7 @@ export function CompareBar({ isComparing, compareTicker, isLoading, onCompare, o
       {!expanded && (
         <button
           onClick={() => setShowHints(h => !h)}
+          aria-expanded={showHints}
           className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
         >
           <Info size={11} />

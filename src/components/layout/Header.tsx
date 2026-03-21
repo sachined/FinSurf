@@ -1,7 +1,5 @@
-import React from 'react';
 import { Moon, Sun, Waves, UserCircle2, Zap } from 'lucide-react';
 import { Theme } from '../../types';
-import { cn } from '../../utils/cn';
 
 interface HeaderProps {
   theme: Theme;
@@ -48,7 +46,7 @@ export function Header({ theme, toggleTheme, onAboutClick, onUpgradeClick }: Hea
         <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1" />
         <button
           onClick={toggleTheme}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold uppercase tracking-wide"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-xs font-semibold uppercase tracking-wide min-w-[44px] min-h-[44px] justify-center"
           title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
         >
           {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}

@@ -1,6 +1,6 @@
 # Contributing to FinSurf 🏄‍♂️
 
-> **Last Updated:** March 19, 2026
+> **Last Updated:** March 20, 2026
 
 Thank you for your interest in contributing! Whether you're fixing a bug, adding a new agent, improving tests, or enhancing the UI, all contributions are appreciated.
 
@@ -62,7 +62,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `APP_SECRET`         | Recommended | Bearer token protecting all `/api/` routes                         |
 | `CORS_ORIGIN`        | Production  | Comma-separated allowed origins                                    |
 | `DOMAIN`             | Production  | Domain for Caddy TLS certificate                                   |
-| `DAILY_BUDGET_USD`   | Optional    | Hard daily spend cap (e.g. `0.50`)                                 |
+| `DAILY_BUDGET_USD`   | Optional    | **Planned — not yet enforced.** Reserved for a future hard daily spend cap. Setting it has no effect currently. |
 | `TELEMETRY_DB`       | Optional    | SQLite path (default: `finsurf_telemetry.db`)                      |
 | `ALLOWED_PROVIDERS`  | Optional    | Comma-separated provider allowlist (e.g. `gemini,perplexity,groq`) |
 
@@ -102,8 +102,13 @@ FinSurf/
 │   ├── services/
 │   │   ├── apiService.ts    # HTTP helpers for backend communication
 │   │   └── pdf.css          # PDF-specific styles
-│   └── utils/
-│       └── pdfGenerator.ts  # PDF export logic (html2canvas + jsPDF)
+│   ├── utils/
+│   │   ├── apiFetch.ts      # Centralized fetch wrapper (injects Authorization header)
+│   │   ├── cn.ts            # Tailwind class merge utility
+│   │   └── pdfGenerator.ts  # PDF export logic (html2canvas + jsPDF)
+│   └── test/
+│       ├── accessibility.test.tsx  # Vitest accessibility tests (axe, aria, touch targets)
+│       └── setup.ts                # jest-dom + jest-axe global setup
 ├── server.ts                # Express server & API endpoints (fixed stderr handling)
 ├── Dockerfile
 ├── docker-compose.yml
@@ -120,11 +125,16 @@ All backend tests use Python's `unittest` with fully mocked LLM calls — no rea
 # Run all backend tests
 python -m pytest backend/tests/
 
-# Or with unittest directly
-python -m unittest discover -s backend/tests
+# Run frontend tests (vitest + jest-axe)
+npm run test:frontend
+
+# Run all tests (frontend + backend)
+npm test
 ```
 
-Tests cover five modules: `financial_agents` (agents), `data_fetcher`, `graph`, `telemetry`, and `utils`.
+Backend tests cover five modules: `financial_agents` (agents), `data_fetcher`, `graph`, `telemetry`, and `utils`.
+
+Frontend tests (`src/test/accessibility.test.tsx`) cover accessibility: axe violations, aria-expanded on disclosure toggles, aria-busy/aria-live on results container, touch target sizes, and cursor-pointer on chip buttons.
 
 **When contributing, please ensure:**
 - New agent modules include a corresponding test file following the existing mock pattern.
@@ -143,9 +153,11 @@ Tests cover five modules: `financial_agents` (agents), `data_fetcher`, `graph`, 
 
 ### TypeScript / React (Frontend)
 - Follow the existing component structure under `src/components/`.
-- New UI features belong in a dedicated, focused component â€” avoid adding logic to `App.tsx` directly.
+- New UI features belong in a dedicated, focused component — avoid adding logic to `App.tsx` directly.
 - Custom hooks go in `src/hooks/`.
 - Keep PDF-related logic in `src/utils/pdfGenerator.ts`.
+- `tsconfig.json` enforces `strict`, `noUnusedLocals`, and `noUnusedParameters` — `npm run lint` must pass clean.
+- All API calls go through `src/utils/apiFetch.ts` — do not call `fetch()` directly in components.
 
 ### General
 - Keep PRs focused — one feature or fix per PR.

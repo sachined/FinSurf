@@ -1,12 +1,14 @@
 import os
 import json
 import sys
-import urllib.request
-import urllib.error
+import requests as _requests
 import time
 from datetime import datetime
 from functools import lru_cache
 from typing import List, Optional, Dict, Any
+
+
+# ── API key helpers ──────────────────────────────────────────────────────────
 
 def get_env_key(keys: List[str]) -> Optional[str]:
     """Retrieve the first available environment variable from the list."""
@@ -27,32 +29,28 @@ def validate_key(provider_name: str, key: Optional[str]) -> str:
         raise Exception(f"{provider_name} API Key is missing or invalid. Please set it in the environment.")
     return key.strip().strip('"').strip("'").strip()
 
+# ── HTTP ─────────────────────────────────────────────────────────────────────
+
 def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int = 30, max_retries: int = 3, retry_429: bool = True) -> Any:
     """Generic HTTP POST request with optional retry logic for 429/5xx errors."""
-    start_time = time.time()
-    endpoint = url.split("?")[0].split("/")[-1]
     for attempt in range(max_retries + 1):
         try:
-            payload = json.dumps(data).encode("utf-8")
-            req = urllib.request.Request(url, data=payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                result = json.loads(response.read().decode("utf-8"))
-                duration = time.time() - start_time
-                print(f"DEBUG: {endpoint} request successful in {duration:.2f}s (Attempt {attempt + 1})", file=sys.stderr)
-                return result
-        except urllib.error.HTTPError as e:
-            if e.code in [429, 502, 503, 504] and attempt < max_retries:
-                if e.code == 429:
+            response = _requests.post(url, json=data, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except _requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response is not None else 0
+            if status in [429, 502, 503, 504] and attempt < max_retries:
+                if status == 429:
                     if not retry_429:
                         # Fail-fast for 429: caller (e.g., Groq) can fall back to Gemini immediately
-                        raise Exception(f"API Error 429: {e.read().decode('utf-8')}")
+                        raise Exception(f"API Error 429: {e.response.text}")
 
                     # Honor Retry-After header (Gemini and most APIs send it).
                     # Fall back to 60 s if absent — paid-tier 429s clear in ~60 s.
-                    retry_after = None
                     sleep_time = 60 * (attempt + 1)
                     try:
-                        retry_after_val = e.headers.get("Retry-After") if e.headers else None
+                        retry_after_val = e.response.headers.get("Retry-After")
                         if retry_after_val:
                             if retry_after_val.isdigit():
                                 sleep_time = min(int(retry_after_val), 120)
@@ -65,18 +63,19 @@ def http_post(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: 
                 else:
                     # Transient gateway errors: fast exponential back-off (2 s, 4 s, 8 s)
                     sleep_time = 2 ** (attempt + 1)
-                print(f"API Error {e.code}, retrying in {sleep_time}s... (Attempt {attempt + 1}/{max_retries})", file=sys.stderr)
+                print(f"API Error {status}, retrying in {sleep_time}s... (Attempt {attempt + 1}/{max_retries})", file=sys.stderr)
                 time.sleep(sleep_time)
                 continue
-            error_body = e.read().decode("utf-8")
-            raise Exception(f"API Error {e.code}: {error_body}")
+            error_body = e.response.text if e.response is not None else str(e)
+            raise Exception(f"API Error {status}: {error_body}")
         except Exception as e:
             if attempt < max_retries:
-                print(f"DEBUG: Request failed with {type(e).__name__}: {str(e)[:100]}, retrying...", file=sys.stderr)
                 time.sleep(1 * (attempt + 1))
                 continue
             raise e
 
+
+# ── Date / tax helpers ───────────────────────────────────────────────────────
 
 def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
     """Determine if a transaction is short-term or long-term based on dates."""
@@ -91,6 +90,8 @@ def calculate_holding_status(purchase_date: str, sell_date: str) -> str:
     except Exception as e:
         print(f"Date parsing error: {e}", file=sys.stderr)
         return "UNKNOWN"
+
+# ── JSON parsing ─────────────────────────────────────────────────────────────
 
 def extract_json(text: str) -> Any:
     """Attempt to parse JSON from a string, handling code fences and Python-literal responses.
@@ -162,7 +163,7 @@ def extract_json(text: str) -> Any:
     # All passes exhausted — raise to trigger the agent's fallback/error handler
     raise json.JSONDecodeError("extract_json: unable to parse LLM response as JSON", text, 0)
 
-# --- Provider allowlist controls to minimize token spend ---
+# ── Provider policy ──────────────────────────────────────────────────────────
 
 @lru_cache(maxsize=1)
 def allowed_providers() -> tuple:

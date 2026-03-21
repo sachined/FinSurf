@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, Receipt, Coins, MessageSquare, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import {AnimatePresence, motion} from 'motion/react';
 import { cn } from '../../utils/cn';

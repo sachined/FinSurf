@@ -3,7 +3,7 @@ Research agent — equity analysis grounded by yfinance data.
 """
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Optional
 from ..data_fetcher import (
     calculate_pnl,
     fetch_price_on_date,

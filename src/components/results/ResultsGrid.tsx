@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, Receipt, MessageSquare, Sparkles } from 'lucide-react';
 import { AgentCard } from '../cards/AgentCard';
 import { FinancialAgentsState, LoadingState } from '../../types';
@@ -41,9 +40,11 @@ export function ResultsGrid({
     ? 'Final summary · combining all findings…'
     : 'Waiting for specialist agents…';
 
+  const isLoading = Object.values(loading).some(v => v);
+
   if (isComparing) {
     return (
-      <div id="agents-grid" className="grid grid-cols-2 gap-6 relative z-20 mb-12">
+      <div id="agents-grid" className="grid grid-cols-2 gap-6 relative z-20 mb-12" aria-live="polite" aria-busy={isLoading}>
         {/* Primary column */}
         <div className="flex flex-col gap-6">
           {primaryTicker && (
@@ -138,6 +139,8 @@ export function ResultsGrid({
     <div
       id="agents-grid"
       className="grid grid-cols-1 md:grid-cols-2 relative z-20 transition-all duration-700 gap-8 mb-12"
+      aria-live="polite"
+      aria-busy={isLoading}
     >
       <div className="col-span-1 md:col-span-2 mb-4">
         <AgentCard
