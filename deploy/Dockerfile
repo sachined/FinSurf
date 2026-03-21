@@ -43,6 +43,7 @@ RUN apk add --no-cache \
       gcc \
       musl-dev \
       linux-headers \
+      tzdata \
       && rm -rf /var/cache/apk/*
 
 # ── Python virtual environment ────────────────────────────────────────────────
