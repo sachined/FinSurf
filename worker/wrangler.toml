@@ -10,7 +10,4 @@ preview_id = "c32713f3496a45579baec9b0a485d6e7"
 [vars]
 ORIGIN_URL = "https://finsurf.net"
 
-# routes disabled until origin.finsurf.net is configured (see below)
-# routes = [
-#   { pattern = "finsurf.net/*", zone_name = "finsurf.net" }
-# ]
+routes = []
