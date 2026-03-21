@@ -73,9 +73,27 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
     #msg { margin-top: 8px; font-size: 12px; color: #8b949e; }
     ul { list-style: none; }
     ul li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+    #loginOverlay { display:flex; align-items:center; justify-content:center; min-height:80vh; }
+    #loginBox { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:32px; min-width:300px; }
+    #loginBox h2 { color:#f0f6fc; margin-bottom:20px; font-size:16px; text-transform:none; letter-spacing:0; }
+    #loginBox input { width:100%; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#c9d1d9; padding:8px 12px; font-size:14px; outline:none; margin-bottom:12px; }
+    #loginBox input:focus { border-color:#58a6ff; }
+    #loginError { color:#f85149; font-size:12px; margin-bottom:8px; min-height:16px; }
   </style>
 </head>
 <body>
+  <div id="loginOverlay">
+    <div id="loginBox">
+      <h2>FinSurf Admin</h2>
+      <form id="loginForm">
+        <input id="secretInput" type="password" placeholder="Admin secret" autocomplete="current-password" autofocus>
+        <div id="loginError"></div>
+        <button type="submit" class="primary" style="width:100%;padding:8px">Unlock</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboard" style="display:none">
   <h1>FinSurf Admin</h1>
 
   <h2>Last 24 hours</h2>
@@ -106,14 +124,19 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
       <div id="msg"></div>
     </div>
   </div>
+  </div>
 
   <script>
-    const auth = prompt("Enter admin secret:");
-    if (!auth) {
-      document.body.innerHTML = "<p style='color:red;padding:24px'>No secret provided.</p>";
-    } else {
+    let auth = null;
+
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      auth = document.getElementById("secretInput").value.trim();
+      if (!auth) return;
+      document.getElementById("loginOverlay").style.display = "none";
+      document.getElementById("dashboard").style.display = "";
       loadStats();
-    }
+    });
 
     async function apiFetch(path, method = "GET", body) {
       const r = await fetch(path, {
@@ -127,7 +150,11 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
     async function loadStats() {
       const stats = await apiFetch("/admin/api/stats");
       if (stats.error) {
-        document.body.innerHTML = "<p style='color:red;padding:24px'>Auth failed: " + stats.error + "</p>";
+        auth = null;
+        document.getElementById("loginError").textContent = "Wrong secret — try again.";
+        document.getElementById("secretInput").value = "";
+        document.getElementById("loginOverlay").style.display = "";
+        document.getElementById("dashboard").style.display = "none";
         return;
       }
 
