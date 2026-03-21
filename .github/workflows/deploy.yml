@@ -27,6 +27,7 @@ env:
 #   STRIPE_SECRET_KEY         — Stripe secret key (sk_live_...)
 #   STRIPE_WEBHOOK_SECRET     — Stripe webhook signing secret (whsec_...)
 #   RESEND_API_KEY            — Resend API key for transactional emails
+#   ADMIN_SECRET              — Bearer token for the /admin panel
 #
 # Note: The repository must be public, OR replace the git clone URL below with
 #       a deploy key / PAT for private repo access from the server.
@@ -112,6 +113,7 @@ jobs:
             printf '%s' "${{ secrets.STRIPE_SECRET_KEY }}"      > secrets/stripe_secret_key.txt
             printf '%s' "${{ secrets.STRIPE_WEBHOOK_SECRET }}"  > secrets/stripe_webhook_secret.txt
             printf '%s' "${{ secrets.RESEND_API_KEY }}"         > secrets/resend_api_key.txt
+            printf '%s' "${{ secrets.ADMIN_SECRET }}"          > secrets/admin_secret.txt
             chmod 644 secrets/*.txt
             echo "✅ Secret files written"
 

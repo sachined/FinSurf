@@ -48,6 +48,7 @@ services:
       STRIPE_SECRET_KEY_FILE: /run/secrets/stripe_secret_key
       STRIPE_WEBHOOK_SECRET_FILE: /run/secrets/stripe_webhook_secret
       RESEND_API_KEY_FILE: /run/secrets/resend_api_key
+      ADMIN_SECRET_FILE: /run/secrets/admin_secret
       FROM_EMAIL: ${FROM_EMAIL:-onboarding@resend.dev}
       VIP_PASSES_FILE: /app/data/vip_passes.json
       # Groq — free cloud LLM (primary for Tax, Dividend, Guardrail).
@@ -64,6 +65,7 @@ services:
       - stripe_secret_key
       - stripe_webhook_secret
       - resend_api_key
+      - admin_secret
     volumes:
       - finsurf_data:/app/data
     restart: unless-stopped
@@ -129,3 +131,5 @@ secrets:
     file: ../secrets/stripe_webhook_secret.txt
   resend_api_key:
     file: ../secrets/resend_api_key.txt
+  admin_secret:
+    file: ../secrets/admin_secret.txt
