@@ -29,48 +29,19 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
   router.get("/admin/api/stats", requireAdmin, async (_req, res) => {
     try {
       const raw = await runPythonAgent("admin", []);
-      res.json(JSON.parse(raw));
+      const stats = JSON.parse(raw);
+      // Append VIP passes (masked list) so the client can render the management UI
+      stats.vip_passes = Array.from(VALID_VIP_PASSES);
+      res.json(stats);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch admin stats." });
     }
   });
 
-  router.get("/admin", requireAdmin, async (_req, res) => {
-    let stats: any = {};
-    try {
-      const raw = await runPythonAgent("admin", []);
-      stats = JSON.parse(raw);
-    } catch (_) { /* show empty dashboard on error */ }
-
-    const recent: any[] = stats.recent_requests || [];
-    const byAgent: any[] = stats.by_agent || [];
-    const cost24h = stats.total_cost_24h || {};
-    const vipStats: Record<string, number> = stats.vip_stats || {};
-
-    const recentRows = recent.map(r => `
-      <tr>
-        <td>${r.ticker || ""}</td>
-        <td>${r.ts ? new Date(r.ts * 1000).toISOString().replace("T", " ").slice(0, 19) : ""}</td>
-        <td>${r.agents || ""}</td>
-        <td>$${(r.total_cost || 0).toFixed(6)}</td>
-        <td><span class="badge ${r.pass_type === "vip" ? "vip" : "free"}">${r.pass_type || "unknown"}</span></td>
-        <td>${r.country || "unknown"}</td>
-      </tr>`).join("");
-
-    const agentRows = byAgent.map(a => `
-      <tr>
-        <td>${a.agent}</td>
-        <td>${a.calls}</td>
-        <td>${Math.round(a.avg_input + a.avg_output)}</td>
-        <td>$${(a.total_cost || 0).toFixed(6)}</td>
-        <td>${Math.round(a.avg_latency_ms || 0)} ms</td>
-      </tr>`).join("");
-
-    // vipStats rendered inline in summary cards — no separate table needed
-
-    const maskedPasses = Array.from(VALID_VIP_PASSES).map(p =>
-      `<li>${p.slice(0, 4)}${"*".repeat(Math.max(0, p.length - 4))} <button onclick="revoke('${p}')">Revoke</button></li>`).join("");
-
+  // GET /admin — serves the HTML shell without auth.
+  // All data is fetched client-side from /admin/api/stats using the prompted secret.
+  // The page itself contains no sensitive data.
+  router.get("/admin", (_req, res) => {
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,27 +80,27 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
 
   <h2>Last 24 hours</h2>
   <div class="cards">
-    <div class="card"><div class="label">Total tokens</div><div class="value">${(cost24h.total_tokens || 0).toLocaleString()}</div></div>
-    <div class="card"><div class="label">Total cost</div><div class="value">$${(cost24h.total_cost_usd || 0).toFixed(4)}</div></div>
-    <div class="card"><div class="label">VIP runs</div><div class="value">${vipStats["vip"] || 0}</div></div>
-    <div class="card"><div class="label">Free runs</div><div class="value">${vipStats["free"] || 0}</div></div>
+    <div class="card"><div class="label">Total tokens</div><div class="value" id="totalTokens">—</div></div>
+    <div class="card"><div class="label">Total cost</div><div class="value" id="totalCost">—</div></div>
+    <div class="card"><div class="label">VIP runs</div><div class="value" id="vipRuns">—</div></div>
+    <div class="card"><div class="label">Free runs</div><div class="value" id="freeRuns">—</div></div>
   </div>
 
   <h2>Recent queries</h2>
   <table>
     <thead><tr><th>Ticker</th><th>Time (UTC)</th><th>Agents</th><th>Cost</th><th>Pass</th><th>Country</th></tr></thead>
-    <tbody>${recentRows || "<tr><td colspan='6' style='color:#8b949e'>No data yet</td></tr>"}</tbody>
+    <tbody id="recentRows"><tr><td colspan="6" style="color:#8b949e">Loading…</td></tr></tbody>
   </table>
 
   <h2>Cost by agent</h2>
   <table>
     <thead><tr><th>Agent</th><th>Calls</th><th>Avg tokens</th><th>Total cost</th><th>Avg latency</th></tr></thead>
-    <tbody>${agentRows || "<tr><td colspan='5' style='color:#8b949e'>No data yet</td></tr>"}</tbody>
+    <tbody id="agentRows"><tr><td colspan="5" style="color:#8b949e">Loading…</td></tr></tbody>
   </table>
 
   <h2>VIP pass management</h2>
   <div class="card" style="max-width:480px">
-    <ul id="passes">${maskedPasses || "<li style='color:#8b949e'>No passes loaded</li>"}</ul>
+    <ul id="passes"><li style="color:#8b949e">Loading…</li></ul>
     <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
       <button class="primary" onclick="generate()">+ Generate new pass</button>
       <div id="msg"></div>
@@ -138,7 +109,11 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
 
   <script>
     const auth = prompt("Enter admin secret:");
-    if (!auth) { document.body.innerHTML = "<p style='color:red;padding:24px'>No secret provided.</p>"; }
+    if (!auth) {
+      document.body.innerHTML = "<p style='color:red;padding:24px'>No secret provided.</p>";
+    } else {
+      loadStats();
+    }
 
     async function apiFetch(path, method = "GET", body) {
       const r = await fetch(path, {
@@ -149,13 +124,56 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
       return r.json();
     }
 
+    async function loadStats() {
+      const stats = await apiFetch("/admin/api/stats");
+      if (stats.error) {
+        document.body.innerHTML = "<p style='color:red;padding:24px'>Auth failed: " + stats.error + "</p>";
+        return;
+      }
+
+      const cost24h = stats.total_cost_24h || {};
+      const vipStats = stats.vip_stats || {};
+      document.getElementById("totalTokens").textContent = (cost24h.total_tokens || 0).toLocaleString();
+      document.getElementById("totalCost").textContent = "$" + (cost24h.total_cost_usd || 0).toFixed(4);
+      document.getElementById("vipRuns").textContent = vipStats["vip"] || 0;
+      document.getElementById("freeRuns").textContent = vipStats["free"] || 0;
+
+      const recent = stats.recent_requests || [];
+      document.getElementById("recentRows").innerHTML = recent.length
+        ? recent.map(r => \`<tr>
+            <td>\${r.ticker || ""}</td>
+            <td>\${r.ts ? new Date(r.ts * 1000).toISOString().replace("T"," ").slice(0,19) : ""}</td>
+            <td>\${r.agents || ""}</td>
+            <td>$\${(r.total_cost || 0).toFixed(6)}</td>
+            <td><span class="badge \${r.pass_type === "vip" ? "vip" : "free"}">\${r.pass_type || "unknown"}</span></td>
+            <td>\${r.country || "unknown"}</td>
+          </tr>\`).join("")
+        : "<tr><td colspan='6' style='color:#8b949e'>No data yet</td></tr>";
+
+      const byAgent = stats.by_agent || [];
+      document.getElementById("agentRows").innerHTML = byAgent.length
+        ? byAgent.map(a => \`<tr>
+            <td>\${a.agent}</td>
+            <td>\${a.calls}</td>
+            <td>\${Math.round(a.avg_input + a.avg_output)}</td>
+            <td>$\${(a.total_cost || 0).toFixed(6)}</td>
+            <td>\${Math.round(a.avg_latency_ms || 0)} ms</td>
+          </tr>\`).join("")
+        : "<tr><td colspan='5' style='color:#8b949e'>No data yet</td></tr>";
+
+      const passes = stats.vip_passes || [];
+      document.getElementById("passes").innerHTML = passes.length
+        ? passes.map(p => \`<li>\${p.slice(0,4)}\${"*".repeat(Math.max(0,p.length-4))} <button onclick="revoke('\${p}')">Revoke</button></li>\`).join("")
+        : "<li style='color:#8b949e'>No passes loaded</li>";
+    }
+
     async function generate() {
       const msg = document.getElementById("msg");
       msg.textContent = "Generating…";
       const d = await apiFetch("/admin/vip/generate", "POST");
       if (d.code) {
         msg.textContent = "Generated: " + d.code;
-        setTimeout(() => location.reload(), 1500);
+        setTimeout(loadStats, 1000);
       } else {
         msg.textContent = d.error || "Error";
       }
@@ -165,14 +183,14 @@ export function createAdminRouter(deps: AdminRouterDeps): express.Router {
       if (!confirm("Revoke " + code.slice(0,4) + "****?")) return;
       const d = await apiFetch("/admin/vip/revoke", "POST", { code });
       alert(d.ok ? "Revoked." : (d.error || "Error"));
-      if (d.ok) location.reload();
+      if (d.ok) loadStats();
     }
   </script>
 </body>
 </html>`;
 
     // Admin page uses inline <script> — override the global CSP for this route only.
-    // This is acceptable: the route is already protected by ADMIN_SECRET + Cloudflare Access.
+    // The page itself contains no sensitive data; all data is fetched via authenticated API calls.
     res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-src 'none';");
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(html);
