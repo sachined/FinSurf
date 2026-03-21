@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
@@ -173,6 +173,15 @@ async function startServer() {
     if (!ticker || typeof ticker !== "string") return null;
     const t = ticker.trim().toUpperCase();
     return TICKER_RE.test(t) ? t : null;
+  };
+
+  // ── VIP gate middleware ───────────────────────────────────────────────────
+  // Usage: app.post("/api/new-feature", requireVip, handler)
+  // Returns 402 if the request doesn't carry a valid VIP pass header.
+  const requireVip = (req: Request, res: Response, next: NextFunction) => {
+    const pass = req.headers["x-finsurf-pass"];
+    if (typeof pass === "string" && VALID_VIP_PASSES.has(pass)) return next();
+    res.status(402).json({ error: "This feature requires a VIP pass." });
   };
 
   // ── Health check (no auth required — used by Docker health check) ──────────
