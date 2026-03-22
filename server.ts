@@ -264,7 +264,7 @@ async function startServer() {
         ticker,
         purchaseDate || "",
         sellDate || "",
-        shares || 1.0,
+        shares || 0,
         years || 3
       ];
 

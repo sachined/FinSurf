@@ -30,6 +30,7 @@ vi.mock('../utils/pdfGenerator', () => ({ downloadPDF: vi.fn() }));
 import { Header } from '../components/layout/Header';
 import { SearchForm } from '../components/forms/SearchForm';
 import { ResultsGrid } from '../components/results/ResultsGrid';
+import { TickerSummaryBar } from '../components/ui/TickerSummaryBar';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
 
@@ -138,5 +139,194 @@ describe('cursor-pointer: chip buttons', () => {
     // AAPL chip is always present in the example tickers list
     const chip = screen.getByRole('button', { name: 'AAPL' });
     expect(chip.className).toContain('cursor-pointer');
+  });
+});
+
+// ─── TickerSummaryBar fixtures ──────────────────────────────────────────────
+
+const today = new Date().toISOString().slice(0, 10);
+const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+const samplePriceHistory = [
+  { date: '2025-06-01', close: 140.00 },
+  { date: '2025-09-01', close: 160.00 },
+  { date: '2025-12-01', close: 180.00 },
+  { date: '2026-01-15', close: 185.00 },
+  { date: '2026-02-15', close: 190.00 },
+  { date: yesterday, close: 195.00 },
+  { date: today, close: 198.00 },
+];
+
+const quickSearchProps = {
+  ticker: 'AAPL',
+  currentPrice: 200.00,
+  pnlSummary: null,
+  priceHistory: samplePriceHistory,
+  shares: 0,
+  purchaseDate: '',
+  sellDate: '',
+};
+
+const fullPnlSummary = {
+  buy_price: 150.00,
+  sell_price: 200.00,
+  current_price: 200.00,
+  shares: 10,
+  realized_gain: 500.00,
+  realized_gain_pct: 33.33,
+  unrealized_gain: null,
+  unrealized_gain_pct: null,
+  holding_days: 180,
+  is_long_term: false,
+  total_dividends: 25.00,
+};
+
+const detailedSearchProps = {
+  ticker: 'AAPL',
+  currentPrice: 200.00,
+  pnlSummary: fullPnlSummary,
+  priceHistory: samplePriceHistory,
+  shares: 10,
+  purchaseDate: '2025-09-01',
+  sellDate: '2026-03-01',
+};
+
+// ─── Test 7 — TickerSummaryBar: quick search filtering ──────────────────────
+
+describe('TickerSummaryBar: quick search filtering', () => {
+  it('always shows ticker label', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.getByText('AAPL')).toBeInTheDocument();
+  });
+
+  it('always shows current price', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.getByText('Current Price')).toBeInTheDocument();
+    expect(screen.getByText('$200.00')).toBeInTheDocument();
+  });
+
+  it('shows 52wk Range for quick search', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.getByText('52wk Range')).toBeInTheDocument();
+  });
+
+  it('shows Today change for quick search', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.getByText('Today')).toBeInTheDocument();
+  });
+
+  it('does NOT show Buy Price for quick search', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.queryByText(/Buy Price/)).not.toBeInTheDocument();
+  });
+
+  it('does NOT show Sell Price for quick search', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.queryByText(/Sell Price/)).not.toBeInTheDocument();
+  });
+
+  it('does NOT show P&L for quick search', () => {
+    render(<TickerSummaryBar {...quickSearchProps} />);
+    expect(screen.queryByText(/P&L/)).not.toBeInTheDocument();
+  });
+
+  it('does NOT show dividends for quick search even if pnlSummary has them', () => {
+    render(<TickerSummaryBar {...quickSearchProps} pnlSummary={fullPnlSummary} />);
+    expect(screen.queryByText(/Est. Total Dividends/)).not.toBeInTheDocument();
+  });
+});
+
+// ─── Test 8 — TickerSummaryBar: detailed search filtering ───────────────────
+
+describe('TickerSummaryBar: detailed search filtering', () => {
+  it('shows Buy Price for detailed search', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.getByText(/Buy Price/)).toBeInTheDocument();
+  });
+
+  it('shows Sell Price for detailed search', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.getByText(/Sell Price/)).toBeInTheDocument();
+  });
+
+  it('shows Realized P&L for detailed search', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.getByText(/Realized P&L/)).toBeInTheDocument();
+  });
+
+  it('shows Est. Total Dividends when available', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.getByText('Est. Total Dividends')).toBeInTheDocument();
+  });
+
+  it('does NOT show 52wk Range for detailed search', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.queryByText('52wk Range')).not.toBeInTheDocument();
+  });
+
+  it('does NOT show Today change for detailed search', () => {
+    render(<TickerSummaryBar {...detailedSearchProps} />);
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+  });
+});
+
+// ─── Test 9 — TickerSummaryBar: edge cases ──────────────────────────────────
+
+describe('TickerSummaryBar: edge cases', () => {
+  it('handles null currentPrice gracefully', () => {
+    render(<TickerSummaryBar {...quickSearchProps} currentPrice={null} />);
+    expect(screen.getByText('AAPL')).toBeInTheDocument();
+    expect(screen.getByText('N/A')).toBeInTheDocument();
+  });
+
+  it('handles empty priceHistory — no 52wk or Today shown', () => {
+    render(<TickerSummaryBar {...quickSearchProps} priceHistory={[]} />);
+    expect(screen.getByText('AAPL')).toBeInTheDocument();
+    expect(screen.queryByText('52wk Range')).not.toBeInTheDocument();
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+  });
+
+  it('handles single-entry priceHistory — no Today shown', () => {
+    render(<TickerSummaryBar {...quickSearchProps} priceHistory={[{ date: today, close: 198 }]} />);
+    expect(screen.queryByText('Today')).not.toBeInTheDocument();
+  });
+
+  it('dates-only (no shares) is NOT quick search — shows buy/sell, hides P&L', () => {
+    render(
+      <TickerSummaryBar
+        {...quickSearchProps}
+        purchaseDate="2025-09-01"
+        sellDate="2026-03-01"
+        shares={0}
+        pnlSummary={fullPnlSummary}
+      />
+    );
+    expect(screen.getByText(/Buy Price/)).toBeInTheDocument();
+    expect(screen.getByText(/Sell Price/)).toBeInTheDocument();
+    expect(screen.queryByText(/P&L/)).not.toBeInTheDocument();
+    expect(screen.queryByText('52wk Range')).not.toBeInTheDocument();
+  });
+
+  it('shares-only (no dates) is NOT quick search — shows P&L, hides buy/sell', () => {
+    render(
+      <TickerSummaryBar
+        {...quickSearchProps}
+        shares={5}
+        pnlSummary={{ ...fullPnlSummary, realized_gain: null, realized_gain_pct: null, unrealized_gain: 100, unrealized_gain_pct: 10 }}
+      />
+    );
+    expect(screen.getByText(/Unrealized P&L/)).toBeInTheDocument();
+    expect(screen.queryByText(/Buy Price/)).not.toBeInTheDocument();
+    expect(screen.queryByText('52wk Range')).not.toBeInTheDocument();
+  });
+
+  it('does not show dividends when total_dividends is null', () => {
+    render(
+      <TickerSummaryBar
+        {...detailedSearchProps}
+        pnlSummary={{ ...fullPnlSummary, total_dividends: null }}
+      />
+    );
+    expect(screen.queryByText('Est. Total Dividends')).not.toBeInTheDocument();
   });
 });

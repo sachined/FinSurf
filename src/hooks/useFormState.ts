@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
 
 export function useFormState() {
   const [ticker, setTicker] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [sellDate, setSellDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [shares, setShares] = useState<string>('10');
+  const [purchaseDate, setPurchaseDate] = useState('');
+  const [sellDate, setSellDate] = useState('');
+  const [shares, setShares] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const validateAll = () => {
@@ -15,32 +15,37 @@ export function useFormState() {
       return false;
     }
 
-    if (!purchaseDate || !sellDate) {
-      setError('Both Purchase and Sell dates are required.');
-      return false;
-    }
+    // Advanced fields are optional — only validate when at least one is filled
+    const hasAnyAdvanced = !!(purchaseDate || sellDate || shares);
 
-    const pDate = parseISO(purchaseDate);
-    const sDate = parseISO(sellDate);
-    if (isNaN(pDate.getTime()) || isNaN(sDate.getTime())) {
-      setError('Invalid date format.');
-      return false;
-    }
+    if (hasAnyAdvanced) {
+      if (!purchaseDate || !sellDate) {
+        setError('Both Purchase and Sell dates are required.');
+        return false;
+      }
 
-    if (differenceInDays(sDate, pDate) < 0) {
-      setError('Sell Date cannot be before Purchase Date.');
-      return false;
-    }
+      const pDate = parseISO(purchaseDate);
+      const sDate = parseISO(sellDate);
+      if (isNaN(pDate.getTime()) || isNaN(sDate.getTime())) {
+        setError('Invalid date format.');
+        return false;
+      }
 
-    const shareNum = parseFloat(shares);
-    if (isNaN(shareNum) || shareNum <= 0) {
-      setError('Shares must be a positive number.');
-      return false;
-    }
+      if (differenceInDays(sDate, pDate) < 0) {
+        setError('Sell Date cannot be before Purchase Date.');
+        return false;
+      }
 
-    if (shareNum > 1000000000) {
-      setError('Shares count exceeds maximum limit (1,000,000,000).');
-      return false;
+      const shareNum = parseFloat(shares);
+      if (isNaN(shareNum) || shareNum <= 0) {
+        setError('Shares must be a positive number.');
+        return false;
+      }
+
+      if (shareNum > 1000000000) {
+        setError('Shares count exceeds maximum limit (1,000,000,000).');
+        return false;
+      }
     }
 
     setError(null);
