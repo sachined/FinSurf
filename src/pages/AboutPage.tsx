@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft, Quote } from 'lucide-react';
+import { Mail, Linkedin, Github, Globe, Briefcase, GraduationCap, Code2, Rocket, ArrowLeft, Quote, BookOpen } from 'lucide-react';
 import { resumeData } from '../data/resumeData';
 import { cn } from '../utils/cn';
 
@@ -96,6 +96,9 @@ export function AboutPage({ onBack }: AboutPageProps) {
                 <Globe size={13} /> Website
               </a>
             )}
+            <a href="/blog" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+              <BookOpen size={13} /> Blog
+            </a>
           </div>
         </div>
       </motion.div>
