@@ -239,6 +239,7 @@ export default function App() {
               ticker={ticker}
               currentPrice={responses.research.currentPrice}
               pnlSummary={responses.research.pnlSummary ?? null}
+              priceHistory={responses.research.priceHistory}
               shares={parseFloat(shares) || 0}
               purchaseDate={purchaseDate}
               sellDate={sellDate}

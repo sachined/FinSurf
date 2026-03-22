@@ -1,14 +1,15 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Minus, DollarSign, Landmark } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { TrendingUp, TrendingDown, Minus, DollarSign, Landmark, BarChart3 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../utils/cn';
 import { fmtUsd, fmtPct } from '../../utils/formatting';
-import { PnLSummary } from '../../types';
+import { PnLSummary, PricePoint } from '../../types';
 
 interface TickerSummaryBarProps {
   ticker: string;
   currentPrice: number | null;
   pnlSummary: PnLSummary | null;
+  priceHistory: PricePoint[];
   shares: number;
   purchaseDate: string;
   sellDate: string;
@@ -18,11 +19,13 @@ export function TickerSummaryBar({
   ticker,
   currentPrice,
   pnlSummary,
+  priceHistory,
   shares,
   purchaseDate,
   sellDate,
 }: TickerSummaryBarProps) {
   const hasDates = purchaseDate && sellDate;
+  const isQuickSearch = !hasDates && shares <= 0;
 
   // Read pre-computed values from the shared P&L summary (Tax Calculator tool output)
   const buyPrice       = pnlSummary?.buy_price       ?? null;
@@ -51,6 +54,40 @@ export function TickerSummaryBar({
     ? `Unrealized P&L (${shares} share${shares !== 1 ? 's' : ''})`
     : `P&L (${shares} share${shares !== 1 ? 's' : ''})`;
 
+  // Quick-search metrics derived from priceHistory
+  const weekRange = useMemo(() => {
+    if (!isQuickSearch || priceHistory.length === 0) return null;
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    const yearData = priceHistory.filter(p => new Date(p.date) >= cutoff);
+    if (yearData.length === 0) return null;
+    const closes = yearData.map(p => p.close);
+    return { low: Math.min(...closes), high: Math.max(...closes) };
+  }, [isQuickSearch, priceHistory]);
+
+  // TODO(human): Implement dailyChange derivation
+  // Given: currentPrice (number | null) and priceHistory (PricePoint[])
+  // priceHistory is sorted chronologically, last entry = most recent trading day close
+  // Return: { change: number, pct: number } | null
+  const dailyChange = useMemo<{ change: number; pct: number } | null>(() => {
+    if (!isQuickSearch || currentPrice === null || priceHistory.length < 2) return null;
+    const prevClose = priceHistory[priceHistory.length - 2].close;
+    if (prevClose === 0) return null;
+
+    const myChange = currentPrice - prevClose;
+    const myPct = (myChange / prevClose) * 100
+
+    return {change: myChange, pct: myPct};
+  }, [isQuickSearch, currentPrice, priceHistory]);
+
+  const dayColor = dailyChange === null
+    ? 'text-slate-500'
+    : dailyChange.change >= 0
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-rose-600 dark:text-rose-400';
+
+  const DayIcon = dailyChange === null ? Minus : dailyChange.change >= 0 ? TrendingUp : TrendingDown;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -8 }}
@@ -76,6 +113,26 @@ export function TickerSummaryBar({
         icon={<DollarSign size={15} />}
         valueClass="text-slate-800 dark:text-white"
       />
+
+      {/* Quick-search metrics: 52-week range + daily change */}
+      {isQuickSearch && weekRange && (
+        <Stat
+          label="52wk Range"
+          value={`${fmtUsd(weekRange.low)} – ${fmtUsd(weekRange.high)}`}
+          icon={<BarChart3 size={15} />}
+          valueClass="text-slate-700 dark:text-slate-300"
+        />
+      )}
+
+      {isQuickSearch && dailyChange !== null && (
+        <Stat
+          label="Today"
+          value={fmtUsd(dailyChange.change, dailyChange.change >= 0 ? '+$' : '-$')}
+          icon={<DayIcon size={15} />}
+          valueClass={dayColor}
+          subValue={fmtPct(dailyChange.pct)}
+        />
+      )}
 
       {/* Buy price — only shown when dates provided */}
       {hasDates && (

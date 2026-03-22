@@ -10,6 +10,7 @@ Public API:
   _price_from_history    — lookup in already-fetched price_history list
 """
 import datetime
+import math
 import sys
 from typing import Any, Dict, Optional
 
@@ -117,6 +118,14 @@ def calculate_pnl(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _isnan(v: Any) -> bool:
+    """Return True if v is NaN (works for float, numpy, and pandas NaN)."""
+    try:
+        return math.isnan(float(v))
+    except (TypeError, ValueError):
+        return True
+
 
 def _extract_last_close(df: "pd.DataFrame") -> float:
     """Return the last Close price from a yfinance history DataFrame.
@@ -356,6 +365,7 @@ def fetch_research_data(ticker: str) -> Optional[Dict[str, Any]]:
                 price_history = [
                     {"date": str(idx.date()), "close": round(float(row["Close"]), 4)}
                     for idx, row in hist.iterrows()
+                    if not _isnan(row["Close"])
                 ]
         except ValueError:
             return None
