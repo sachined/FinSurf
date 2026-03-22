@@ -140,7 +140,7 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://js.stripe.com"],
+        scriptSrc:            ["'self'", "https://js.stripe.com", "'sha256-fYyaVgQKfolGKRnIJOdA4RPY2h8qC6Bxdm3XJ+N7yds='"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
         imgSrc:               ["'self'", "data:", "https:", "https://*.stripe.com"],
         connectSrc:           ["'self'", "https://api.stripe.com"],
