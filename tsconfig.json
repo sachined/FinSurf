@@ -27,5 +27,5 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "exclude": ["worker"]
+  "exclude": ["worker", "_salvage"]
 }

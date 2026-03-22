@@ -12,7 +12,6 @@ import { ApiKeyModal } from './components/modals/ApiKeyModal';
 import { ContactModal } from './components/modals/ContactModal';
 import { TickerSummaryBar } from './components/ui/TickerSummaryBar';
 import { ErrorDisplay } from './components/ui/ErrorDisplay';
-import { CompareBar } from './components/ui/CompareBar';
 import { ComingSoonModal } from './components/modals/ComingSoonModal';
 import { useTheme } from './hooks/useTheme';
 import { useFormState } from './hooks/useFormState';
@@ -86,8 +85,7 @@ export default function App() {
     validateAll
   } = useFormState();
 
-  const { loading, responses, runAll, compareLoading, compareResponses, isComparing, runCompare, clearCompare } = useFinancialAgents();
-  const [compareTicker, setCompareTicker] = useState('');
+  const { loading, responses, runAll } = useFinancialAgents();
 
   const [hasSurfed, setHasSurfed] = useState(false);
   const [surfCount, setSurfCount] = useState(() => getSurfCount());
@@ -143,16 +141,6 @@ export default function App() {
   const handleAbout = useCallback(() => {
     setCurrentPage(p => p === 'about' ? 'home' : 'about');
   }, []);
-
-  const handleCompare = useCallback((t: string) => {
-    setCompareTicker(t);
-    runCompare(t, setError, userKeys ?? undefined);
-  }, [runCompare, setError, userKeys]);
-
-  const handleClearCompare = useCallback(() => {
-    setCompareTicker('');
-    clearCompare();
-  }, [clearCompare]);
 
   const handleUpgrade = useCallback(() => {
     setShowComingSoonModal(true);
@@ -260,26 +248,9 @@ export default function App() {
           ) : null }
           </div>
 
-          {hasResponses && !isAnyLoading && (
-            <div data-no-print="" className="mb-6">
-              <CompareBar
-                isComparing={isComparing}
-                compareTicker={compareTicker}
-                isLoading={Object.values(compareLoading).some(v => v)}
-                onCompare={handleCompare}
-                onClear={handleClearCompare}
-              />
-            </div>
-          )}
-
           <ResultsGrid
             responses={responses}
             loading={loading}
-            primaryTicker={ticker}
-            compareResponses={compareResponses}
-            compareLoading={compareLoading}
-            isComparing={isComparing}
-            compareTicker={compareTicker}
           />
 
           <Footer />

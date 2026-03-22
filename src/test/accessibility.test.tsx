@@ -29,7 +29,6 @@ vi.mock('../utils/pdfGenerator', () => ({ downloadPDF: vi.fn() }));
 
 import { Header } from '../components/layout/Header';
 import { SearchForm } from '../components/forms/SearchForm';
-import { CompareBar } from '../components/ui/CompareBar';
 import { ResultsGrid } from '../components/results/ResultsGrid';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -55,14 +54,6 @@ const searchFormProps = {
   onTickerSelect: vi.fn(),
 };
 
-const compareBarProps = {
-  isComparing: false,
-  compareTicker: '',
-  isLoading: false,
-  onCompare: vi.fn(),
-  onClear: vi.fn(),
-};
-
 const emptyLoading = { research: false, tax: false, dividend: false, sentiment: false, summary: false };
 const emptyResponses = { research: null, tax: null, dividend: null, sentiment: null, summary: null };
 
@@ -81,11 +72,6 @@ describe('axe: no accessibility violations', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('CompareBar passes axe', async () => {
-    const { container } = render(<CompareBar {...compareBarProps} />);
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
-  });
 });
 
 // ─── Test 2 — touch targets: theme toggle has min-size classes ────────────────
@@ -116,25 +102,7 @@ describe('aria-expanded: SearchForm advanced toggle', () => {
   });
 });
 
-// ─── Test 4 — aria-expanded: CompareBar toggle ───────────────────────────────
-
-describe('aria-expanded: CompareBar toggle', () => {
-  it('starts collapsed', () => {
-    render(<CompareBar {...compareBarProps} />);
-    const btn = screen.getByRole('button', { name: /compare vs another ticker/i });
-    expect(btn).toHaveAttribute('aria-expanded', 'false');
-  });
-
-  it('shows input after click (expanded state)', async () => {
-    render(<CompareBar {...compareBarProps} />);
-    const btn = screen.getByRole('button', { name: /compare vs another ticker/i });
-    await userEvent.click(btn);
-    // After expanding, the input replaces the toggle button
-    expect(screen.getByPlaceholderText('e.g. MSFT')).toBeInTheDocument();
-  });
-});
-
-// ─── Test 5 — aria-busy + aria-live: ResultsGrid ─────────────────────────────
+// ─── Test 4 — aria-busy + aria-live: ResultsGrid ─────────────────────────────
 
 describe('aria-busy + aria-live: ResultsGrid', () => {
   it('has aria-live region', () => {
