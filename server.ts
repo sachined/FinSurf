@@ -140,10 +140,10 @@ async function startServer() {
     contentSecurityPolicy: isProd ? {
       directives: {
         defaultSrc:           ["'self'"],
-        scriptSrc:            ["'self'", "https://static.cloudflareinsights.com", "https://js.stripe.com", "'sha256-B9ydeNkJdPTfxrWGoVq9/iYUD0igk7Rek/YMUlGnqNs='"],
+        scriptSrc:            ["'self'", "https://js.stripe.com"],
         styleSrc:             ["'self'", "'unsafe-inline'"],
         imgSrc:               ["'self'", "data:", "https:", "https://*.stripe.com"],
-        connectSrc:           ["'self'", "https://cloudflareinsights.com", "https://api.stripe.com"],
+        connectSrc:           ["'self'", "https://api.stripe.com"],
         fontSrc:              ["'self'"],
         objectSrc:            ["'none'"],
         frameSrc:             ["https://js.stripe.com", "https://hooks.stripe.com"],
